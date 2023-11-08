@@ -65,8 +65,8 @@ class ManinSymbol:
   def as_combination(self, coeff = 1) -> 'ManinSymbolCombination':
      return ManinSymbolCombination(self.N, {self : coeff})
 
-  def to_generator(self) -> 'ManinSymbol':
-    return find_generator(self)
+  def to_generator(self, omit_index = True):
+    return find_generator(self, omit_index)
 
   def to_modsym(self) -> ModularSymbol:
     g, x, y = xgcd(self.c, self.d)
@@ -124,6 +124,22 @@ class ManinSymbolCombination:
     assert self.N == other.N
     return self + (-other)
 
+  def __str__(self):
+    out = ""
+    for k, v in self.components.items():
+      if v < -1:
+        out += f"- {-v} * {k} "
+      elif v == -1:
+        out += f"- {k} "
+      elif v == 0:
+        pass
+      elif v == 1:
+        out += f"+ {k} "
+      else:
+        out += f"+ {v} * {k} "
+    return out
+
+
 @cache
 def manin_generators(N : Integer) -> list[ManinSymbol]:
   l = divisors(N)
@@ -141,12 +157,15 @@ def manin_generators(N : Integer) -> list[ManinSymbol]:
   return out
 
 @cache
-def find_generator(manin_sym : ManinSymbol) -> ManinSymbol:
+def find_generator(manin_sym : ManinSymbol, include_index : bool = True) -> ManinSymbol:
   N = manin_sym.N
   gens = manin_generators(N)
   for i, gen in enumerate(gens):
     if manin_sym == gen:
-      return i, gen
+      if include_index:
+        return i, gen
+      else:
+        return gen
   print("Could not find generator for", manin_sym)
   assert False
 
@@ -235,7 +254,7 @@ def boundary_map(manin_sym : ManinSymbol):
   c, d = manin_sym.tuple()
   g, b, a = xgcd(c, d)
   assert (g == 1)
-  return ((a, c), (b, d))
+  return ((a, c), (-b, d))
 
 @cache
 def boundary_map_matrix(N):
@@ -253,18 +272,24 @@ def boundary_map_matrix(N):
 
   out = []
   for manin_sym in basis:
-    # print(manin_sym)
     c1, c2 = boundary_map(manin_sym)
     c1, c2 = representative(c1), representative(c2)
     if c1 == c2:
       out += [dict()]
     else:
-      out += [{representative(c1) : +1, representative(c2) : -1}]
+      # Note: signs seem different from what Sage uses, but this should not matter since we only care about the kernel?
+      '''
+      Sage code:
+      M = ModularSymbols(112)
+      print(M.boundary_map().matrix().str())
+      '''
+      out += [{c1 : +1, c2 : -1}]
 
   def dict_to_row(d):
     return [d.get(cusp, 0) for cusp in cusps]
 
-  return basis, Matrix([dict_to_row(d) for d in out])
+  mtx = Matrix([dict_to_row(d) for d in out])
+  return basis, mtx
 
 @cache
 def boundary_map_kernel(N):
@@ -276,7 +301,8 @@ def boundary_map_kernel(N):
 def oldspace_map(manin_sym : ManinSymbol, d, M) -> ManinSymbolCombination:
   N = manin_sym.N
   assert N % (d * M) == 0
-  return manin_sym.to_modsym().left_action_by((d, 0, 0, 1)).to_manin_comb(M)
+  out = manin_sym.to_modsym().left_action_by((d, 0, 0, 1)).to_manin_comb(M)
+  return out
 
 def oldspace_map_comb(manin_comb : ManinSymbolCombination, d, M) -> ManinSymbolCombination:
   return manin_comb.map(lambda manin_sym : oldspace_map(manin_sym, d, M), M)
@@ -300,7 +326,6 @@ def manin_combs_to_matrix(manin_combs : list[ManinSymbolCombination]):
   N = manin_combs[0].N
   return Matrix([[comb.components.get(manin_sym, 0) for manin_sym in manin_basis(N)] for comb in manin_combs])
 
-
 def newspace(N):
   mbasis, current_basis = boundary_map_kernel(N)
   cuspidal_basis = current_basis
@@ -322,29 +347,12 @@ def newspace(N):
 
 if __name__ == "__main__":
   ManinSymbol.__repr__ = ManinSymbol.__str__
+  limit = 500
 
-  # N = 30
-  # for sym in manin_basis(N):
-  #   print(sym)
-  #   print(sym.to_modsym())
-  #   print(sym.to_modsym().to_manin_comb(N))
-
-
-  limit = 200
-
-  start_time = time.time()
   new_bases = dict()
   for N in range(1, limit + 1):
-    #  print(f">> Starting computation for {N}")
+    start_time = time.time()
     mbasis, cuspidal_basis, current_basis = newspace(N)
-    # print(mbasis)
-    # print(current_basis)
     new_bases[N] = (mbasis, cuspidal_basis, current_basis)
-
-  end_time = time.time()
-
-  for N in range(1, limit + 1):
-    print(N, new_bases[N][1].ncols(), new_bases[N][1].nrows(), new_bases[N][2].nrows())
-
-  print("Computation finished in ", (end_time - start_time), "seconds")
+    print(f"{N:3} {new_bases[N][1].ncols():3} {new_bases[N][1].nrows():3} {new_bases[N][2].nrows():3} {round(time.time() - start_time, 4):6.4f}")
 
