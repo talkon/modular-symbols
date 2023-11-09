@@ -1,6 +1,11 @@
+'''
+Very unoptimized implementation
+'''
+
 from sage.all import *
 
 import time
+import sys
 from dataclasses import dataclass
 from functools import cache
 from typing import Any, Callable
@@ -18,10 +23,10 @@ def fraction_to_manin_comb(a: Integer, b: Integer, N: Integer) -> 'ManinSymbolCo
   qs = [cf.q(i) for i in range(cf.length())]
   for j in range(1, cf.length()):
     if j % 2 == 1:
-      sym = ManinSymbol(N, qs[j], qs[j-1]).to_generator()[1]
+      sym = ManinSymbol(N, qs[j], qs[j-1]).to_generator(omit_index = True)
       out -= stb[sym]
     else:
-      sym = ManinSymbol(N, -qs[j], qs[j-1]).to_generator()[1]
+      sym = ManinSymbol(N, -qs[j], qs[j-1]).to_generator(omit_index = True)
       out -= stb[sym]
 
   return out
@@ -73,6 +78,10 @@ class ManinSymbol:
     a, b = y, -x
     return ModularSymbol(a, b, self.c, self.d)
 
+  def right_action_by(self, m) -> 'ManinSymbol':
+    x, y, z, w = m
+    return ManinSymbol(N, self.c * x + self.d * z, self.c * y + self.d * w).to_generator(omit_index = True)
+
   def __hash__(self):
      return hash((self.N, self.c, self.d))
 
@@ -88,7 +97,8 @@ class ManinSymbolCombination:
   def zero(cls, N):
     return ManinSymbolCombination(N, dict())
 
-  def map(self, f: Callable[[ManinSymbol],'ManinSymbolCombination'], M) -> 'ManinSymbolCombination':
+  def map(self, f: Callable[[ManinSymbol],'ManinSymbolCombination'], M = None) -> 'ManinSymbolCombination':
+    M = (self.N if M is None else M)
     out = ManinSymbolCombination.zero(M)
     for sym, coeff in self.components.items():
       out += coeff * f(sym)
@@ -157,15 +167,15 @@ def manin_generators(N : Integer) -> list[ManinSymbol]:
   return out
 
 @cache
-def find_generator(manin_sym : ManinSymbol, include_index : bool = True) -> ManinSymbol:
+def find_generator(manin_sym : ManinSymbol, omit_index : bool = False) -> ManinSymbol:
   N = manin_sym.N
   gens = manin_generators(N)
   for i, gen in enumerate(gens):
     if manin_sym == gen:
-      if include_index:
-        return i, gen
-      else:
+      if omit_index:
         return gen
+      else:
+        return i, gen
   print("Could not find generator for", manin_sym)
   assert False
 
@@ -250,6 +260,7 @@ def cusp_equivalent(C1, C2, N):
   g = gcd(d1 * d2, N)
   return (s1 * d2 - s2 * d1) % g == 0
 
+@cache
 def boundary_map(manin_sym : ManinSymbol):
   c, d = manin_sym.tuple()
   g, b, a = xgcd(c, d)
@@ -326,6 +337,7 @@ def manin_combs_to_matrix(manin_combs : list[ManinSymbolCombination]):
   N = manin_combs[0].N
   return Matrix([[comb.components.get(manin_sym, 0) for manin_sym in manin_basis(N)] for comb in manin_combs])
 
+@cache
 def newspace(N):
   mbasis, current_basis = boundary_map_kernel(N)
   cuspidal_basis = current_basis
@@ -345,14 +357,67 @@ def newspace(N):
         # print("New kernel:\n" + str(current_basis))
   return mbasis, cuspidal_basis, current_basis
 
+# from Cremona ch.2
+@cache
+def heilbronn_matrices(p):
+  out = []
+  out.append((1, 0, 0, p))
+  for r in range(p):
+    x1, x2 = p, -r
+    y1, y2 = 0, 1
+    a, b = -p, r
+    out.append((x1, x2, y1, y2))
+    while b != 0:
+      q = Integer(round(a/b))
+      c = a - b * q
+      a = -b
+      b = c
+      x3 = q * x2 - x1
+      x1 = x2
+      x2 = x3
+      y3 = q * y2 - y1
+      y1 = y2
+      y2 = y3
+      out.append((x1, x2, y1, y2))
+  return out
+
+@cache
+def hecke_action(manin_sym : ManinSymbol, p) -> ManinSymbolCombination:
+  out = ManinSymbolCombination.zero(manin_sym.N)
+  stb = sym_to_basis(manin_sym.N)
+  for mtx in heilbronn_matrices(p):
+    out += stb[manin_sym.right_action_by(mtx)]
+  return out
+
+def hecke_action_comb(manin_comb : ManinSymbolCombination, p) -> ManinSymbolCombination:
+  return manin_comb.map(lambda manin_sym : hecke_action(manin_sym, p))
+
+# subspace basis should be in rref form
+def hecke_matrix(mbasis, subspace_basis, p):
+  combs = rows_to_manin_combs(mbasis, subspace_basis)
+  map_output = [hecke_action_comb(comb, p) for comb in combs]
+  mtx = manin_combs_to_matrix(map_output)
+  pivots = subspace_basis.pivots()
+  return mtx.matrix_from_columns(pivots)
+
 if __name__ == "__main__":
   ManinSymbol.__repr__ = ManinSymbol.__str__
-  limit = 500
 
-  new_bases = dict()
-  for N in range(1, limit + 1):
-    start_time = time.time()
-    mbasis, cuspidal_basis, current_basis = newspace(N)
-    new_bases[N] = (mbasis, cuspidal_basis, current_basis)
-    print(f"{N:3} {new_bases[N][1].ncols():3} {new_bases[N][1].nrows():3} {new_bases[N][2].nrows():3} {round(time.time() - start_time, 4):6.4f}")
+  N = Integer(sys.argv[1])
+  p = Integer(sys.argv[2])
+
+  init_time = time.time()
+  mbasis, _, newspace_basis = newspace(N)
+  mtx = hecke_matrix(mbasis, newspace_basis, p)
+  print("manin basis:")
+  for m in mbasis:
+    print(m)
+  print("newspace basis:")
+  print(newspace_basis)
+  print("hecke operator matrix:")
+  print(mtx)
+  print(mtx.charpoly())
+  print(factor(mtx.charpoly()))
+  print("Total time:", round(time.time() - init_time, 4))
+
 
