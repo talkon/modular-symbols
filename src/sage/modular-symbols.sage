@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any, Callable
 
-
 def fraction_to_manin_comb(a: Integer, b: Integer, N: Integer) -> 'ManinSymbolCombination':
   if b == 0:
     return ManinSymbol(N, 1, 0).as_combination()
@@ -187,32 +186,43 @@ def ST_relation_matrix(N):
   def fgi(c, d):
     return find_generator(ManinSymbol(N, c, d))[0]
 
+  P_rels = []
   S_rels = []
   T_rels = []
 
+  done_P = set()
   done_S = set()
   done_T = set()
   for x in range(n_gens):
     c, d = gens[x].tuple()
+    if x not in done_P:
+      Px = fgi(-c, d)
+      if x != Px:
+        rel = {x: 1, Px: -1}
+        P_rels.append(rel)
+      done_P.update((x, Px))
+    # TODO: simplify S and T rels based on P rels, otherwise this is actually slower
     if x not in done_S:
       Sx = fgi(d, -c)
-      rel = (x, Sx)
+      rel = {x: 1, Sx: 1}
       S_rels.append(rel)
       done_S.update(rel)
     if x not in done_T:
       Tx = fgi(c+d, -c)
       T2x = fgi(d, -(c+d))
-      rel = (x, Tx, T2x)
+      rel = {x: 1, Tx: 1, T2x: 1}
       T_rels.append(rel)
       done_T.update(rel)
 
-  # print([tuple(gens[i] for i in rel) for rel in S_rels])
-  # print([tuple(gens[i] for i in rel) for rel in T_rels])
+  # for rels in [P_rels, S_rels, T_rels]:
+  #   print([tuple(gens[i] for i in rel) for rel in rels])
 
   def rel_to_row(rel):
-    return [1 if i in rel else 0 for i in range(n_gens)]
+    return [rel.get(i, 0) for i in range(n_gens)]
 
-  return gens, Matrix([rel_to_row(rel) for rel in S_rels + T_rels])
+  relation_matrix = Matrix([rel_to_row(rel) for rel in P_rels + S_rels + T_rels])
+
+  return gens, relation_matrix
 
 @cache
 def manin_basis(N) -> list[ManinSymbol]:
@@ -272,8 +282,12 @@ def boundary_map_matrix(N):
   cusps = []
 
   def representative(cusp):
+    c, d = cusp
+    negated_cusp = (-c, d)
     for C in cusps:
       if cusp_equivalent(cusp, C, N):
+        return C
+      elif cusp_equivalent(negated_cusp, C, N):
         return C
     # new cusp
     cusps.append(cusp)
@@ -305,6 +319,8 @@ def boundary_map_matrix(N):
 @cache
 def boundary_map_kernel(N):
   basis, mtx = boundary_map_matrix(N)
+  # print("Manin basis:\n" + str(basis))
+  # print("Boundary map matrix:\n" + str(mtx))
   kernel = mtx.kernel().basis_matrix()
   return basis, kernel
 
@@ -341,7 +357,6 @@ def manin_combs_to_matrix(manin_combs : list[ManinSymbolCombination]):
 def newspace(N):
   mbasis, current_basis = boundary_map_kernel(N)
   cuspidal_basis = current_basis
-  # print("Manin basis:\n" + str(mbasis))
   # print("Boundary map kernel:\n" + str(current_basis))
   for M in divisors(N):
     if M > 10 and M != N:
@@ -355,6 +370,7 @@ def newspace(N):
         # print("Output mtx kernel:\n" + str(new_basis_in_old_basis))
         current_basis = new_basis_in_old_basis * current_basis
         # print("New kernel:\n" + str(current_basis))
+        # print("New kernel dimension:", str(current_basis.nrows()))
   return mbasis, cuspidal_basis, current_basis
 
 # from Cremona ch.2
@@ -419,5 +435,3 @@ if __name__ == "__main__":
   print(mtx.charpoly())
   print(factor(mtx.charpoly()))
   print("Total time:", round(time.time() - init_time, 4))
-
-
