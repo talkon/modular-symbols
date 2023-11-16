@@ -79,7 +79,7 @@ class ManinSymbol:
 
   def right_action_by(self, m) -> 'ManinSymbol':
     x, y, z, w = m
-    return ManinSymbol(N, self.c * x + self.d * z, self.c * y + self.d * w).to_generator(omit_index = True)
+    return ManinSymbol(self.N, self.c * x + self.d * z, self.c * y + self.d * w).to_generator(omit_index = True)
 
   def __hash__(self):
      return hash((self.N, self.c, self.d))
@@ -448,22 +448,59 @@ def hecke_matrix(mbasis, subspace_basis, p):
   pivots = subspace_basis.pivots()
   return mtx.matrix_from_columns(pivots)
 
-if __name__ == "__main__":
-  ManinSymbol.__repr__ = ManinSymbol.__str__
+# decomposes a subspace with the given basis into simple (mtx)-modules
+def decompose(mtx, basis):
+  # print("decompose() called")
+  # print("mtx:\n", mtx)
+  # print("basis:\n", basis)
+  pivots = basis.pivots()
+  mtx_on_basis = (basis * mtx).matrix_from_columns(pivots)
+  out = []
+  for poly, _ in factor(mtx_on_basis.minimal_polynomial()):
+    new_basis = poly(mtx_on_basis).kernel().basis_matrix()
+    out += [(new_basis * basis, poly.degree() == new_basis.nrows())]
+  # print("decompose() output:", out)
+  return out
 
-  N = Integer(sys.argv[1])
-  p = Integer(sys.argv[2])
-
-  init_time = time.time()
+@cache
+def newform_subspaces(N):
   mbasis, _, newspace_basis = newspace(N)
-  mtx = hecke_matrix(mbasis, newspace_basis, p)
-  print("manin basis:")
-  for m in mbasis:
-    print(m)
-  print("newspace basis:")
-  print(newspace_basis)
-  print("hecke operator matrix:")
-  print(mtx)
-  print(mtx.charpoly())
-  print(factor(mtx.charpoly()))
-  print("Total time:", round(time.time() - init_time, 4))
+  # print(mbasis)
+  # print(newspace_basis)
+  if newspace_basis.nrows() == 0:
+    return []
+  decomposition = []
+  remaining = [identity_matrix(newspace_basis.nrows())]
+  p = 0
+  while True:
+    p = next_prime(p)
+    if len(remaining) == 0:
+      break
+    if N % p != 0:
+      # print("p =", p)
+      mtx = hecke_matrix(mbasis, newspace_basis, p)
+      # print("Hecke matrix:", mtx)
+      new_remaining = []
+      for basis in remaining:
+        # print("Basis:\n" + str(basis))
+        for new_basis, done in decompose(mtx, basis):
+          if done:
+            decomposition.append(new_basis)
+          else:
+            new_remaining.append(new_basis)
+      remaining = new_remaining
+  return decomposition
+
+def perft(limit):
+  out = dict()
+
+  def print_out_item(cbasis, nbasis, t, decomp):
+    decomp_dims = sorted(mtx.nrows() for mtx in decomp)
+    print(f"{N:3} {cbasis.nrows():3} {nbasis.nrows():3} {round(t, 4):8.4f} {decomp_dims}", flush=True)
+
+  for N in range(1, limit+1):
+    start_time = time.time()
+    mbasis, cbasis, nbasis = newspace(N)
+    decomposition = newform_subspaces(N)
+    out[N] = (cbasis, nbasis, time.time() - start_time, decomposition)
+    print_out_item(*out[N])
