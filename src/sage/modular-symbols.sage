@@ -181,52 +181,77 @@ def find_generator(manin_sym : ManinSymbol, omit_index : bool = False) -> ManinS
 @cache
 def ST_relation_matrix(N):
   gens = manin_generators(N)
-  n_gens = len(gens)
 
-  def fgi(c, d):
+  def find_generator_index(c, d):
     return find_generator(ManinSymbol(N, c, d))[0]
 
-  P_rels = []
-  S_rels = []
-  T_rels = []
-
+  # Compute P relations (eta relations / relations in Cremona Ch 2.5)
   done_P = set()
+  filt_gens = []
+  gen_index_to_filt_gen_index = {}
+  P_equiv = {}
+  i = 0
+  for x, gen in enumerate(gens):
+    c, d = gen.tuple()
+    if x not in done_P:
+      Px = find_generator_index(-c, d)
+      gen_index_to_filt_gen_index[x] = i
+      gen_index_to_filt_gen_index[Px] = i # if x = Px, this is fine
+      i += 1
+      filt_gens.append(gen)
+      if x != Px:
+        P_equiv[x] = Px
+      done_P.update((x, Px))
+
+  gen_to_filt_gen = {
+    gens[k] : filt_gens[v] for k, v in gen_index_to_filt_gen_index.items()
+  }
+
+  # Compute S and T relations
   done_S = set()
   done_T = set()
-  for x in range(n_gens):
-    c, d = gens[x].tuple()
-    if x not in done_P:
-      Px = fgi(-c, d)
-      if x != Px:
-        rel = {x: 1, Px: -1}
-        P_rels.append(rel)
-      done_P.update((x, Px))
-    # TODO: simplify S and T rels based on P rels, otherwise this is actually slower
+  S_rels = []
+  T_rels = []
+  for x, gen in enumerate(gens):
+    c, d = gen.tuple()
+    # TODO: potential optimization: avoid creating duplicate rows
     if x not in done_S:
-      Sx = fgi(d, -c)
-      rel = {x: 1, Sx: 1}
+      Sx = find_generator_index(d, -c)
+      rel = {x: 1}
+      rel[Sx] = rel.get(Sx, 0) + 1
       S_rels.append(rel)
       done_S.update(rel)
     if x not in done_T:
-      Tx = fgi(c+d, -c)
-      T2x = fgi(d, -(c+d))
-      rel = {x: 1, Tx: 1, T2x: 1}
+      Tx = find_generator_index(c+d, -c)
+      T2x = find_generator_index(d, -(c+d))
+      rel = {x: 1}
+      rel[Tx] = rel.get(Tx, 0) + 1
+      rel[T2x] = rel.get(T2x, 0) + 1
       T_rels.append(rel)
       done_T.update(rel)
 
-  # for rels in [P_rels, S_rels, T_rels]:
-  #   print([tuple(gens[i] for i in rel) for rel in rels])
+  def rel_to_filt(rel):
+    out = {}
+    for k, v in rel.items():
+      fk = gen_index_to_filt_gen_index[k]
+      out[fk] = out.get(fk, 0) + v
+    return out
+
+  S_rels = [rel_to_filt(rel) for rel in S_rels]
+  T_rels = [rel_to_filt(rel) for rel in T_rels]
 
   def rel_to_row(rel):
-    return [rel.get(i, 0) for i in range(n_gens)]
+    return tuple(rel.get(i, 0) for i in range(len(filt_gens)))
 
-  relation_matrix = Matrix([rel_to_row(rel) for rel in P_rels + S_rels + T_rels])
+  rows = list(set(rel_to_row(rel) for rel in S_rels + T_rels))
+  relation_matrix = Matrix(rows)
+  # print(relation_matrix)
 
-  return gens, relation_matrix
+  return gen_to_filt_gen, filt_gens, relation_matrix
 
 @cache
 def manin_basis(N) -> list[ManinSymbol]:
-  gens, mtx = ST_relation_matrix(N)
+  _, gens, mtx = ST_relation_matrix(N)
   nonpivots = mtx.nonpivots()
   # print(nonpivots)
   return [gens[i] for i in nonpivots]
@@ -237,28 +262,35 @@ def manin_basis_idx(N):
 
 @cache
 def sym_to_basis(N):
-  gens, mtx = ST_relation_matrix(N)
+  gen_to_filt_gen, filt_gens, mtx = ST_relation_matrix(N)
   nonpivots = mtx.nonpivots()
   rref = mtx.rref()
-  out = {}
+
+  filt_gen_to_basis = {}
   for n in nonpivots:
-     out[gens[n]] = gens[n].as_combination()
+     filt_gen_to_basis[filt_gens[n]] = filt_gens[n].as_combination()
   for row in rref:
     pivot = None
     val = ManinSymbolCombination.zero(N)
     for i, c in enumerate(row):
       if c != 0:
         if i in nonpivots:
-          val += gens[i].as_combination(-c)
+          val += filt_gens[i].as_combination(-c)
         else:
           if pivot is None:
             pivot = i
           else:
             assert False
     if pivot is not None:
-      out[gens[pivot]] = val
-  assert len(out) == len(gens)
-  return out
+      filt_gen_to_basis[filt_gens[pivot]] = val
+  assert len(filt_gen_to_basis) == len(filt_gens)
+
+  gen_to_basis = {
+    k : filt_gen_to_basis[v] for k, v in gen_to_filt_gen.items()
+  }
+  assert len(gen_to_basis) == len(gen_to_filt_gen)
+
+  return gen_to_basis
 
 @cache
 def cusp_equivalent(C1, C2, N):
