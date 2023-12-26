@@ -81,6 +81,10 @@ class ManinSymbol:
     x, y, z, w = m
     return ManinSymbol(self.N, self.c * x + self.d * z, self.c * y + self.d * w).to_generator(omit_index = True)
 
+  def modsym_left_action_by(self, m, M = None) -> 'ManinSymbolCombination':
+    M = (self.N if M is None else M)
+    return self.to_modsym().left_action_by(m).to_manin_comb(M)
+
   def __hash__(self):
      return hash((self.N, self.c, self.d))
 
@@ -149,6 +153,9 @@ class ManinSymbolCombination:
     return out
 
 
+'''
+Manin symbol spaces
+'''
 @cache
 def manin_generators(N : Integer) -> list[ManinSymbol]:
   l = divisors(N)
@@ -360,7 +367,7 @@ def boundary_map_kernel(N):
 def oldspace_map(manin_sym : ManinSymbol, d, M) -> ManinSymbolCombination:
   N = manin_sym.N
   assert N % (d * M) == 0
-  out = manin_sym.to_modsym().left_action_by((d, 0, 0, 1)).to_manin_comb(M)
+  out = manin_sym.modsym_left_action_by((d, 0, 0, 1), M)
   return out
 
 def oldspace_map_comb(manin_comb : ManinSymbolCombination, d, M) -> ManinSymbolCombination:
@@ -441,9 +448,30 @@ def hecke_action_comb(manin_comb : ManinSymbolCombination, p) -> ManinSymbolComb
   return manin_comb.map(lambda manin_sym : hecke_action(manin_sym, p))
 
 # subspace basis should be in rref form
-def hecke_matrix(mbasis, subspace_basis, p):
+def hecke_action_matrix(mbasis, subspace_basis, p):
   combs = rows_to_manin_combs(mbasis, subspace_basis)
   map_output = [hecke_action_comb(comb, p) for comb in combs]
+  mtx = manin_combs_to_matrix(map_output)
+  pivots = subspace_basis.pivots()
+  return mtx.matrix_from_columns(pivots)
+
+# TODO: there's a lot of common code between actions of various operators, perhaps we could clean this up?
+@cache
+def atkin_lehner_matrix(N, Q):
+  _, a, b = xgcd(Q, N/Q)
+  return (Q, -b, N, a * Q)
+
+@cache
+def atkin_lehner_action(manin_sym : ManinSymbol, Q) -> ManinSymbolCombination:
+  N = manin_sym.N
+  return manin_sym.modsym_left_action_by(atkin_lehner_matrix(N, Q), N)
+
+def atkin_lehner_action_comb(manin_comb : ManinSymbolCombination, Q) -> ManinSymbolCombination:
+  return manin_comb.map(lambda manin_sym : atkin_lehner_action(manin_sym, Q))
+
+def atkin_lehner_action_matrix(mbasis, subspace_basis, Q):
+  combs = rows_to_manin_combs(mbasis, subspace_basis)
+  map_output = [atkin_lehner_action_comb(comb, Q) for comb in combs]
   mtx = manin_combs_to_matrix(map_output)
   pivots = subspace_basis.pivots()
   return mtx.matrix_from_columns(pivots)
@@ -463,7 +491,7 @@ def decompose(mtx, basis):
   return out
 
 @cache
-def newform_subspaces(N):
+def newform_subspaces(N, use_atkin_lehner = True):
   mbasis, _, newspace_basis = newspace(N)
   # print(mbasis)
   # print(newspace_basis)
@@ -471,6 +499,25 @@ def newform_subspaces(N):
     return []
   decomposition = []
   remaining = [identity_matrix(newspace_basis.nrows())]
+
+  # Atkin-Lehner involutions
+  # print("Atkin-Lehner involutions")
+  if use_atkin_lehner:
+    for p, l in factor(N):
+      Q = p ** l
+      mtx = atkin_lehner_action_matrix(mbasis, newspace_basis, Q)
+      # print("Hecke matrix:", mtx)
+      new_remaining = []
+      for basis in remaining:
+        # TODO: for Atkin-Lehner operators we know that the eigenvalues are +1 or -1,
+        # so we shouldn't need to use a general decompose().
+        for new_basis, _ in decompose(mtx, basis):
+          if new_basis.nrows() > 0:
+            new_remaining.append(new_basis)
+      remaining = new_remaining
+
+  # Hecke operators
+  # print("Hecke operators")
   p = 0
   while True:
     p = next_prime(p)
@@ -478,7 +525,7 @@ def newform_subspaces(N):
       break
     if N % p != 0:
       # print("p =", p)
-      mtx = hecke_matrix(mbasis, newspace_basis, p)
+      mtx = hecke_action_matrix(mbasis, newspace_basis, p)
       # print("Hecke matrix:", mtx)
       new_remaining = []
       for basis in remaining:
@@ -491,16 +538,21 @@ def newform_subspaces(N):
       remaining = new_remaining
   return decomposition
 
-def perft(limit):
+def perft(limit, use_atkin_lehner):
   out = dict()
 
   def print_out_item(cbasis, nbasis, t, decomp):
     decomp_dims = sorted(mtx.nrows() for mtx in decomp)
     print(f"{N:3} {cbasis.nrows():3} {nbasis.nrows():3} {round(t, 4):8.4f} {decomp_dims}", flush=True)
 
+
+  abs_start_time = time.time()
+
   for N in range(1, limit+1):
     start_time = time.time()
     mbasis, cbasis, nbasis = newspace(N)
-    decomposition = newform_subspaces(N)
+    decomposition = newform_subspaces(N, use_atkin_lehner)
     out[N] = (cbasis, nbasis, time.time() - start_time, decomposition)
     print_out_item(*out[N])
+
+  print("Total time elapsed:", time.time() - abs_start_time)
