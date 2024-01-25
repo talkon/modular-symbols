@@ -1,2 +1,4 @@
 *.sage.py
 *.out
+*.exe
+.vscode
