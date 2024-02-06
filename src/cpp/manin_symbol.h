@@ -21,6 +21,18 @@ struct ManinSymbol {
   // Note that this is different from equality (==), which is used for caching.
   bool is_equivalent(const ManinSymbol&);
 
+  // Applies the eta relation to this Manin symbol. [Cremona Ch 2.5]
+  ManinSymbol apply_eta();
+
+  // Applies the S relation to this Manin symbol. [Stein Ch 3.3]
+  ManinSymbol apply_S();
+
+  // Applies the T relation to this Manin symbol.  [Stein Ch 3.3]
+  ManinSymbol apply_T();
+
+  // Applies the T^2 relation to this Manin symbol.  [Stein Ch 3.3]
+  ManinSymbol apply_T_2();
+
   // Returns a pointer to the generator equivalent to this Manin symbol.
   ManinGenerator as_generator();
 };
