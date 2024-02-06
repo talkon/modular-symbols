@@ -37,7 +37,9 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
 
   int64_t tau = fmpz_poly_length(divisors);
 
-  ManinGenerator first ({.N = n, .c = 0, .d = 1});
+  int64_t index = 0;
+  ManinGenerator first (index, {.N = n, .c = 0, .d = 1});
+  index++;
 
   std::vector<ManinGenerator> out = {first};
 
@@ -66,7 +68,8 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
         fmpz_set_ui(C, c);
         fmpz_gcd(G, D, C);
         if (fmpz_is_one(G)) {
-          ManinGenerator new_gen ({.N = n, .c = d, .d = c});
+          ManinGenerator new_gen (index, {.N = n, .c = d, .d = c});
+          index++;
           // manin_generator_print(&new_gen);
           // printf("\n");
           out.push_back(new_gen);
@@ -93,7 +96,7 @@ std::vector<ManinGenerator> manin_generators(const int64_t n) {
 }
 
 // Base implementation of `find_generator_index()`
-int64_t _impl_find_generator_index(const ManinSymbol& ms) {
+ManinGenerator* _impl_find_generator(const ManinSymbol& ms) {
   std::vector<ManinGenerator> generators = manin_generators(ms.N);
   auto first = generators.begin();
   auto last = generators.end();
@@ -104,19 +107,16 @@ int64_t _impl_find_generator_index(const ManinSymbol& ms) {
 
   assert (mg != last); // Manin symbol should match one of the generators
 
-  return std::distance(first, mg);
+  return &(*mg);
 }
 
-int64_t find_generator_index(const ManinSymbol& ms) {
-  static CacheDecorator<int64_t, const ManinSymbol&> _cache_find_generator_index(_impl_find_generator_index);
-  return _cache_find_generator_index(ms);
+ManinGenerator* find_generator(const ManinSymbol& ms) {
+  static CacheDecorator<ManinGenerator*, const ManinSymbol&> _cache_find_generator(_impl_find_generator);
+  return _cache_find_generator(ms);
 }
 
-ManinGenerator find_generator(const ManinSymbol& ms) {
-  std::vector<ManinGenerator> generators = manin_generators(ms.N);
-  int64_t index = find_generator_index(ms);
-
-  return generators[index];
+ManinGenerator* ManinSymbol::as_generator() {
+  return find_generator(*this);
 }
 
 int main() {
@@ -127,7 +127,9 @@ int main() {
   }
   mgs[2 * 3 * 5 * 7 * 11 * 13 + 50000].print();
   for (int i = 0; i < 1000; i++) {
-    int64_t ix = find_generator_index({.N = 30030, .c = 14, .d = 3775});
+    ManinGenerator& mg = *(find_generator({.N = 30030, .c = 14, .d = 3775}));
+    mg.print();
+    printf(" %d\n", mg.index);
   }
   return 0;
 }
