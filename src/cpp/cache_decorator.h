@@ -19,7 +19,7 @@ class CacheDecorator {
         }
 
         auto result = f_(a...);
-        map_[key] = result;
+        map_.insert(std::make_pair(key, result));
         return result;
     }
 

@@ -22,13 +22,11 @@ struct ManinSymbol {
   bool is_equivalent(const ManinSymbol&);
 
   // Returns a pointer to the generator equivalent to this Manin symbol.
-  ManinGenerator* as_generator();
+  ManinGenerator as_generator();
 };
 
 // Represents a Manin generator, i.e. a canonical Manin symbol
 // for each element of P^1(Z/NZ)
-//
-// ManinGenerator objects are only created by `manin_generators()`.
 struct ManinGenerator : ManinSymbol {
   // Index of the Manin generator, in the order provided by `manin_generators()`.
   int64_t index = -1;
@@ -43,7 +41,7 @@ inline std::vector<ManinGenerator> manin_generators(const int64_t);
 
 // Finds the Manin generator that is equivalent to the given Manin symbol.
 // Results are cached.
-inline ManinGenerator* find_generator(const ManinSymbol&);
+inline ManinGenerator find_generator(const ManinSymbol);
 
 // /**
 //  * Manin generator with coefficient

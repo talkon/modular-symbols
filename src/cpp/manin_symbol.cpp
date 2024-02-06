@@ -96,7 +96,7 @@ std::vector<ManinGenerator> manin_generators(const int64_t n) {
 }
 
 // Base implementation of `find_generator_index()`
-ManinGenerator* _impl_find_generator(const ManinSymbol& ms) {
+ManinGenerator _impl_find_generator(const ManinSymbol ms) {
   std::vector<ManinGenerator> generators = manin_generators(ms.N);
   auto first = generators.begin();
   auto last = generators.end();
@@ -107,15 +107,15 @@ ManinGenerator* _impl_find_generator(const ManinSymbol& ms) {
 
   assert (mg != last); // Manin symbol should match one of the generators
 
-  return &(*mg);
+  return *mg;
 }
 
-ManinGenerator* find_generator(const ManinSymbol& ms) {
-  static CacheDecorator<ManinGenerator*, const ManinSymbol&> _cache_find_generator(_impl_find_generator);
+ManinGenerator find_generator(const ManinSymbol ms) {
+  static CacheDecorator<ManinGenerator, const ManinSymbol> _cache_find_generator(_impl_find_generator);
   return _cache_find_generator(ms);
 }
 
-ManinGenerator* ManinSymbol::as_generator() {
+ManinGenerator ManinSymbol::as_generator() {
   return find_generator(*this);
 }
 
@@ -126,10 +126,15 @@ int main() {
     printf("%zu\n", mgs.size());
   }
   mgs[2 * 3 * 5 * 7 * 11 * 13 + 50000].print();
-  for (int i = 0; i < 1000; i++) {
-    ManinGenerator& mg = *(find_generator({.N = 30030, .c = 14, .d = 3775}));
-    mg.print();
-    printf(" %d\n", mg.index);
+  printf("\n");
+
+  for (int i = 11; i < 20; i++) {
+    ManinSymbol ms1 = {.N = i, .c = 4, .d = 7};
+    ManinGenerator mg1 = find_generator(ms1);
+    ms1.print();
+    mg1.print();
+    printf(" %lld %p\n", mg1.index, &mg1);
   }
+
   return 0;
 }
