@@ -138,12 +138,9 @@ ManinGenerator ManinSymbol::as_generator() {
 }
 
 void manin_basis(int64_t n) {
-  printf("here 000\n");
   std::vector<ManinGenerator> generators = manin_generators(n);
   int64_t num_generators = generators.size();
-  printf("num_generators: %lld\n", num_generators);
-
-  printf("here 001\n");
+  printf("[info] finished computing generators\nnum_generators: %lld\n", num_generators);
 
   // Modulo out by Eta relations (see Cremona Ch 2.5)
 
@@ -164,33 +161,9 @@ void manin_basis(int64_t n) {
     generator_to_filt_generators[i] = -1;
   }
 
-  printf("here 001b\n");
-
   for (ManinGenerator generator : generators) {
-    generator.print();
-    printf("\n");
     if (generator_to_filt_generators[generator.index] == -1) {
       ManinGenerator generator_eta = generator.apply_eta().as_generator();
-
-      printf("generator: ");
-      generator.print();
-      printf("\n generator.apply_eta(): ");
-      generator.apply_eta().print();
-      printf("\n generator_eta: ");
-      _impl_find_generator(generator.apply_eta()).print();
-      printf("\n");
-      // ManinSymbol sym = {.N = 11, .c = 1, .d = 0};
-      // ManinGenerator* found = find_generator(sym);
-      // sym.print(); printf(" "); found->print();
-      // printf("\n");
-      // sym = {.N = 11, .c = 1, .d = 1};
-      // found = find_generator(sym);
-      // sym.print(); printf(" "); (*found).print();
-      // printf("\n");
-      // sym = {.N = 11, .c = -1, .d = 1};
-      // found = find_generator(sym);
-      // sym.print(); printf(" "); found->print();
-      // printf("\n");
 
       generator_to_filt_generators[generator.index] = filt_index;
       generator_to_filt_generators[generator_eta.index] = filt_index;
@@ -201,9 +174,7 @@ void manin_basis(int64_t n) {
   }
 
   int64_t num_filt_gens = filt_generators.size();
-  printf("num_filt_gens: %lld\n", num_filt_gens);
-
-  printf("here 002\n");
+  // printf("num_filt_gens: %lld\n", num_filt_gens);
 
   // Compute S and T relations (see Stein Ch 3.3)
 
@@ -222,7 +193,6 @@ void manin_basis(int64_t n) {
       ManinGenerator generator_S = generator.apply_S().as_generator();
 
       std::vector<int64_t> row (num_filt_gens, 0);
-      printf("indices: %lld %lld\n", generator.index, generator_S.index);
       row[generator_to_filt_generators[generator.index]]++;
       row[generator_to_filt_generators[generator_S.index]]++;
       S_rows.push_back(row);
@@ -234,7 +204,7 @@ void manin_basis(int64_t n) {
 
   int64_t num_S_rows = S_rows.size();
 
-  printf("here 003\n");
+  // printf("here 003\n");
 
   bool done_T[num_generators];
   for (int i = 0; i < num_generators; i++) {
@@ -261,7 +231,7 @@ void manin_basis(int64_t n) {
 
   int64_t num_T_rows = T_rows.size();
 
-  printf("here 004\n");
+  printf("[info] finished computing relations\n");
 
   // Create ST relation matrix
   fmpz_mat_t ST;
@@ -279,14 +249,26 @@ void manin_basis(int64_t n) {
     }
   }
 
-  printf("here 005\n");
+  // fmpz_mat_print_pretty(ST);
+  printf("nrows: %ld\nncols: %ld\n", fmpz_mat_nrows(ST), fmpz_mat_ncols(ST));
 
-  fmpz_mat_print_pretty(ST);
-  printf("nrows: %ld\nncols: %ld", fmpz_mat_nrows(ST), fmpz_mat_ncols(ST));
+  fmpz_t den;
+  fmpz_init(den);
+  int64_t rank = fmpz_mat_rref(ST, den, ST);
+  int64_t basis_size = fmpz_mat_ncols(ST) - rank;
+
+  printf("[info] finished computing rref\n");
+  printf("rref denom: ");
+  fmpz_print(den);
+  printf(" rref: \n");
+  // fmpz_mat_print_pretty(ST);
+  printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
+
   fmpz_mat_clear(ST);
+  fmpz_clear(den);
 }
 
-int main() {
+int main(int arg, char** argv) {
   // // Tests manin_generators
   // std::vector<ManinGenerator> mgs;
   // for (int i = 0; i < 10; i++) {
@@ -306,7 +288,8 @@ int main() {
   // }
 
   // Tests relation matrix
-  manin_basis(11);
+  int level = atoi(argv[1]);
+  manin_basis(level);
 
   return 0;
 }
