@@ -137,6 +137,28 @@ ManinGenerator ManinSymbol::as_generator() {
   return find_generator(*this);
 }
 
+void MGWC::print() {
+  fmpq_print(&coeff);
+  printf(" * [%lld]", index);
+}
+
+void ManinElement::print() {
+  printf("level: %lld, components:", N);
+  for (MGWC component : components) {
+    printf(" + ");
+    component.print();
+  }
+}
+
+void ManinElement::print_with_generators() {
+  for (MGWC component : components) {
+    printf(" + ");
+    fmpq_print(&component.coeff);
+    printf(" * ");
+    manin_generators(N)[component.index].print();
+  }
+}
+
 void manin_basis(int64_t n) {
   std::vector<ManinGenerator> generators = manin_generators(n);
   int64_t num_generators = generators.size();
@@ -149,7 +171,7 @@ void manin_basis(int64_t n) {
   // [ ] change ManinSymbol.is_equivalent to allow N | cd' + dc'
 
   // Manin generators modulo eta relations
-  std::vector<ManinGenerator*> filt_generators;
+  std::vector<ManinGenerator> filt_generators;
 
   // Current size of `filt_generators`
   int64_t filt_index = 0;
@@ -168,13 +190,17 @@ void manin_basis(int64_t n) {
       generator_to_filt_generators[generator.index] = filt_index;
       generator_to_filt_generators[generator_eta.index] = filt_index;
 
-      filt_generators.push_back(&generator);
+      filt_generators.push_back(generator);
       filt_index++;
     }
   }
 
   int64_t num_filt_gens = filt_generators.size();
-  // printf("num_filt_gens: %lld\n", num_filt_gens);
+  printf("num_filt_gens: %lld\n", num_filt_gens);
+  for (int i = 0; i < num_filt_gens; i++) {
+    filt_generators[i].print();
+    printf(" %lld\n", filt_generators[0].index);
+  }
 
   // Compute S and T relations (see Stein Ch 3.3)
 
@@ -203,8 +229,6 @@ void manin_basis(int64_t n) {
   }
 
   int64_t num_S_rows = S_rows.size();
-
-  // printf("here 003\n");
 
   bool done_T[num_generators];
   for (int i = 0; i < num_generators; i++) {
@@ -260,12 +284,56 @@ void manin_basis(int64_t n) {
   printf("[info] finished computing rref\n");
   printf("rref denom: ");
   fmpz_print(den);
-  printf(" rref: \n");
+  // printf("\nrref: \n");
   // fmpz_mat_print_pretty(ST);
+  printf("\n");
   printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
+
+  // Extract information from the RREF form
+  bool is_pivot[num_filt_gens];
+  for (int i = 0; i < num_filt_gens; i++) {
+    is_pivot[i] = false;
+  }
+
+  fmpz_t neg_den;
+  fmpz_init(neg_den);
+  fmpz_neg(neg_den, den);
+
+  int previous_pivot = -1;
+  for (int row = 0; row < rank; row++) {
+    int pivot_index;
+    for (int col = previous_pivot + 1; col < num_filt_gens; col++) {
+      if (!(fmpz_is_zero(fmpz_mat_entry(ST, row, col)))) {
+        pivot_index = col;
+        break;
+      }
+    }
+    is_pivot[pivot_index] = true;
+    previous_pivot = pivot_index;
+    std::vector<MGWC> components;
+    for (int col = pivot_index + 1; col < num_filt_gens; col++) {
+      if (!(fmpz_is_zero(fmpz_mat_entry(ST, row, col)))) {
+        fmpq_t coeff;
+        fmpq_init(coeff);
+        fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(ST, row, col), neg_den);
+        components.push_back({.index = filt_generators[col].index, .coeff = *coeff});
+        fmpq_clear(coeff);
+      }
+    }
+    ManinElement element = {.N = n, .components = components};
+    printf("[%lld] = ", filt_generators[pivot_index].index);
+    element.print();
+    printf("\n");
+  }
+
+  // TODO: figure out how to best store the following:
+  //   (i) the mapping between generators and filt_generators
+  //   (ii) the mapping from filt_generators to manin element
+  //   (iii) the basis
 
   fmpz_mat_clear(ST);
   fmpz_clear(den);
+  fmpz_clear(neg_den);
 }
 
 int main(int arg, char** argv) {
@@ -290,6 +358,8 @@ int main(int arg, char** argv) {
   // Tests relation matrix
   int level = atoi(argv[1]);
   manin_basis(level);
+
+  flint_cleanup_master();
 
   return 0;
 }

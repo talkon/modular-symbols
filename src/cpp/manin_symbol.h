@@ -2,6 +2,7 @@
 #define MANIN_SYMBOL_H
 
 #include "cache_decorator.h"
+#include <flint/fmpq.h>
 
 // Forward declaration
 struct ManinGenerator;
@@ -55,18 +56,35 @@ inline std::vector<ManinGenerator> manin_generators(const int64_t);
 // Results are cached.
 inline ManinGenerator find_generator(const ManinSymbol);
 
-// /**
-//  * Manin generator with coefficient
-// */
-// struct MGWC {
-//   ManinGenerator generator;
-//   fmpq_t coeff;
-// }; // manin generator with coefficient
+/**
+ * Manin generator with coefficient, used as a component in ManinElement.
+ *
+ * The generator is stored as the index (in the std::vector returned by ManinGenerator).
+ * The level N is needed to get an actual ManinGenerator out of an MGWC.
+ *
+ * For now, the coefficient is stored by value to simplify memory management.
+ */
+struct MGWC {
+  int64_t index;
+  fmpq coeff;
 
-// typedef struct {
-//   int64_t N;
-//   std::vector<MGWC> components;
-// } manin_element_t;
+  // Prints this MGWC
+  void print();
+};
+
+/**
+ * An element of the space of Manin symbols of level N.
+ */
+struct ManinElement {
+  int64_t N;
+  std::vector<MGWC> components;
+
+  // Prints this Manin element
+  void print();
+
+  // Prints this Manin element, with index expanded into ManinGenerators
+  void print_with_generators();
+};
 
 // typedef struct {
 //   int64_t a;
