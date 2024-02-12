@@ -343,7 +343,8 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
   std::vector<ManinElement> generator_to_basis;
 
   int previous_pivot = -1;
-  for (int row = 0; row < rank; row++) {
+  // rank + 1 is needed to add the basis elements at the end.
+  for (int row = 0; row < rank + 1; row++) {
     int pivot_index;
     for (int col = previous_pivot + 1; col < num_filt_gens; col++) {
       // If nonzero element in row, this is the next pivot.
@@ -379,6 +380,11 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
   fmpz_clear(den);
   fmpz_clear(neg_den);
 
+  // printf("[info] lengths\n");
+  // printf(".basis: %zu\n", basis.size());
+  // printf(".generator_to_basis: %zu\n", generator_to_basis.size());
+  // printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
+
   return {
     .basis = basis,
     .generator_to_basis = generator_to_basis,
@@ -402,7 +408,7 @@ std::vector<ManinGenerator> manin_basis(const int64_t level) {
   return result.basis;
 }
 
-int main(int arg, char** argv) {
+int main(int argc, char** argv) {
   // // Tests manin_generators
   // std::vector<ManinGenerator> mgs;
   // for (int i = 0; i < 10; i++) {
@@ -423,7 +429,13 @@ int main(int arg, char** argv) {
 
   // Tests relation matrix
   int level = atoi(argv[1]);
-  manin_basis(level);
+  std::vector<ManinGenerator> basis = manin_basis(level);
+
+  printf("[output] basis_size: %zu, basis:\n", basis.size());
+  for (ManinGenerator generator : basis) {
+    generator.print();
+    printf("\n");
+  }
 
   flint_cleanup_master();
 
