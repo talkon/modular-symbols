@@ -105,6 +105,13 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
     }
   }
 
+  fmpz_clear(C);
+  fmpz_clear(D);
+  fmpz_clear(G);
+  fmpz_clear(M);
+  fmpz_clear(X);
+  fmpz_poly_clear(divisors);
+
   return out;
 }
 
@@ -183,9 +190,14 @@ void manin_basis(int64_t n) {
     generator_to_filt_generators[i] = -1;
   }
 
+  printf("[info] eta relations:\n");
   for (ManinGenerator generator : generators) {
     if (generator_to_filt_generators[generator.index] == -1) {
       ManinGenerator generator_eta = generator.apply_eta().as_generator();
+      generator.print();
+      printf(", eta: ");
+      generator_eta.print();
+      printf("\n");
 
       generator_to_filt_generators[generator.index] = filt_index;
       generator_to_filt_generators[generator_eta.index] = filt_index;
@@ -199,7 +211,7 @@ void manin_basis(int64_t n) {
   printf("num_filt_gens: %lld\n", num_filt_gens);
   for (int i = 0; i < num_filt_gens; i++) {
     filt_generators[i].print();
-    printf(" %lld\n", filt_generators[0].index);
+    printf(" %lld\n", filt_generators[i].index);
   }
 
   // Compute S and T relations (see Stein Ch 3.3)
@@ -214,9 +226,14 @@ void manin_basis(int64_t n) {
   }
   std::vector<std::vector<int64_t>> S_rows;
 
+  printf("[info] S relations:\n");
   for (ManinGenerator generator : generators) {
     if (!done_S[generator.index]) {
       ManinGenerator generator_S = generator.apply_S().as_generator();
+      generator.print();
+      printf(", S: ");
+      generator_S.print();
+      printf("\n");
 
       std::vector<int64_t> row (num_filt_gens, 0);
       row[generator_to_filt_generators[generator.index]]++;
