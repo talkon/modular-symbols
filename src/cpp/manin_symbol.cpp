@@ -10,6 +10,7 @@
 #include <flint/arith.h>
 
 #include <iostream>
+#include <iterator>
 #include <vector>
 #include <algorithm>
 #include <cassert>
@@ -41,13 +42,25 @@ ManinSymbol ManinSymbol::apply_T_2() {
   return {.N = this->N, .c = this->d, .d = -(this->c + this->d)};
 }
 
+ManinElement ManinGenerator::as_element_unchecked() {
+  fmpq_t one;
+  fmpq_init(one);
+  fmpq_one(one);
+
+  std::vector<MGWC> components = {{.coeff = *one, .index = index}};
+
+  fmpq_clear(one);
+
+  return {.N = N, .components = components};
+}
+
 
 // Base implementation of `manin_generators()`
 // XXX: Surely there is a better approach to this pattern, but I think this works for now.
 // [ ] Check that caching actually works across multiple compilation units.
-std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
+std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
   fmpz_t N;
-  fmpz_init_set_ui(N, n);
+  fmpz_init_set_ui(N, level);
 
   fmpz_poly_t divisors; // acts as a list of divisors of N
   fmpz_poly_init(divisors);
@@ -56,7 +69,7 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
   int64_t tau = fmpz_poly_length(divisors);
 
   int64_t index = 0;
-  ManinGenerator first (index, {.N = n, .c = 0, .d = 1});
+  ManinGenerator first (index, {.N = level, .c = 0, .d = 1});
   index++;
 
   std::vector<ManinGenerator> out = {first};
@@ -81,12 +94,12 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
       if (fmpz_cmp_si(G, 1) > 0) {
         continue;
       }
-      for (int64_t c = x; c < n; c += m) {
+      for (int64_t c = x; c < level; c += m) {
         // printf("%d, %d\n", d, c);
         fmpz_set_ui(C, c);
         fmpz_gcd(G, D, C);
         if (fmpz_is_one(G)) {
-          ManinGenerator new_gen (index, {.N = n, .c = d, .d = c});
+          ManinGenerator new_gen (index, {.N = level, .c = d, .d = c});
           index++;
           // manin_generator_print(&new_gen);
           // printf("\n");
@@ -96,7 +109,7 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
       }
     }
 
-    for (int64_t x = 0; x < n; x++) {
+    for (int64_t x = 0; x < level; x++) {
       fmpz_set_ui(X, x);
       fmpz_gcd(G, D, X);
       if (fmpz_cmp_si(G, 1) > 0) {
@@ -115,9 +128,9 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t n) {
   return out;
 }
 
-std::vector<ManinGenerator> manin_generators(const int64_t n) {
+std::vector<ManinGenerator> manin_generators(const int64_t level) {
   static CacheDecorator<std::vector<ManinGenerator>, const int64_t> _cache_manin_generators(_impl_manin_generators);
-  return _cache_manin_generators(n);
+  return _cache_manin_generators(level);
 }
 
 // Base implementation of `find_generator_index()`
@@ -166,7 +179,25 @@ void ManinElement::print_with_generators() {
   }
 }
 
-void manin_basis(int64_t n) {
+// Auxiliary type to store the result of computing the Manin basis.
+struct BasisComputationResult {
+
+  // A vector of generators that form the Manin basis.
+  // NOTE: think about whether we actually need the full generator here.
+  std::vector<ManinGenerator> basis;
+
+  // A vector containing the representation of each generator
+  // as a linear combination of basis elements.
+  std::vector<ManinElement> generator_to_basis;
+
+  // A map from generator index to the index of the vector above.
+  // This additional indirection is used to save memory used for
+  // duplicate generators.
+  std::vector<int64_t> generator_index_to_GTB_index;
+};
+
+BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
+  printf("[info] started computation of Manin basis for level %lld\n", n);
   std::vector<ManinGenerator> generators = manin_generators(n);
   int64_t num_generators = generators.size();
   printf("[info] finished computing generators\nnum_generators: %lld\n", num_generators);
@@ -185,19 +216,16 @@ void manin_basis(int64_t n) {
 
   // Mapping from index of generator to index in `filt_generators`
   // A value of -1 means mapped index has not been computed yet.
-  int64_t generator_to_filt_generators[num_generators];
-  for (int i = 0; i < num_generators; i++) {
-    generator_to_filt_generators[i] = -1;
-  }
+  std::vector<int64_t> generator_to_filt_generators (num_generators, -1);
 
-  printf("[info] eta relations:\n");
+  // printf("[info] eta relations:\n");
   for (ManinGenerator generator : generators) {
     if (generator_to_filt_generators[generator.index] == -1) {
       ManinGenerator generator_eta = generator.apply_eta().as_generator();
-      generator.print();
-      printf(", eta: ");
-      generator_eta.print();
-      printf("\n");
+      // generator.print();
+      // printf(", eta: ");
+      // generator_eta.print();
+      // printf("\n");
 
       generator_to_filt_generators[generator.index] = filt_index;
       generator_to_filt_generators[generator_eta.index] = filt_index;
@@ -209,10 +237,10 @@ void manin_basis(int64_t n) {
 
   int64_t num_filt_gens = filt_generators.size();
   printf("num_filt_gens: %lld\n", num_filt_gens);
-  for (int i = 0; i < num_filt_gens; i++) {
-    filt_generators[i].print();
-    printf(" %lld\n", filt_generators[i].index);
-  }
+  // for (int i = 0; i < num_filt_gens; i++) {
+  //   filt_generators[i].print();
+  //   printf(" %lld\n", filt_generators[i].index);
+  // }
 
   // Compute S and T relations (see Stein Ch 3.3)
 
@@ -226,14 +254,14 @@ void manin_basis(int64_t n) {
   }
   std::vector<std::vector<int64_t>> S_rows;
 
-  printf("[info] S relations:\n");
+  // printf("[info] S relations:\n");
   for (ManinGenerator generator : generators) {
     if (!done_S[generator.index]) {
       ManinGenerator generator_S = generator.apply_S().as_generator();
-      generator.print();
-      printf(", S: ");
-      generator_S.print();
-      printf("\n");
+      // generator.print();
+      // printf(", S: ");
+      // generator_S.print();
+      // printf("\n");
 
       std::vector<int64_t> row (num_filt_gens, 0);
       row[generator_to_filt_generators[generator.index]]++;
@@ -307,25 +335,28 @@ void manin_basis(int64_t n) {
   printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
 
   // Extract information from the RREF form
-  bool is_pivot[num_filt_gens];
-  for (int i = 0; i < num_filt_gens; i++) {
-    is_pivot[i] = false;
-  }
-
   fmpz_t neg_den;
   fmpz_init(neg_den);
   fmpz_neg(neg_den, den);
+
+  std::vector<ManinGenerator> basis;
+  std::vector<ManinElement> generator_to_basis;
 
   int previous_pivot = -1;
   for (int row = 0; row < rank; row++) {
     int pivot_index;
     for (int col = previous_pivot + 1; col < num_filt_gens; col++) {
+      // If nonzero element in row, this is the next pivot.
       if (!(fmpz_is_zero(fmpz_mat_entry(ST, row, col)))) {
         pivot_index = col;
         break;
       }
+      // Everything else is a nonpivot (and thus in the basis)
+      ManinGenerator generator = generators[filt_generators[col].index];
+      basis.push_back(generator);
+      generator_to_basis.push_back(generator.as_element_unchecked());
     }
-    is_pivot[pivot_index] = true;
+    // We found a pivot, so now we construct the ManinElement corresponding to that pivot.
     previous_pivot = pivot_index;
     std::vector<MGWC> components;
     for (int col = pivot_index + 1; col < num_filt_gens; col++) {
@@ -338,19 +369,37 @@ void manin_basis(int64_t n) {
       }
     }
     ManinElement element = {.N = n, .components = components};
-    printf("[%lld] = ", filt_generators[pivot_index].index);
-    element.print();
-    printf("\n");
+    generator_to_basis.push_back(element);
+    // printf("[%lld] = ", filt_generators[pivot_index].index);
+    // element.print();
+    // printf("\n");
   }
-
-  // TODO: figure out how to best store the following:
-  //   (i) the mapping between generators and filt_generators
-  //   (ii) the mapping from filt_generators to manin element
-  //   (iii) the basis
 
   fmpz_mat_clear(ST);
   fmpz_clear(den);
   fmpz_clear(neg_den);
+
+  return {
+    .basis = basis,
+    .generator_to_basis = generator_to_basis,
+    .generator_index_to_GTB_index = generator_to_filt_generators
+  };
+}
+
+inline BasisComputationResult compute_manin_basis(const int64_t n) {
+  static CacheDecorator<BasisComputationResult, const int64_t> _cache_compute_manin_basis(_impl_compute_manin_basis);
+  return _cache_compute_manin_basis(n);
+}
+
+ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) {
+  const BasisComputationResult result = compute_manin_basis(level);
+  const int64_t GTB_index = result.generator_index_to_GTB_index[index];
+  return result.generator_to_basis[GTB_index];
+}
+
+std::vector<ManinGenerator> manin_basis(const int64_t level) {
+  const BasisComputationResult result = compute_manin_basis(level);
+  return result.basis;
 }
 
 int main(int arg, char** argv) {

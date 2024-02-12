@@ -4,8 +4,9 @@
 #include "cache_decorator.h"
 #include <flint/fmpq.h>
 
-// Forward declaration
+// Forward declarations
 struct ManinGenerator;
+struct ManinElement;
 
 // Represents a Manin symbol. The level N should fit in 32 bits.
 struct ManinSymbol {
@@ -45,25 +46,34 @@ struct ManinGenerator : ManinSymbol {
   int64_t index = -1;
 
   explicit ManinGenerator (int64_t index, ManinSymbol ms): ManinSymbol(ms), index(index) {};
+
+  // Converts to a Manin element, assuming this generator is in the basis.
+  ManinElement as_element_unchecked();
 };
 
-// Computes the Manin generators of level N.
+// Computes the Manin generators of a given level.
 // Returns the generators ordered by (c, d mod N/c).
 // Results are cached.
-inline std::vector<ManinGenerator> manin_generators(const int64_t);
+inline std::vector<ManinGenerator> manin_generators(const int64_t level);
 
 // Finds the Manin generator that is equivalent to the given Manin symbol.
 // Results are cached.
 inline ManinGenerator find_generator(const ManinSymbol);
 
-/**
- * Manin generator with coefficient, used as a component in ManinElement.
- *
- * The generator is stored as the index (in the std::vector returned by ManinGenerator).
- * The level N is needed to get an actual ManinGenerator out of an MGWC.
- *
- * For now, the coefficient is stored by value to simplify memory management.
- */
+// Given a level and an index of a Manin generator
+// (within the std:vector returned by `manin_generators`),
+// returns that Manin generator as a ManinElement (i.e. a linear combination)
+inline ManinElement level_and_index_to_basis(const int64_t level, const int64_t index);
+
+// Computes the basis of the space of Manin symbols of level N.
+inline std::vector<ManinGenerator> manin_basis(const int64_t index);
+
+// Manin generator with coefficient, used as a component in ManinElement.
+
+// The generator is stored as the index (in the std::vector returned by ManinGenerator).
+// The level N is needed to get an actual ManinGenerator out of an MGWC.
+
+// For now, the coefficient is stored by value to simplify memory management.
 struct MGWC {
   int64_t index;
   fmpq coeff;
@@ -72,9 +82,9 @@ struct MGWC {
   void print();
 };
 
-/**
- * An element of the space of Manin symbols of level N.
- */
+
+// An element of the space of Manin symbols of level N.
+// Represented as a sparse linear combination of basis elements.
 struct ManinElement {
   int64_t N;
   std::vector<MGWC> components;
