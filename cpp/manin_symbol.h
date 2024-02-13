@@ -54,19 +54,19 @@ struct ManinGenerator : ManinSymbol {
 // Computes the Manin generators of a given level.
 // Returns the generators ordered by (c, d mod N/c).
 // Results are cached.
-inline std::vector<ManinGenerator> manin_generators(const int64_t level);
+std::vector<ManinGenerator> manin_generators(const int64_t level);
 
 // Finds the Manin generator that is equivalent to the given Manin symbol.
 // Results are cached.
-inline ManinGenerator find_generator(const ManinSymbol);
+ManinGenerator find_generator(const ManinSymbol);
 
 // Given a level and an index of a Manin generator
 // (within the std:vector returned by `manin_generators`),
 // returns that Manin generator as a ManinElement (i.e. a linear combination)
-inline ManinElement level_and_index_to_basis(const int64_t level, const int64_t index);
+ManinElement level_and_index_to_basis(const int64_t level, const int64_t index);
 
 // Computes the basis of the space of Manin symbols of level N.
-inline std::vector<ManinGenerator> manin_basis(const int64_t index);
+std::vector<ManinGenerator> manin_basis(const int64_t index);
 
 // Manin generator with coefficient, used as a component in ManinElement.
 

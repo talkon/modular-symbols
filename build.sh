@@ -1,9 +1,10 @@
 # usage:
-#   ./build.sh [d|D] [c]
+#   ./build.sh [d|D] [c] [T]
 #   release build by default
 #   d: debug build (-O3)
 #   D: debug build (-O0)
 #   c: clean
+#   T: run tests
 
 if [[ $* == *D* ]]; then
   : ${CMAKE_DIR:=cmake-build-debug}
@@ -20,4 +21,8 @@ if [[ $* == *c* ]]; then
   cmake --build $CMAKE_DIR --target clean
 else
   cmake --build $CMAKE_DIR
+fi
+
+if [[ $* == *T* ]]; then
+  ctest --test-dir $CMAKE_DIR
 fi
