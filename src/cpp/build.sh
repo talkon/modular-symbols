@@ -1,1 +1,0 @@
-clang++ -o test.exe manin_symbol.cpp -lflint -lgmp -lmpfr -std=c++20
