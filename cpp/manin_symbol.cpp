@@ -393,7 +393,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
   };
 }
 
-inline BasisComputationResult compute_manin_basis(const int64_t n) {
+BasisComputationResult compute_manin_basis(const int64_t n) {
   static CacheDecorator<BasisComputationResult, const int64_t> _cache_compute_manin_basis(_impl_compute_manin_basis);
   return _cache_compute_manin_basis(n);
 }
