@@ -1,5 +1,6 @@
 #include "manin_symbol.h"
 #include "manin_basis.h"
+#include "boundary_map.h"
 
 int main(int argc, char** argv) {
   // // Tests manin_generators
@@ -24,9 +25,17 @@ int main(int argc, char** argv) {
   int level = atoi(argv[1]);
   std::vector<ManinGenerator> basis = manin_basis(level);
 
-  printf("[output] basis_size: %zu, basis:\n", basis.size());
+  printf("[output] manin_basis size: %zu, basis:\n", basis.size());
   for (ManinGenerator generator : basis) {
     generator.print();
+    printf("\n");
+  }
+
+  // Tests boundary map
+  std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
+  printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
+  for (ManinElement element : cuspidal_basis) {
+    element.print_with_generators();
     printf("\n");
   }
 
