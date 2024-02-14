@@ -37,9 +37,11 @@ struct ManinElement {
 // Given a level and an index of a Manin generator
 // (within the std:vector returned by `manin_generators`),
 // returns that Manin generator as a ManinElement (i.e. a linear combination)
+// Results are cached.
 ManinElement level_and_index_to_basis(const int64_t level, const int64_t index);
 
 // Computes the basis of the space of Manin symbols of level N.
+// Results are cached.
 std::vector<ManinGenerator> manin_basis(const int64_t index);
 
 #endif // MANIN_BASIS_H

@@ -58,8 +58,9 @@ ManinElement ManinGenerator::as_element_unchecked() {
 
 
 // Base implementation of `manin_generators()`
-// XXX: Surely there is a better approach to this pattern, but I think this works for now.
-// [ ] Check that caching actually works across multiple compilation units.
+// XXX: Surely there is a better approach to this caching pattern, but I think this works for now.
+// XXX: It seems like this caching approach works across multiple compilation units,
+// but I'm not sure why.
 std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
   fmpz_t N;
   fmpz_init_set_ui(N, level);
@@ -131,7 +132,7 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
 }
 
 std::vector<ManinGenerator> manin_generators(const int64_t level) {
-  // TODO: figure out a way to share this variable across translation units?
+  // [ ]: figure out a way to share this variable across translation units?
   static CacheDecorator<std::vector<ManinGenerator>, const int64_t> _cache_manin_generators(_impl_manin_generators);
   return _cache_manin_generators(level);
 }

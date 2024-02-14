@@ -50,9 +50,9 @@ struct BasisComputationResult {
   std::vector<int64_t> generator_index_to_GTB_index;
 };
 
-BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
-  printf("[info] started computation of Manin basis for level %lld\n", n);
-  std::vector<ManinGenerator> generators = manin_generators(n);
+BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
+  printf("[info] started computation of Manin basis for level %lld\n", level);
+  std::vector<ManinGenerator> generators = manin_generators(level);
   int64_t num_generators = generators.size();
   printf("[info] finished computing generators\nnum_generators: %lld\n", num_generators);
 
@@ -223,7 +223,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
         fmpq_clear(coeff);
       }
     }
-    ManinElement element = {.N = n, .components = components};
+    ManinElement element = {.N = level, .components = components};
     generator_to_basis.push_back(element);
     // printf("[%lld] = ", filt_generators[pivot_index].index);
     // element.print();
@@ -246,9 +246,9 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t n) {
   };
 }
 
-BasisComputationResult compute_manin_basis(const int64_t n) {
+BasisComputationResult compute_manin_basis(const int64_t level) {
   static CacheDecorator<BasisComputationResult, const int64_t> _cache_compute_manin_basis(_impl_compute_manin_basis);
-  return _cache_compute_manin_basis(n);
+  return _cache_compute_manin_basis(level);
 }
 
 ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) {
