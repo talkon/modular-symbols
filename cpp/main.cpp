@@ -1,4 +1,5 @@
 #include "manin_symbol.h"
+#include "manin_basis.h"
 
 int main(int argc, char** argv) {
   // // Tests manin_generators

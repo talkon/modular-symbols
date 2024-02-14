@@ -7,8 +7,8 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_executable(manin_symbol_test manin_symbol_test.cpp)
-target_link_libraries(manin_symbol_test GTest::gtest_main modular_symbols)
+add_executable(manin_basis_test manin_basis_test.cpp)
+target_link_libraries(manin_basis_test GTest::gtest_main modular_symbols)
 
 include(GoogleTest)
-gtest_discover_tests(manin_symbol_test)
+gtest_discover_tests(manin_basis_test)

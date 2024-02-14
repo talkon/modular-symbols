@@ -1,4 +1,4 @@
-#include "../cpp/manin_symbol.h"
+#include "../cpp/manin_basis.h"
 
 #include <iostream>
 #include <gtest/gtest.h>

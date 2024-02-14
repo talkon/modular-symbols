@@ -1,8 +1,9 @@
 #ifndef MANIN_SYMBOL_H
 #define MANIN_SYMBOL_H
 
-#include "cache_decorator.h"
-#include <flint/fmpq.h>
+// This file defines ManinSymbol, ManinGenerator, and related functions
+
+#include <vector>
 
 // Forward declarations
 struct ManinGenerator;
@@ -59,42 +60,6 @@ std::vector<ManinGenerator> manin_generators(const int64_t level);
 // Finds the Manin generator that is equivalent to the given Manin symbol.
 // Results are cached.
 ManinGenerator find_generator(const ManinSymbol);
-
-// Given a level and an index of a Manin generator
-// (within the std:vector returned by `manin_generators`),
-// returns that Manin generator as a ManinElement (i.e. a linear combination)
-ManinElement level_and_index_to_basis(const int64_t level, const int64_t index);
-
-// Computes the basis of the space of Manin symbols of level N.
-std::vector<ManinGenerator> manin_basis(const int64_t index);
-
-// Manin generator with coefficient, used as a component in ManinElement.
-
-// The generator is stored as the index (in the std::vector returned by ManinGenerator).
-// The level N is needed to get an actual ManinGenerator out of an MGWC.
-
-// For now, the coefficient is stored by value to simplify memory management.
-struct MGWC {
-  int64_t index;
-  fmpq coeff;
-
-  // Prints this MGWC
-  void print();
-};
-
-
-// An element of the space of Manin symbols of level N.
-// Represented as a sparse linear combination of basis elements.
-struct ManinElement {
-  int64_t N;
-  std::vector<MGWC> components;
-
-  // Prints this Manin element
-  void print();
-
-  // Prints this Manin element, with index expanded into ManinGenerators
-  void print_with_generators();
-};
 
 // typedef struct {
 //   int64_t a;
