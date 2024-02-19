@@ -1,5 +1,6 @@
 #include "manin_symbol.h"
 #include "manin_basis.h"
+#include "manin_element.h"
 #include "boundary_map.h"
 
 int main(int argc, char** argv) {

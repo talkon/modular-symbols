@@ -4,6 +4,7 @@
 // This file defines the boundary map, as in [Stein Ch 3.5]
 
 #include "manin_basis.h"
+#include "manin_element.h"
 #include "utils.h"
 
 // Represents a cusp {c/d} of level N

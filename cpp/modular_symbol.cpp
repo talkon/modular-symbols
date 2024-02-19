@@ -1,6 +1,7 @@
 #include "modular_symbol.h"
 #include "manin_symbol.h"
 #include "manin_basis.h"
+#include "manin_element.h"
 
 
 ModularSymbol ModularSymbol::left_action_by(const IntMatrix2x2 mat) {
