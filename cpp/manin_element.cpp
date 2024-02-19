@@ -121,9 +121,7 @@ ManinElement& ManinElement::operator-= (const ManinElement& other) {
     if (it1->index < it2->index) {
       merged.push_back(*it1);
       it1++;
-    }
-
-    if (it1->index == it2->index) {
+    } else if (it1->index == it2->index) {
       fmpq_t new_coeff;
       fmpq_init(new_coeff);
       fmpq_sub(new_coeff, &(it1->coeff), &(it2->coeff));
@@ -138,9 +136,7 @@ ManinElement& ManinElement::operator-= (const ManinElement& other) {
 
       it1++;
       it2++;
-    }
-
-    if (it1->index > it2->index) {
+    } else if (it1->index > it2->index) {
       merged.push_back((*it2).negate());
       it2++;
     }
