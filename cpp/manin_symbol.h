@@ -36,7 +36,7 @@ struct ManinSymbol {
   // Applies the T^2 relation to this Manin symbol.  [Stein Ch 3.3]
   ManinSymbol apply_T_2();
 
-  // Returns a pointer to the generator equivalent to this Manin symbol.
+  // Returns a ManinGenerator equivalent to this Manin symbol.
   ManinGenerator as_generator();
 };
 
@@ -60,19 +60,5 @@ std::vector<ManinGenerator> manin_generators(const int64_t level);
 // Finds the Manin generator that is equivalent to the given Manin symbol.
 // Results are cached.
 ManinGenerator find_generator(const ManinSymbol);
-
-// typedef struct {
-//   int64_t a;
-//   int64_t b;
-//   int64_t c;
-//   int64_t d;
-// } modular_symbol_t;
-
-// typedef struct {
-//   int64_t a;
-//   int64_t b;
-//   int64_t c;
-//   int64_t d;
-// } sl2z_element_t;
 
 #endif // MANIN_SYMBOL_H

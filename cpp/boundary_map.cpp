@@ -144,6 +144,7 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
       }
     }
     ManinElement element = {.N = level, .components = components};
+    element.sort();
     output.push_back(element);
   }
 

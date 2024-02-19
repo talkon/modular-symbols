@@ -21,23 +21,26 @@ int main(int argc, char** argv) {
   //   printf(" %lld %p\n", mg1.index, &mg1);
   // }
 
-  // Tests relation matrix
-  int level = atoi(argv[1]);
-  std::vector<ManinGenerator> basis = manin_basis(level);
+  // // Tests relation matrix
+  // int level = atoi(argv[1]);
+  // std::vector<ManinGenerator> basis = manin_basis(level);
 
-  printf("[output] manin_basis size: %zu, basis:\n", basis.size());
-  for (ManinGenerator generator : basis) {
-    generator.print();
-    printf("\n");
-  }
+  // printf("[output] manin_basis size: %zu, basis:\n", basis.size());
+  // for (ManinGenerator generator : basis) {
+  //   generator.print();
+  //   printf("\n");
+  // }
 
-  // Tests boundary map
-  std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
-  printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
-  for (ManinElement element : cuspidal_basis) {
-    element.print_with_generators();
-    printf("\n");
-  }
+  // // Tests boundary map
+  // std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
+  // printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
+  // for (ManinElement element : cuspidal_basis) {
+  //   element.print_with_generators();
+  //   printf("\n");
+  // }
+
+  // Tests continued fractions
+  fraction_to_manin_element(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
 
   flint_cleanup_master();
 

@@ -10,13 +10,58 @@
 
 #include <iostream>
 #include <vector>
+#include <cassert>
 
 void MGWC::print() {
   fmpq_print(&coeff);
   printf(" * [%lld]", index);
 }
 
-void ManinElement::print() {
+ManinElement ManinElement::zero(const int64_t level) {
+  std::vector<MGWC> empty_vec;
+  ManinElement result = {.N = level, .components = empty_vec};
+  result.mark_as_sorted_unchecked();
+  return result;
+}
+
+void ManinElement::sort() {
+  std::sort(components.begin(), components.end());
+  is_sorted = true;
+}
+
+void ManinElement::mark_as_sorted_unchecked() {
+  is_sorted = true;
+}
+
+ManinElement& ManinElement::operator+= (const ManinElement& other) {
+  // TODO: implement this
+  assert(is_sorted);
+  assert(other.is_sorted);
+
+  return *this;
+}
+
+ManinElement& ManinElement::operator-= (const ManinElement& other) {
+  // TODO: implement this
+  assert(is_sorted);
+  assert(other.is_sorted);
+
+  return *this;
+}
+
+ManinElement operator+ (const ManinElement& left, const ManinElement& right) {
+  ManinElement result = left;
+  result += right;
+  return result;
+}
+
+ManinElement operator- (const ManinElement& left, const ManinElement& right) {
+  ManinElement result = left;
+  result -= right;
+  return result;
+}
+
+void ManinElement::print() const {
   printf("level: %lld, components:", N);
   for (MGWC component : components) {
     printf(" + ");
@@ -24,7 +69,7 @@ void ManinElement::print() {
   }
 }
 
-void ManinElement::print_with_generators() {
+void ManinElement::print_with_generators() const {
   for (MGWC component : components) {
     printf(" + ");
     fmpq_print(&component.coeff);
@@ -224,6 +269,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       }
     }
     ManinElement element = {.N = level, .components = components};
+    element.sort();
     generator_to_basis.push_back(element);
     // printf("[%lld] = ", filt_generators[pivot_index].index);
     // element.print();
@@ -260,4 +306,95 @@ ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) 
 std::vector<ManinGenerator> manin_basis(const int64_t level) {
   const BasisComputationResult result = compute_manin_basis(level);
   return result.basis;
+}
+
+ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const int64_t level) {
+
+  if (a == 0) {
+    return ManinElement::zero(level);
+  }
+
+  if (b == 0) {
+    // (1, 0)_N is always in the basis.
+    ManinSymbol ms = {.c = 1, .d = 0, .N = level};
+    return find_generator(ms).as_element_unchecked();
+  }
+
+  ManinElement result = ManinElement::zero(level);
+
+  // XXX: Usage of fmpz might not be necessary -- I think everything should fit in 64 bits.
+  fmpz_t X, Y, Xp, Xq, Yp, Yq, Q, R;
+  fmpz_init(Q);
+  fmpz_init(R);
+
+  fmpz_init_set_si(X, a);
+  fmpz_init_set_si(Y, b);
+
+  fmpz_init_set_si(Xp, 0);
+  fmpz_init_set_si(Xq, 1);
+  fmpz_init_set_si(Yp, 1);
+  fmpz_init_set_si(Yq, 0);
+
+  int iter = 0;
+
+  while (true) {
+    // X = Y * Q + R, or R = X - Y * Q
+    fmpz_tdiv_qr(Q, R, X, Y);
+    fmpz_set(X, R);
+    fmpz_submul(Xp, Yp, Q);
+    fmpz_submul(Xq, Yq, Q);
+    iter++;
+
+    if (iter > 1) {
+      int64_t xq = fmpz_get_si(Xq);
+      int64_t yq = fmpz_get_si(Yq);
+      ManinSymbol ms = {.N = level, .c = xq, .d = yq};
+      ManinElement me = level_and_index_to_basis(level, ms.as_generator().index);
+
+      ms.print();
+      printf(" = ");
+      me.print_with_generators();
+      printf("\n");
+
+      result = result - me;
+    }
+
+    if (fmpz_is_zero(X)) {
+      break;
+    }
+
+    // Y = X * Q + R, or R = Y - X * Q
+    fmpz_tdiv_qr(Q, R, Y, X);
+    fmpz_set(Y, R);
+    fmpz_submul(Yp, Xp, Q);
+    fmpz_submul(Yq, Xq, Q);
+    iter++;
+
+    int64_t xq = fmpz_get_si(Xq);
+    int64_t yq = fmpz_get_si(Yq);
+    ManinSymbol ms = {.N = level, .c = -yq, .d = xq};
+    ManinElement me = level_and_index_to_basis(level, ms.as_generator().index);
+
+    ms.print();
+    printf(" = ");
+    me.print_with_generators();
+    printf("\n");
+
+    result = result - me;
+
+    if (fmpz_is_zero(Y)) {
+      break;
+    }
+  }
+
+  fmpz_clear(X);
+  fmpz_clear(Y);
+  fmpz_clear(Xp);
+  fmpz_clear(Xq);
+  fmpz_clear(Yp);
+  fmpz_clear(Yq);
+  fmpz_clear(Q);
+  fmpz_clear(R);
+
+  return result;
 }

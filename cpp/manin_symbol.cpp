@@ -48,12 +48,12 @@ ManinElement ManinGenerator::as_element_unchecked() {
   fmpq_t one;
   fmpq_init(one);
   fmpq_one(one);
-
   std::vector<MGWC> components = {{.coeff = *one, .index = index}};
-
   fmpq_clear(one);
 
-  return {.N = N, .components = components};
+  ManinElement result = {.N = N, .components = components};
+  result.mark_as_sorted_unchecked();
+  return result;
 }
 
 
