@@ -199,7 +199,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
         fmpq_init(coeff);
         fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(ST, row, col), neg_den);
         components.push_back({.index = filt_generators[col].index, .coeff = *coeff});
-        fmpq_clear(coeff);
       }
     }
     ManinElement element = {.N = level, .components = components};

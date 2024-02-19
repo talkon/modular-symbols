@@ -116,9 +116,9 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
     }
   }
 
-  printf("boundary map matrix:\n");
-  fmpz_mat_print_pretty(boundary_map_matrix);
-  printf("\n");
+  // printf("boundary map matrix:\n");
+  // fmpz_mat_print_pretty(boundary_map_matrix);
+  // printf("\n");
 
   // Compute the (right) kernel of the boundary map matrix
   fmpz_mat_t boundary_map_kernel;
@@ -126,9 +126,9 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
   int64_t rank = fmpz_mat_nullspace(boundary_map_kernel, boundary_map_matrix);
 
 
-  printf("boundary map kernel:\n");
-  fmpz_mat_print_pretty(boundary_map_kernel);
-  printf("\n");
+  // printf("boundary map kernel:\n");
+  // fmpz_mat_print_pretty(boundary_map_kernel);
+  // printf("\n");
 
   // Convert each column of the kernel to a ManinElement
   std::vector<ManinElement> output;
@@ -141,7 +141,6 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
         fmpq_init(coeff);
         fmpq_set_fmpz(coeff, fmpz_mat_entry(boundary_map_kernel, row, col));
         components.push_back({.index = full_basis[row].index, .coeff = *coeff});
-        fmpq_clear(coeff);
       }
     }
     ManinElement element = {.N = level, .components = components};

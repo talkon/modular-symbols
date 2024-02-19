@@ -15,6 +15,8 @@ struct MGWC {
   // BUG: Memory held by this fmpq should not be cleared until this struct is destructed.
   fmpq coeff;
 
+  ~MGWC();
+
   friend auto operator<=> (const MGWC& left, const MGWC& right) {
     return left.index <=> right.index;
   }

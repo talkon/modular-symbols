@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cassert>
 
+MGWC::~MGWC() {
+  fmpq_clear(&coeff);
+}
+
 MGWC MGWC::negate() const {
   fmpq_t neg_coeff;
   fmpq_init(neg_coeff);
@@ -11,8 +15,6 @@ MGWC MGWC::negate() const {
 
   MGWC negated = {.index = this->index, .coeff = *neg_coeff};
 
-  // FIXME: clear in MGWC's destructor instead of here.
-  fmpq_clear(neg_coeff);
   return negated;
 }
 
@@ -75,9 +77,6 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
         merged.push_back(new_mgwc);
       }
 
-      // FIXME: clear in MGWC's destructor instead of here.
-      fmpq_clear(new_coeff);
-
       it1++;
       it2++;
     }
@@ -130,9 +129,6 @@ ManinElement& ManinElement::operator-= (const ManinElement& other) {
         MGWC new_mgwc = {.index = it1->index, .coeff = *new_coeff};
         merged.push_back(new_mgwc);
       }
-
-      // FIXME: clear in MGWC's destructor instead of here.
-      fmpq_clear(new_coeff);
 
       it1++;
       it2++;
