@@ -290,7 +290,7 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
       me.print_with_generators();
       printf("\n");
 
-      result = result - me;
+      result -= me;
     }
 
     if (fmpz_is_zero(X)) {
@@ -314,7 +314,7 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
     me.print_with_generators();
     printf("\n");
 
-    result = result - me;
+    result -= me;
 
     if (fmpz_is_zero(Y)) {
       break;

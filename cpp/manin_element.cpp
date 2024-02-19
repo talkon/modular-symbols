@@ -4,7 +4,19 @@
 #include <iostream>
 #include <cassert>
 
-void MGWC::print() {
+MGWC MGWC::negate() const {
+  fmpq_t neg_coeff;
+  fmpq_init(neg_coeff);
+  fmpq_neg(neg_coeff, &(this->coeff));
+
+  MGWC negated = {.index = this->index, .coeff = *neg_coeff};
+
+  // FIXME: clear in MGWC's destructor instead of here.
+  fmpq_clear(neg_coeff);
+  return negated;
+}
+
+void MGWC::print() const {
   fmpq_print(&coeff);
   printf(" * [%lld]", index);
 }
@@ -26,18 +38,115 @@ void ManinElement::mark_as_sorted_unchecked() {
 }
 
 ManinElement& ManinElement::operator+= (const ManinElement& other) {
-  // TODO: implement this
   assert(is_sorted);
   assert(other.is_sorted);
 
+  std::vector<MGWC> merged;
+
+  auto it1 = this->components.begin();
+  auto it2 = other.components.begin();
+
+  while (true) {
+
+    // If we run out of components in `this`, append the remaining part of `other` to `merged`.
+    if (it1 == this->components.end()) {
+      merged.insert(merged.end(), it2, other.components.end());
+      break;
+    }
+
+    // If we run out of components in` other`, append the remaining part of `this` to `merged`.
+    if (it2 == other.components.end()) {
+      merged.insert(merged.end(), it1, this->components.end());
+      break;
+    }
+
+    if (it1->index < it2->index) {
+      merged.push_back(*it1);
+      it1++;
+    }
+
+    if (it1->index == it2->index) {
+      fmpq_t new_coeff;
+      fmpq_init(new_coeff);
+      fmpq_add(new_coeff, &(it1->coeff), &(it2->coeff));
+
+      if (!fmpq_is_zero(new_coeff)) {
+        MGWC new_mgwc = {.index = it1->index, .coeff = *new_coeff};
+        merged.push_back(new_mgwc);
+      }
+
+      // FIXME: clear in MGWC's destructor instead of here.
+      fmpq_clear(new_coeff);
+
+      it1++;
+      it2++;
+    }
+
+    if (it1->index > it2->index) {
+      merged.push_back(*it2);
+      it2++;
+    }
+  }
+
+  this->components = merged;
   return *this;
 }
 
 ManinElement& ManinElement::operator-= (const ManinElement& other) {
-  // TODO: implement this
   assert(is_sorted);
   assert(other.is_sorted);
 
+  std::vector<MGWC> merged;
+
+  auto it1 = this->components.begin();
+  auto it2 = other.components.begin();
+
+  while (true) {
+
+    // If we run out of components in `this`, negate the remaining part of `other`,
+    // and append to `merged`.
+    if (it1 == this->components.end()) {
+      for (; it2 != other.components.end(); it2++) {
+        merged.push_back((*it2).negate());
+      }
+      break;
+    }
+
+    // If we run out of components in` other`, append the remaining part of `this` to `merged`.
+    if (it2 == other.components.end()) {
+      merged.insert(merged.end(), it1, this->components.end());
+      break;
+    }
+
+    if (it1->index < it2->index) {
+      merged.push_back(*it1);
+      it1++;
+    }
+
+    if (it1->index == it2->index) {
+      fmpq_t new_coeff;
+      fmpq_init(new_coeff);
+      fmpq_sub(new_coeff, &(it1->coeff), &(it2->coeff));
+
+      if (!fmpq_is_zero(new_coeff)) {
+        MGWC new_mgwc = {.index = it1->index, .coeff = *new_coeff};
+        merged.push_back(new_mgwc);
+      }
+
+      // FIXME: clear in MGWC's destructor instead of here.
+      fmpq_clear(new_coeff);
+
+      it1++;
+      it2++;
+    }
+
+    if (it1->index > it2->index) {
+      merged.push_back((*it2).negate());
+      it2++;
+    }
+  }
+
+  this->components = merged;
   return *this;
 }
 

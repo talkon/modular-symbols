@@ -41,7 +41,9 @@ int main(int argc, char** argv) {
   // }
 
   // Tests continued fractions
-  fraction_to_manin_element(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+  ManinElement result = fraction_to_manin_element(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+  printf("[output] ");
+  result.print_with_generators();
 
   flint_cleanup_master();
 

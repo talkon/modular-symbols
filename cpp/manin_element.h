@@ -12,14 +12,18 @@
 // For now, the coefficient is stored by value to simplify memory management.
 struct MGWC {
   int64_t index;
+  // BUG: Memory held by this fmpq should not be cleared until this struct is destructed.
   fmpq coeff;
 
   friend auto operator<=> (const MGWC& left, const MGWC& right) {
     return left.index <=> right.index;
   }
 
+  // Negate this MGWC
+  MGWC negate() const;
+
   // Prints this MGWC
-  void print();
+  void print() const;
 };
 
 // An element of the space of Manin symbols of level N.
