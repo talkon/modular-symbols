@@ -12,7 +12,6 @@
 // For now, the coefficient is stored by value to simplify memory management.
 struct MGWC {
   int64_t index;
-  // BUG: Memory held by this fmpq should not be cleared until this struct is destructed.
   fmpq coeff;
 
   ~MGWC();
@@ -21,10 +20,13 @@ struct MGWC {
     return left.index <=> right.index;
   }
 
-  // Negate this MGWC
+  // Returns the negation of this MGWC.
   MGWC negate() const;
 
-  // Prints this MGWC
+  // Returns this MGWC, scaled by the given constant.
+  MGWC scale(const fmpq_t) const;
+
+  // Prints this MGWC.
   void print() const;
 };
 
@@ -44,18 +46,33 @@ struct ManinElement {
   // Zero element of a given level
   static ManinElement zero(const int64_t level);
 
+  // --- Internal representation ---
+
   // Sorts the components of this element.
   void sort();
-
   // Marks the components of this element as sorted, without checking.
   void mark_as_sorted_unchecked();
 
-  // Overloaded arithmetic operations
+  // --- Overloaded arithmetic operations ---
 
   ManinElement& operator+= (const ManinElement&);
   ManinElement& operator-= (const ManinElement&);
   friend ManinElement operator+ (const ManinElement&, const ManinElement&);
   friend ManinElement operator- (const ManinElement&, const ManinElement&);
+
+  // --- Mathematical operations ---
+
+  // Returns the negation of this element.
+  ManinElement negate() const;
+
+  // Returns this element, scaled by the given constant.
+  ManinElement scale(const fmpq_t) const;
+
+  // Returns the result of applying a linear map f to this element.
+  // The map f should always return ManinElements of some level M equal to the second argument.
+  ManinElement map(std::function<ManinElement(ManinGenerator)> f, int64_t = 0) const;
+
+  // --- Displaying ---
 
   // Prints this Manin element
   void print() const;
