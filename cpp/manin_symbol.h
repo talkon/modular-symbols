@@ -8,6 +8,7 @@
 // Forward declarations
 struct ManinGenerator;
 struct ManinElement;
+struct ModularSymbol;
 
 // Represents a Manin symbol. The level N should fit in 32 bits.
 struct ManinSymbol {
@@ -35,6 +36,9 @@ struct ManinSymbol {
 
   // Applies the T^2 relation to this Manin symbol.  [Stein Ch 3.3]
   ManinSymbol apply_T_2();
+
+  // Converts this Manin symbol to a modular symbol.
+  ModularSymbol as_modular_symbol();
 
   // Returns a ManinGenerator equivalent to this Manin symbol.
   ManinGenerator as_generator();

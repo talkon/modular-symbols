@@ -189,6 +189,7 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinGenerator)> f, in
 
   std::vector<ManinGenerator> generators = manin_generators(N);
   for (auto mgwc : components) {
+    // [ ] cache result of f?
     result += f(generators[mgwc.index]).scale(&mgwc.coeff);
   }
 

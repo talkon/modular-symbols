@@ -1,6 +1,8 @@
 #include "manin_symbol.h"
 #include "manin_basis.h"
 #include "manin_element.h"
+#include "modular_symbol.h"
+#include "utils.h"
 
 #include "cache_decorator.h"
 
@@ -43,6 +45,11 @@ ManinSymbol ManinSymbol::apply_T() {
 
 ManinSymbol ManinSymbol::apply_T_2() {
   return {.N = this->N, .c = this->d, .d = -(this->c + this->d)};
+}
+
+ModularSymbol ManinSymbol::as_modular_symbol() {
+  utils::XgcdResult xgcd = utils::xgcd(c, d);
+  return {.a = xgcd.b, .b = -xgcd.a, .c = c, .d = d};
 }
 
 ManinElement ManinGenerator::as_element_unchecked() {

@@ -13,6 +13,7 @@ struct XgcdResult {
 };
 
 // Computes a, b, d such that d = gcd(x, y) and d = ax + by.
+// TODO: consider caching result
 inline XgcdResult xgcd(int64_t x, int64_t y) {
   fmpz_t A, B, X, Y, D;
 
