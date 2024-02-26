@@ -51,9 +51,6 @@ struct ManinGenerator : ManinSymbol {
   int64_t index = -1;
 
   explicit ManinGenerator (int64_t index, ManinSymbol ms): ManinSymbol(ms), index(index) {};
-
-  // Converts to a Manin element, assuming this generator is in the basis.
-  ManinElement as_element_unchecked();
 };
 
 // Computes the Manin generators of a given level.

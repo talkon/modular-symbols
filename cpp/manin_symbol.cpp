@@ -52,18 +52,6 @@ ModularSymbol ManinSymbol::as_modular_symbol() {
   return {.a = xgcd.b, .b = -xgcd.a, .c = c, .d = d};
 }
 
-ManinElement ManinGenerator::as_element_unchecked() {
-  fmpq_t one;
-  fmpq_init(one);
-  fmpq_one(one);
-  std::vector<MGWC> components = {{.coeff = *one, .index = index}};
-
-  ManinElement result = {.N = N, .components = components};
-  result.mark_as_sorted_unchecked();
-  return result;
-}
-
-
 // Base implementation of `manin_generators()`
 // XXX: Surely there is a better approach to this caching pattern, but I think this works for now.
 // XXX: It seems like this caching approach works across multiple compilation units,

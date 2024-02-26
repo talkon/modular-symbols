@@ -1,8 +1,10 @@
 #ifndef MANIN_ELEMENT_H
 #define MANIN_ELEMENT_H
 
-#include <vector>
 #include <flint/fmpq.h>
+
+#include <functional>
+#include <vector>
 
 // Manin generator with coefficient, used as a component in ManinElement.
 //
@@ -38,6 +40,8 @@ struct MGWC {
 //
 // XXX: this representation seems inefficient for adding ManinElements;
 // perhaps consider other representations? (like a map from index -> coeff)
+//
+// XXX: actually maybe a dense representation is just faster?
 struct ManinElement {
   int64_t N;
   std::vector<MGWC> components;
@@ -70,7 +74,7 @@ struct ManinElement {
 
   // Returns the result of applying a linear map f to this element.
   // The map f should always return ManinElements of some level M equal to the second argument.
-  ManinElement map(std::function<ManinElement(ManinGenerator)> f, int64_t = 0) const;
+  // ManinElement map(std::function<ManinElement(ManinGenerator)> f, int64_t = 0) const;
 
   // --- Displaying ---
 
@@ -81,5 +85,8 @@ struct ManinElement {
   void print_with_generators() const;
 };
 
+// Computes the kernel (represented by a basis) of a given linear map acting on
+// a vector space of ManinElements (also represented by a basis)
+// std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinGenerator)>);
 
 #endif // MANIN_ELEMENT_H

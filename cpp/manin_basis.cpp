@@ -12,12 +12,23 @@
 #include <iostream>
 #include <vector>
 
+ManinElement ManinBasisElement::as_element() {
+  fmpq_t one;
+  fmpq_init(one);
+  fmpq_one(one);
+  std::vector<MGWC> components = {{.coeff = *one, .index = index}};
+
+  ManinElement result = {.N = N, .components = components};
+  result.mark_as_sorted_unchecked();
+  return result;
+}
+
 // Auxiliary type to store the result of computing the Manin basis.
 struct BasisComputationResult {
 
   // A vector of generators that form the Manin basis.
   // NOTE: think about whether we actually need the full generator here.
-  std::vector<ManinGenerator> basis;
+  std::vector<ManinBasisElement> basis;
 
   // A vector containing the representation of each generator
   // as a linear combination of basis elements.
@@ -172,8 +183,9 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   fmpz_init(neg_den);
   fmpz_neg(neg_den, den);
 
-  std::vector<ManinGenerator> basis;
+  std::vector<ManinBasisElement> basis;
   std::vector<ManinElement> generator_to_basis;
+  int64_t basis_index = 0;
 
   int previous_pivot = -1;
   // rank + 1 is needed to add the basis elements at the end.
@@ -187,8 +199,10 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       }
       // Everything else is a nonpivot (and thus in the basis)
       ManinGenerator generator = generators[filt_generators[col].index];
-      basis.push_back(generator);
-      generator_to_basis.push_back(generator.as_element_unchecked());
+      ManinBasisElement mbe(basis_index, generator);
+      basis.push_back(mbe);
+      basis_index++;
+      generator_to_basis.push_back(mbe.as_element());
     }
     // We found a pivot, so now we construct the ManinElement corresponding to that pivot.
     previous_pivot = pivot_index;
@@ -236,7 +250,7 @@ ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) 
   return result.generator_to_basis[GTB_index];
 }
 
-std::vector<ManinGenerator> manin_basis(const int64_t level) {
+std::vector<ManinBasisElement> manin_basis(const int64_t level) {
   const BasisComputationResult result = compute_manin_basis(level);
   return result.basis;
 }
@@ -248,9 +262,12 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
   }
 
   if (b == 0) {
-    // (1, 0)_N is always in the basis.
+    // (1, 0)_N is always the first element in the basis.
+    // XXX: actually check this
     ManinSymbol ms = {.c = 1, .d = 0, .N = level};
-    return find_generator(ms).as_element_unchecked();
+    ManinGenerator mg = find_generator(ms);
+    ManinBasisElement mbe(0, mg);
+    return mbe.as_element();
   }
 
   ManinElement result = ManinElement::zero(level);

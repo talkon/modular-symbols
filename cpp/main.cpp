@@ -23,8 +23,8 @@ int main(int argc, char** argv) {
   // }
 
   // // Tests relation matrix
-  // int level = atoi(argv[1]);
-  // std::vector<ManinGenerator> basis = manin_basis(level);
+  int level = atoi(argv[1]);
+  std::vector<ManinBasisElement> basis = manin_basis(level);
 
   // printf("[output] manin_basis size: %zu, basis:\n", basis.size());
   // for (ManinGenerator generator : basis) {
@@ -33,19 +33,38 @@ int main(int argc, char** argv) {
   // }
 
   // // Tests boundary map
-  // std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
-  // printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
-  // for (ManinElement element : cuspidal_basis) {
-  //   element.print_with_generators();
-  //   printf("\n");
+  std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
+  printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
+  for (ManinElement element : cuspidal_basis) {
+    element.print_with_generators();
+    printf("\n");
+  }
+
+  // // Tests continued fractions
+  // ManinElement result = fraction_to_manin_element(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+  // printf("[output] ");
+  // result.print_with_generators();
+
+  // fmpz_t a, b, c;
+  // fmpz_init_set_si(a, 3);
+  // fmpz_init_set_si(b, 10000);
+  // // fmpz_init_set_si(c, 0);
+  // fmpz_pow_ui(a, a, 10000);
+  // fmpz_print(a);
+  // printf("\n");
+
+  // fmpz i = *a;
+  // // fmpz_clear(a);
+
+  // for(int x = 0; x < atoi(argv[1]); x++) {
+  //   fmpz_add(&i, &i, b);
   // }
 
-  // Tests continued fractions
-  ManinElement result = fraction_to_manin_element(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
-  printf("[output] ");
-  result.print_with_generators();
+  // fmpz_print(&i);
+  // // fmpz_clear(a);
+  // fmpz_clear(b);
 
-  flint_cleanup_master();
+  // flint_cleanup_master();
 
   return 0;
 }

@@ -53,7 +53,7 @@ std::pair<Cusp, Cusp> boundary_map(const ManinGenerator mg) {
 }
 
 std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
-  std::vector<ManinGenerator> full_basis = manin_basis(level);
+  std::vector<ManinBasisElement> full_basis = manin_basis(level);
   printf("[info] started computation of cuspidal Manin basis for level %lld\n", level);
 
   std::vector<Cusp> representatives;

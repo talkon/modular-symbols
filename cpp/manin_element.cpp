@@ -1,5 +1,8 @@
 #include "manin_symbol.h"
 #include "manin_element.h"
+#include "manin_basis.h"
+
+#include <flint/fmpq_mat.h>
 
 #include <iostream>
 #include <cassert>
@@ -166,7 +169,8 @@ ManinElement operator- (const ManinElement& left, const ManinElement& right) {
 
 ManinElement ManinElement::negate() const {
   std::vector<MGWC> negated_components;
-  std::transform(components.begin(), components.end(), std::back_inserter(negated_components), MGWC::negate);
+  auto negate = [](MGWC mgwc) { return mgwc.negate(); };
+  std::transform(components.begin(), components.end(), std::back_inserter(negated_components), negate);
 
   ManinElement result = {.N = N, .components = negated_components};
   result.is_sorted = this->is_sorted;
@@ -183,8 +187,8 @@ ManinElement ManinElement::scale(const fmpq_t c) const {
   return result;
 }
 
-ManinElement ManinElement::map(std::function<ManinElement(ManinGenerator)> f, int64_t out_level = 0) const {
-  int64_t out_level = out_level ? N : out_level;
+ManinElement ManinElement::map(std::function<ManinElement(ManinGenerator)> f, int64_t M) const {
+  int64_t out_level = M ? N : M;
   ManinElement result = ManinElement::zero(out_level);
 
   std::vector<ManinGenerator> generators = manin_generators(N);
@@ -212,3 +216,26 @@ void ManinElement::print_with_generators() const {
     manin_generators(N)[component.index].print();
   }
 }
+
+// std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<ManinElement(ManinGenerator)> f) {
+//   // If the input space is trivial, the result is also trivial.
+//   if (B.size() == 0) {
+//     return std::vector<ManinElement>();
+//   }
+
+//   // Otherwise, we find the level from the first element.
+//   int64_t level = B[0].N;
+//   std::vector<ManinBasisElement> full_basis = manin_basis(level);
+
+//   fmpq_mat_t map_matrix;
+//   fmpq_mat_init(map_matrix, B.size(), full_basis.size());
+
+//   // For each element b of B, compute f(b)
+//   for (int row = 0; row < B.size(); row++) {
+//     ManinElement fb = B[row].map(f);
+//     for (MGWC component : fb.components) {
+
+//     }
+//   }
+
+// }

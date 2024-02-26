@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 void expect_basis_size(int level, int size) {
-  std::vector<ManinGenerator> basis = manin_basis(level);
+  std::vector<ManinBasisElement> basis = manin_basis(level);
   EXPECT_EQ(basis.size(), size);
 }
 
