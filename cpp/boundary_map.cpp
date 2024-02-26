@@ -134,13 +134,13 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
   std::vector<ManinElement> output;
 
   for (int col = 0; col < rank; col++) {
-    std::vector<MGWC> components;
+    std::vector<MBEWC> components;
     for (int row = 0; row < full_basis.size(); row++) {
       if (!(fmpz_is_zero(fmpz_mat_entry(boundary_map_kernel, row, col)))) {
         fmpq_t coeff;
         fmpq_init(coeff);
         fmpq_set_fmpz(coeff, fmpz_mat_entry(boundary_map_kernel, row, col));
-        components.push_back({.index = full_basis[row].index, .coeff = *coeff});
+        components.push_back({.basis_index = row, .coeff = *coeff});
       }
     }
     ManinElement element = {.N = level, .components = components};

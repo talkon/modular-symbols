@@ -6,29 +6,32 @@
 #include <functional>
 #include <vector>
 
-// Manin generator with coefficient, used as a component in ManinElement.
+// Forward declarations
+struct ManinBasisElement;
+
+// Manin basis element with coefficient, used as a component in ManinElement.
 //
 // The generator is stored as the index (in the std::vector returned by ManinGenerator).
-// The level N is needed to get an actual ManinGenerator out of an MGWC.
+// The level N is needed to get an actual ManinGenerator out of an MBEWC.
 //
 // For now, the coefficient is stored by value to simplify memory management.
-struct MGWC {
-  int64_t index;
+struct MBEWC {
+  int64_t basis_index;
   fmpq coeff;
 
-  ~MGWC();
+  ~MBEWC();
 
-  friend auto operator<=> (const MGWC& left, const MGWC& right) {
-    return left.index <=> right.index;
+  friend auto operator<=> (const MBEWC& left, const MBEWC& right) {
+    return left.basis_index <=> right.basis_index;
   }
 
-  // Returns the negation of this MGWC.
-  MGWC negate() const;
+  // Returns the negation of this MBEWC.
+  MBEWC negate() const;
 
-  // Returns this MGWC, scaled by the given constant.
-  MGWC scale(const fmpq_t) const;
+  // Returns this MBEWC, scaled by the given constant.
+  MBEWC scale(const fmpq_t) const;
 
-  // Prints this MGWC.
+  // Prints this MBEWC.
   void print() const;
 };
 
@@ -44,7 +47,7 @@ struct MGWC {
 // XXX: actually maybe a dense representation is just faster?
 struct ManinElement {
   int64_t N;
-  std::vector<MGWC> components;
+  std::vector<MBEWC> components;
   bool is_sorted = false;
 
   // Zero element of a given level
@@ -74,7 +77,7 @@ struct ManinElement {
 
   // Returns the result of applying a linear map f to this element.
   // The map f should always return ManinElements of some level M equal to the second argument.
-  // ManinElement map(std::function<ManinElement(ManinGenerator)> f, int64_t = 0) const;
+  ManinElement map(std::function<ManinElement(ManinBasisElement)> f, int64_t = 0) const;
 
   // --- Displaying ---
 

@@ -26,11 +26,11 @@ int main(int argc, char** argv) {
   int level = atoi(argv[1]);
   std::vector<ManinBasisElement> basis = manin_basis(level);
 
-  // printf("[output] manin_basis size: %zu, basis:\n", basis.size());
-  // for (ManinGenerator generator : basis) {
-  //   generator.print();
-  //   printf("\n");
-  // }
+  printf("[output] manin_basis size: %zu, basis:\n", basis.size());
+  for (auto mbe : basis) {
+    mbe.print();
+    printf("\n");
+  }
 
   // // Tests boundary map
   std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);

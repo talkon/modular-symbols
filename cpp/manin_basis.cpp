@@ -16,7 +16,7 @@ ManinElement ManinBasisElement::as_element() {
   fmpq_t one;
   fmpq_init(one);
   fmpq_one(one);
-  std::vector<MGWC> components = {{.coeff = *one, .index = index}};
+  std::vector<MBEWC> components = {{.coeff = *one, .basis_index = basis_index}};
 
   ManinElement result = {.N = N, .components = components};
   result.mark_as_sorted_unchecked();
@@ -185,6 +185,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   std::vector<ManinBasisElement> basis;
   std::vector<ManinElement> generator_to_basis;
+  std::map<int64_t, int64_t> index_to_basis_index;
   int64_t basis_index = 0;
 
   int previous_pivot = -1;
@@ -200,19 +201,22 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       // Everything else is a nonpivot (and thus in the basis)
       ManinGenerator generator = generators[filt_generators[col].index];
       ManinBasisElement mbe(basis_index, generator);
-      basis.push_back(mbe);
+      index_to_basis_index[filt_generators[col].index] = basis_index;
+
       basis_index++;
+      basis.push_back(mbe);
       generator_to_basis.push_back(mbe.as_element());
     }
     // We found a pivot, so now we construct the ManinElement corresponding to that pivot.
     previous_pivot = pivot_index;
-    std::vector<MGWC> components;
+    std::vector<MBEWC> components;
     for (int col = pivot_index + 1; col < num_filt_gens; col++) {
       if (!(fmpz_is_zero(fmpz_mat_entry(ST, row, col)))) {
         fmpq_t coeff;
         fmpq_init(coeff);
         fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(ST, row, col), neg_den);
-        components.push_back({.index = filt_generators[col].index, .coeff = *coeff});
+        int64_t basis_index = index_to_basis_index[filt_generators[col].index];
+        components.push_back({.basis_index = basis_index, .coeff = *coeff});
       }
     }
     ManinElement element = {.N = level, .components = components};

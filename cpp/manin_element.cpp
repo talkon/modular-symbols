@@ -7,35 +7,35 @@
 #include <iostream>
 #include <cassert>
 
-// --- MGWC functions ---
+// --- MBEWC functions ---
 
-MGWC::~MGWC() {
+MBEWC::~MBEWC() {
   fmpq_clear(&coeff);
 }
 
-MGWC MGWC::negate() const {
+MBEWC MBEWC::negate() const {
   fmpq_t neg_coeff;
   fmpq_init(neg_coeff);
   fmpq_neg(neg_coeff, &(this->coeff));
-  return {.index = this->index, .coeff = *neg_coeff};
+  return {.basis_index = this->basis_index, .coeff = *neg_coeff};
 }
 
-MGWC MGWC::scale(const fmpq_t c) const {
+MBEWC MBEWC::scale(const fmpq_t c) const {
   fmpq_t scaled_coeff;
   fmpq_init(scaled_coeff);
   fmpq_mul(scaled_coeff, &(this->coeff), c);
-  return {.index = this->index, .coeff = *scaled_coeff};
+  return {.basis_index = this->basis_index, .coeff = *scaled_coeff};
 }
 
-void MGWC::print() const {
+void MBEWC::print() const {
   fmpq_print(&coeff);
-  printf(" * [%lld]", index);
+  printf(" * [%lld]", basis_index);
 }
 
 // --- ManinElement functions ---
 
 ManinElement ManinElement::zero(const int64_t level) {
-  std::vector<MGWC> empty_vec;
+  std::vector<MBEWC> empty_vec;
   ManinElement result = {.N = level, .components = empty_vec};
   result.mark_as_sorted_unchecked();
   return result;
@@ -55,7 +55,7 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
   assert(other.is_sorted);
   assert(N == other.N);
 
-  std::vector<MGWC> merged;
+  std::vector<MBEWC> merged;
 
   auto it1 = this->components.begin();
   auto it2 = other.components.begin();
@@ -74,26 +74,26 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
       break;
     }
 
-    if (it1->index < it2->index) {
+    if (it1->basis_index < it2->basis_index) {
       merged.push_back(*it1);
       it1++;
     }
 
-    if (it1->index == it2->index) {
+    if (it1->basis_index == it2->basis_index) {
       fmpq_t new_coeff;
       fmpq_init(new_coeff);
       fmpq_add(new_coeff, &(it1->coeff), &(it2->coeff));
 
       if (!fmpq_is_zero(new_coeff)) {
-        MGWC new_mgwc = {.index = it1->index, .coeff = *new_coeff};
-        merged.push_back(new_mgwc);
+        MBEWC new_MBEWC = {.basis_index = it1->basis_index, .coeff = *new_coeff};
+        merged.push_back(new_MBEWC);
       }
 
       it1++;
       it2++;
     }
 
-    if (it1->index > it2->index) {
+    if (it1->basis_index > it2->basis_index) {
       merged.push_back(*it2);
       it2++;
     }
@@ -108,7 +108,7 @@ ManinElement& ManinElement::operator-= (const ManinElement& other) {
   assert(other.is_sorted);
   assert(N == other.N);
 
-  std::vector<MGWC> merged;
+  std::vector<MBEWC> merged;
 
   auto it1 = this->components.begin();
   auto it2 = other.components.begin();
@@ -130,22 +130,22 @@ ManinElement& ManinElement::operator-= (const ManinElement& other) {
       break;
     }
 
-    if (it1->index < it2->index) {
+    if (it1->basis_index < it2->basis_index) {
       merged.push_back(*it1);
       it1++;
-    } else if (it1->index == it2->index) {
+    } else if (it1->basis_index == it2->basis_index) {
       fmpq_t new_coeff;
       fmpq_init(new_coeff);
       fmpq_sub(new_coeff, &(it1->coeff), &(it2->coeff));
 
       if (!fmpq_is_zero(new_coeff)) {
-        MGWC new_mgwc = {.index = it1->index, .coeff = *new_coeff};
-        merged.push_back(new_mgwc);
+        MBEWC new_MBEWC = {.basis_index = it1->basis_index, .coeff = *new_coeff};
+        merged.push_back(new_MBEWC);
       }
 
       it1++;
       it2++;
-    } else if (it1->index > it2->index) {
+    } else if (it1->basis_index > it2->basis_index) {
       merged.push_back((*it2).negate());
       it2++;
     }
@@ -168,8 +168,8 @@ ManinElement operator- (const ManinElement& left, const ManinElement& right) {
 }
 
 ManinElement ManinElement::negate() const {
-  std::vector<MGWC> negated_components;
-  auto negate = [](MGWC mgwc) { return mgwc.negate(); };
+  std::vector<MBEWC> negated_components;
+  auto negate = [](MBEWC MBEWC) { return MBEWC.negate(); };
   std::transform(components.begin(), components.end(), std::back_inserter(negated_components), negate);
 
   ManinElement result = {.N = N, .components = negated_components};
@@ -178,8 +178,8 @@ ManinElement ManinElement::negate() const {
 }
 
 ManinElement ManinElement::scale(const fmpq_t c) const {
-  std::vector<MGWC> scaled_components;
-  auto scale = [c](MGWC mgwc) { return mgwc.scale(c); };
+  std::vector<MBEWC> scaled_components;
+  auto scale = [c](MBEWC MBEWC) { return MBEWC.scale(c); };
   std::transform(components.begin(), components.end(), std::back_inserter(scaled_components), scale);
 
   ManinElement result = {.N = N, .components = scaled_components};
@@ -187,14 +187,14 @@ ManinElement ManinElement::scale(const fmpq_t c) const {
   return result;
 }
 
-ManinElement ManinElement::map(std::function<ManinElement(ManinGenerator)> f, int64_t M) const {
+ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f, int64_t M) const {
   int64_t out_level = M ? N : M;
   ManinElement result = ManinElement::zero(out_level);
 
-  std::vector<ManinGenerator> generators = manin_generators(N);
-  for (auto mgwc : components) {
+  std::vector<ManinBasisElement> full_basis = manin_basis(N);
+  for (auto MBEWC : components) {
     // [ ] cache result of f?
-    result += f(generators[mgwc.index]).scale(&mgwc.coeff);
+    result += f(full_basis[MBEWC.basis_index]).scale(&MBEWC.coeff);
   }
 
   return result;
@@ -202,18 +202,18 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinGenerator)> f, in
 
 void ManinElement::print() const {
   printf("level: %lld, components:", N);
-  for (MGWC component : components) {
+  for (MBEWC component : components) {
     printf(" + ");
     component.print();
   }
 }
 
 void ManinElement::print_with_generators() const {
-  for (MGWC component : components) {
+  for (MBEWC component : components) {
     printf(" + ");
     fmpq_print(&component.coeff);
     printf(" * ");
-    manin_generators(N)[component.index].print();
+    manin_basis(N)[component.basis_index].print();
   }
 }
 
@@ -233,7 +233,7 @@ void ManinElement::print_with_generators() const {
 //   // For each element b of B, compute f(b)
 //   for (int row = 0; row < B.size(); row++) {
 //     ManinElement fb = B[row].map(f);
-//     for (MGWC component : fb.components) {
+//     for (MBEWC component : fb.components) {
 
 //     }
 //   }
