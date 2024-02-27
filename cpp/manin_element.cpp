@@ -189,9 +189,9 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f,
   int64_t out_level = M ? M : N;
   ManinElement result = ManinElement::zero(out_level);
 
-  printf("ManinElement.map() called with out_level = %lld\n, this = ", out_level);
-  this->print_with_generators();
-  printf("\n");
+  // printf("ManinElement.map() called with out_level = %lld\n, this = ", out_level);
+  // this->print_with_generators();
+  // printf("\n");
 
   std::vector<ManinBasisElement> full_basis = manin_basis(N);
   for (auto MBEWC : components) {
@@ -199,20 +199,20 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f,
     auto mbe = full_basis[MBEWC.basis_index];
     auto fmbe = f(mbe);
 
-    printf("\nin ManinElement::map:\nmbe:");
-    mbe.print_with_indices();
-    printf("\nscale: ");
-    fmpq_print(&(MBEWC.coeff));
-    printf("\nf(mbe):");
-    fmbe.print_with_generators();
-    printf("\n\n");
+    // printf("\nin ManinElement::map:\nmbe:");
+    // mbe.print_with_indices();
+    // printf("\nscale: ");
+    // fmpq_print(&(MBEWC.coeff));
+    // printf("\nf(mbe):");
+    // fmbe.print_with_generators();
+    // printf("\n\n");
 
     result += fmbe.scale(&(MBEWC.coeff));
   }
 
-  printf("result:");
-  result.print_with_generators();
-  printf("\n");
+  // printf("result:");
+  // result.print_with_generators();
+  // printf("\n");
 
   return result;
 }
@@ -258,11 +258,11 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
 
   for (int col = 0; col < B.size(); col++) {
     ManinElement b = B[col];
-    b.print_with_generators();
-    printf("\n");
+    // b.print_with_generators();
+    // printf("\n");
     for (MBEWC component : b.components) {
       int row = component.basis_index;
-      printf("%d\n", row);
+      // printf("%d\n", row);
       assert(row < N_basis.size());
       fmpq_set(fmpq_mat_entry(B_matrix, row, col), &component.coeff);
     }
@@ -272,9 +272,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
 
-  printf("basis matrix:\n");
-  fmpz_mat_print_pretty(B_matrix_z);
-  printf("\n");
+  // printf("basis matrix:\n");
+  // fmpz_mat_print_pretty(B_matrix_z);
+  // printf("\n");
 
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
@@ -288,11 +288,11 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   for (int col = 0; col < B.size(); col++) {
     // [ ]: maybe inline map() and cache f(mbe)?
     ManinElement fb = B[col].map(f, M);
-    fb.print_with_generators();
-    printf("\n");
+    // fb.print_with_generators();
+    // printf("\n");
     for (MBEWC component : fb.components) {
       int row = component.basis_index;
-      printf("%d\n", row);
+      // printf("%d\n", row);
       assert(row < M_basis.size());
       fmpq_set(fmpq_mat_entry(map_matrix, row, col), &component.coeff);
     }
@@ -302,9 +302,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
 
-  printf("map matrix:\n");
-  fmpz_mat_print_pretty(map_matrix_z);
-  printf("\n");
+  // printf("map matrix:\n");
+  // fmpz_mat_print_pretty(map_matrix_z);
+  // printf("\n");
 
   fmpz_mat_t map_kernel, map_kernel_window;
   fmpz_mat_init(map_kernel, B.size(), B.size());
@@ -313,9 +313,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
 
   fmpz_mat_clear(map_matrix_z);
 
-  printf("map kernel window:\n");
-  fmpz_mat_print_pretty(map_kernel_window);
-  printf("\n");
+  // printf("map kernel window:\n");
+  // fmpz_mat_print_pretty(map_kernel_window);
+  // printf("\n");
 
   fmpz_mat_t map_kernel_in_orig_basis;
   fmpz_t den;
@@ -330,9 +330,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_window_clear(map_kernel_window);
   fmpz_mat_clear(map_kernel);
 
-  printf("map kernel in orig basis:\n");
-  fmpz_mat_print_pretty(map_kernel_in_orig_basis);
-  printf("\n");
+  // printf("map kernel in orig basis:\n");
+  // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
+  // printf("\n");
 
 
   // Convert each column of the kernel to a ManinElement

@@ -24,15 +24,6 @@ int main(int argc, char** argv) {
   // }
 
   // // Tests relation matrix
-  std::vector<ManinBasisElement> basis11 = manin_basis(11);
-
-  printf("[output] manin_basis(11) size: %zu, basis:\n", basis11.size());
-  for (auto mbe : basis11) {
-    mbe.print_with_indices();
-    printf("\n");
-  }
-
-
   int level = atoi(argv[1]);
   std::vector<ManinBasisElement> basis = manin_basis(level);
 

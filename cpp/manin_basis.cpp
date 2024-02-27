@@ -178,8 +178,8 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   printf("[info] finished computing rref\n");
   printf("rref denom: ");
   fmpz_print(den);
-  printf("\nrref: \n");
-  fmpz_mat_print_pretty(ST);
+  // printf("\nrref: \n");
+  // fmpz_mat_print_pretty(ST);
   printf("\n");
   printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
 
@@ -236,33 +236,33 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     ManinElement element = {.N = level, .components = components};
     element.sort();
     generator_to_basis.push_back(element);
-    printf("[%lld] = ", filt_generators[pivot_index].index);
-    element.print();
-    printf("\n");
+    // printf("[%lld] = ", filt_generators[pivot_index].index);
+    // element.print();
+    // printf("\n");
   }
 
   fmpz_mat_clear(ST);
   fmpz_clear(den);
   fmpz_clear(neg_den);
 
-  printf("[info] basis computation result\n");
-  printf(".basis: %zu\n", basis.size());
-  for (auto mbe: basis) {
-    mbe.print_with_indices();
-    printf("\n");
-  }
-  printf(".generator_to_basis: %zu\n", generator_to_basis.size());
-  for (int i = 0; i < generator_to_basis.size(); i++) {
-    generators[i].print();
-    printf(" = ");
-    generator_to_basis[i].print();
-    printf("\n");
-  }
-  printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
-  for (auto i: generator_to_filt_generators) {
-    printf("%lld ", i);
-  }
-  printf("\n");
+  // printf("[info] basis computation result\n");
+  // printf(".basis: %zu\n", basis.size());
+  // for (auto mbe: basis) {
+  //   mbe.print_with_indices();
+  //   printf("\n");
+  // }
+  // printf(".generator_to_basis: %zu\n", generator_to_basis.size());
+  // for (int i = 0; i < generator_to_basis.size(); i++) {
+  //   generators[i].print();
+  //   printf(" = ");
+  //   generator_to_basis[i].print();
+  //   printf("\n");
+  // }
+  // printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
+  // for (auto i: generator_to_filt_generators) {
+  //   printf("%lld ", i);
+  // }
+  // printf("\n");
 
   return {
     .basis = basis,
@@ -289,7 +289,7 @@ std::vector<ManinBasisElement> manin_basis(const int64_t level) {
 
 ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const int64_t level) {
 
-  printf("fraction_to_manin_element called with (a, b, level) = (%lld, %lld, %lld)\n", a, b, level);
+  // printf("fraction_to_manin_element called with (a, b, level) = (%lld, %lld, %lld)\n", a, b, level);
 
   if (a == 0) {
     return ManinElement::zero(level);
@@ -335,10 +335,10 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
       ManinSymbol ms = {.N = level, .c = -xq, .d = -yq};
       ManinElement me = level_and_index_to_basis(level, ms.as_generator().index);
 
-      ms.print();
-      printf(" = ");
-      me.print_with_generators();
-      printf("\n");
+      // ms.print();
+      // printf(" = ");
+      // me.print_with_generators();
+      // printf("\n");
 
       result -= me;
     }
@@ -359,10 +359,10 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
     ManinSymbol ms = {.N = level, .c = -yq, .d = xq};
     ManinElement me = level_and_index_to_basis(level, ms.as_generator().index);
 
-    ms.print();
-    printf(" = ");
-    me.print_with_generators();
-    printf("\n");
+    // ms.print();
+    // printf(" = ");
+    // me.print_with_generators();
+    // printf("\n");
 
     result -= me;
 

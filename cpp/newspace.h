@@ -2,9 +2,7 @@
 #define NEWSPACE_H
 
 #include <vector>
-
-// Forward declaration
-class ManinElement;
+#include "manin_element.h"
 
 // Computes a basis of the newspace of a given level.
 std::vector<ManinElement> newspace_basis(int64_t);
