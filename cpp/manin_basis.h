@@ -14,6 +14,8 @@ struct ManinBasisElement : ManinGenerator {
 
   explicit ManinBasisElement (int64_t basis_index, ManinGenerator mg): ManinGenerator(mg), basis_index(basis_index) {};
 
+  void print_with_indices() const;
+
   ManinElement as_element();
 };
 

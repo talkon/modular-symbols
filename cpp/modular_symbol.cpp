@@ -4,6 +4,10 @@
 #include "manin_element.h"
 
 
+void ModularSymbol::print() const {
+  printf("{%lld/%lld, %lld/%lld}", a, c, b, d);
+}
+
 ModularSymbol ModularSymbol::left_action_by(const IntMatrix2x2 mat) {
   return {
     .a = mat.x * a + mat.y * c,

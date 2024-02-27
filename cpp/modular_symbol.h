@@ -23,6 +23,8 @@ struct ModularSymbol {
   int64_t c;
   int64_t d;
 
+  void print() const;
+
   ModularSymbol left_action_by(const IntMatrix2x2);
 
   // Converts this modular symbol to a ManinElement of a given level.

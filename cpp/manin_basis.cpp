@@ -23,6 +23,11 @@ ManinElement ManinBasisElement::as_element() {
   return result;
 }
 
+void ManinBasisElement::print_with_indices() const {
+  this->print();
+  printf(" [i: %lld, bi: %lld]", index, basis_index);
+}
+
 // Auxiliary type to store the result of computing the Manin basis.
 struct BasisComputationResult {
 
@@ -173,8 +178,8 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   printf("[info] finished computing rref\n");
   printf("rref denom: ");
   fmpz_print(den);
-  // printf("\nrref: \n");
-  // fmpz_mat_print_pretty(ST);
+  printf("\nrref: \n");
+  fmpz_mat_print_pretty(ST);
   printf("\n");
   printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
 
@@ -185,8 +190,19 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   std::vector<ManinBasisElement> basis;
   std::vector<ManinElement> generator_to_basis;
+
   std::map<int64_t, int64_t> index_to_basis_index;
-  int64_t basis_index = 0;
+  int64_t bi = 0;
+
+  auto get_basis_index = [&index_to_basis_index, &bi] (int64_t i) {
+    if (auto it = index_to_basis_index.find(i); it != index_to_basis_index.end()) {
+      return it->second;
+    } else {
+      index_to_basis_index.insert(std::make_pair(i, bi));
+      bi++;
+      return bi - 1;
+    }
+  };
 
   int previous_pivot = -1;
   // rank + 1 is needed to add the basis elements at the end.
@@ -200,10 +216,8 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       }
       // Everything else is a nonpivot (and thus in the basis)
       ManinGenerator generator = generators[filt_generators[col].index];
+      int64_t basis_index = get_basis_index(filt_generators[col].index);
       ManinBasisElement mbe(basis_index, generator);
-      index_to_basis_index[filt_generators[col].index] = basis_index;
-
-      basis_index++;
       basis.push_back(mbe);
       generator_to_basis.push_back(mbe.as_element());
     }
@@ -215,26 +229,40 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
         fmpq_t coeff;
         fmpq_init(coeff);
         fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(ST, row, col), neg_den);
-        int64_t basis_index = index_to_basis_index[filt_generators[col].index];
+        int64_t basis_index = get_basis_index(filt_generators[col].index);
         components.push_back({.basis_index = basis_index, .coeff = *coeff});
       }
     }
     ManinElement element = {.N = level, .components = components};
     element.sort();
     generator_to_basis.push_back(element);
-    // printf("[%lld] = ", filt_generators[pivot_index].index);
-    // element.print();
-    // printf("\n");
+    printf("[%lld] = ", filt_generators[pivot_index].index);
+    element.print();
+    printf("\n");
   }
 
   fmpz_mat_clear(ST);
   fmpz_clear(den);
   fmpz_clear(neg_den);
 
-  // printf("[info] lengths\n");
-  // printf(".basis: %zu\n", basis.size());
-  // printf(".generator_to_basis: %zu\n", generator_to_basis.size());
-  // printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
+  printf("[info] basis computation result\n");
+  printf(".basis: %zu\n", basis.size());
+  for (auto mbe: basis) {
+    mbe.print_with_indices();
+    printf("\n");
+  }
+  printf(".generator_to_basis: %zu\n", generator_to_basis.size());
+  for (int i = 0; i < generator_to_basis.size(); i++) {
+    generators[i].print();
+    printf(" = ");
+    generator_to_basis[i].print();
+    printf("\n");
+  }
+  printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
+  for (auto i: generator_to_filt_generators) {
+    printf("%lld ", i);
+  }
+  printf("\n");
 
   return {
     .basis = basis,
@@ -260,6 +288,8 @@ std::vector<ManinBasisElement> manin_basis(const int64_t level) {
 }
 
 ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const int64_t level) {
+
+  printf("fraction_to_manin_element called with (a, b, level) = (%lld, %lld, %lld)\n", a, b, level);
 
   if (a == 0) {
     return ManinElement::zero(level);
@@ -302,7 +332,7 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
     if (iter > 1) {
       int64_t xq = fmpz_get_si(Xq);
       int64_t yq = fmpz_get_si(Yq);
-      ManinSymbol ms = {.N = level, .c = xq, .d = yq};
+      ManinSymbol ms = {.N = level, .c = -xq, .d = -yq};
       ManinElement me = level_and_index_to_basis(level, ms.as_generator().index);
 
       ms.print();

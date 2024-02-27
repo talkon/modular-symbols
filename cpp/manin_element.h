@@ -76,8 +76,8 @@ struct ManinElement {
   ManinElement scale(const fmpq_t) const;
 
   // Returns the result of applying a linear map f to this element.
-  // The map f should always return ManinElements of some level M equal to the second argument.
-  ManinElement map(std::function<ManinElement(ManinBasisElement)> f, int64_t = 0) const;
+  // The map f should always return ManinElements of level `M`.
+  ManinElement map(std::function<ManinElement(ManinBasisElement)> f, int64_t M) const;
 
   // --- Displaying ---
 
@@ -88,8 +88,9 @@ struct ManinElement {
   void print_with_generators() const;
 };
 
-// Computes the kernel (represented by a basis) of a given linear map acting on
-// a vector space of ManinElements (also represented by a basis)
-// std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinGenerator)>);
+// Computes the kernel (represented by a basis) of a given linear map `f` acting on
+// a vector space of ManinElements (also represented by a basis).
+// `f` should be a map to Manin symbols of level `M`.
+std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)>, int64_t M);
 
 #endif // MANIN_ELEMENT_H

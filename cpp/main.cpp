@@ -2,6 +2,7 @@
 #include "manin_basis.h"
 #include "manin_element.h"
 #include "boundary_map.h"
+#include "newspace.h"
 
 int main(int argc, char** argv) {
   // // Tests manin_generators
@@ -23,12 +24,21 @@ int main(int argc, char** argv) {
   // }
 
   // // Tests relation matrix
+  std::vector<ManinBasisElement> basis11 = manin_basis(11);
+
+  printf("[output] manin_basis(11) size: %zu, basis:\n", basis11.size());
+  for (auto mbe : basis11) {
+    mbe.print_with_indices();
+    printf("\n");
+  }
+
+
   int level = atoi(argv[1]);
   std::vector<ManinBasisElement> basis = manin_basis(level);
 
   printf("[output] manin_basis size: %zu, basis:\n", basis.size());
   for (auto mbe : basis) {
-    mbe.print();
+    mbe.print_with_indices();
     printf("\n");
   }
 
@@ -36,6 +46,14 @@ int main(int argc, char** argv) {
   std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
   printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
   for (ManinElement element : cuspidal_basis) {
+    element.print_with_generators();
+    printf("\n");
+  }
+
+  // // Tests oldspace map
+  std::vector<ManinElement> newspace = newspace_basis(level);
+  printf("[output] newspace_basis size: %zu, basis:\n", newspace.size());
+  for (ManinElement element : newspace) {
     element.print_with_generators();
     printf("\n");
   }

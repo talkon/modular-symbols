@@ -19,7 +19,7 @@ struct ManinSymbol {
   friend auto operator<=> (const ManinSymbol&, const ManinSymbol&) = default;
 
   // Prints this Manin symbol
-  void print();
+  void print() const;
 
   // Checks equivalence between two Manin symbols.
   // Note that this is different from equality (==), which is used for caching.

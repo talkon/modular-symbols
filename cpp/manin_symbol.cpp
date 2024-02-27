@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <cassert>
 
-void ManinSymbol::print() {
+void ManinSymbol::print() const {
   printf("(%lld, %lld)_%lld", c, d, N);
 }
 
