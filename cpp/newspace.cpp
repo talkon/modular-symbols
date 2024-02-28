@@ -50,7 +50,7 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
       int64_t d = fmpz_get_si(D);
       auto f = [d, m](ManinBasisElement mbe) { return oldspace_map(mbe, d, m); };
       current_basis = map_kernel(current_basis, f, m);
-      printf("\n[info] M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
+      printf("[info] M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
       // for (auto mbe : current_basis) {
       //   mbe.print_with_generators();
       //   printf("\n");

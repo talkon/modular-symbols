@@ -59,11 +59,12 @@ ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
 std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
-  printf("[info] starting computation of newform subspaces for level %lld\nbasis:\n", level);
-  for(auto elt : basis) {
-    elt.print();
-    printf("\n\n");
-  }
+  printf("[info] starting computation of newform subspaces for level %lld\n", level);
+  // printf("basis:\n");
+  // for(auto elt : basis) {
+  //   elt.print();
+  //   printf("\n\n");
+  // }
 
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining = { basis };
@@ -81,6 +82,7 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
     std::vector<std::vector<ManinElement>> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto subspace_basis : remaining) {
+      printf("[info] space size: %zu\n", subspace_basis.size());
       DecomposeResult dr = decompose(subspace_basis, f);
       done.insert(done.end(), dr.done.begin(), dr.done.end());
       new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
