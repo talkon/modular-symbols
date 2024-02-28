@@ -3,6 +3,9 @@
 #include "manin_basis.h"
 #include "manin_element.h"
 
+void IntMatrix2x2::print() const {
+  printf("[[%lld, %lld], [%lld, %lld]]", x, y, z, w);
+}
 
 void ModularSymbol::print() const {
   printf("{%lld/%lld, %lld/%lld}", a, c, b, d);

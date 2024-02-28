@@ -1,8 +1,10 @@
+#include "modular_symbol.h"
 #include "manin_symbol.h"
 #include "manin_basis.h"
 #include "manin_element.h"
 #include "boundary_map.h"
 #include "newspace.h"
+#include "newform_subspaces.h"
 
 int main(int argc, char** argv) {
   // // Tests manin_generators
@@ -24,30 +26,30 @@ int main(int argc, char** argv) {
   // }
 
   // // Tests relation matrix
-  int level = atoi(argv[1]);
-  std::vector<ManinBasisElement> basis = manin_basis(level);
+  // int level = atoi(argv[1]);
+  // std::vector<ManinBasisElement> basis = manin_basis(level);
 
-  printf("[output] manin_basis size: %zu, basis:\n", basis.size());
-  for (auto mbe : basis) {
-    mbe.print_with_indices();
-    printf("\n");
-  }
+  // printf("[output] manin_basis size: %zu, basis:\n", basis.size());
+  // for (auto mbe : basis) {
+  //   mbe.print_with_indices();
+  //   printf("\n");
+  // }
 
   // // Tests boundary map
-  std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
-  printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
-  for (ManinElement element : cuspidal_basis) {
-    element.print_with_generators();
-    printf("\n");
-  }
+  // std::vector<ManinElement> cuspidal_basis = cuspidal_manin_basis(level);
+  // printf("[output] cuspidal_basis size: %zu, basis:\n", cuspidal_basis.size());
+  // for (ManinElement element : cuspidal_basis) {
+  //   element.print_with_generators();
+  //   printf("\n");
+  // }
 
   // // Tests oldspace map
-  std::vector<ManinElement> newspace = newspace_basis(level);
-  printf("[output] newspace_basis size: %zu, basis:\n", newspace.size());
-  for (ManinElement element : newspace) {
-    element.print_with_generators();
-    printf("\n");
-  }
+  // std::vector<ManinElement> newspace = newspace_basis(level);
+  // printf("[output] newspace_basis size: %zu, basis:\n", newspace.size());
+  // for (ManinElement element : newspace) {
+  //   element.print_with_generators();
+  //   printf("\n");
+  // }
 
   // // Tests continued fractions
   // ManinElement result = fraction_to_manin_element(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
@@ -74,6 +76,12 @@ int main(int argc, char** argv) {
   // fmpz_clear(b);
 
   // flint_cleanup_master();
+
+  std::vector<IntMatrix2x2> mtxs = heilbronn_matrices(atoi(argv[1]));
+  for (auto mtx : mtxs) {
+    mtx.print();
+    printf("\n");
+  }
 
   return 0;
 }

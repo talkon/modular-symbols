@@ -14,6 +14,8 @@ struct IntMatrix2x2 {
   int64_t y;
   int64_t z;
   int64_t w;
+
+  void print() const;
 };
 
 // Represents the modular symbol {a/b, c/d}.
