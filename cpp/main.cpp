@@ -7,6 +7,9 @@
 #include "newform_subspaces.h"
 
 int main(int argc, char** argv) {
+
+  int level = atoi(argv[1]);
+
   // // Tests manin_generators
   // std::vector<ManinGenerator> mgs;
   // for (int i = 0; i < 10; i++) {
@@ -26,7 +29,6 @@ int main(int argc, char** argv) {
   // }
 
   // // Tests relation matrix
-  // int level = atoi(argv[1]);
   // std::vector<ManinBasisElement> basis = manin_basis(level);
 
   // printf("[output] manin_basis size: %zu, basis:\n", basis.size());
@@ -84,7 +86,8 @@ int main(int argc, char** argv) {
   //   printf("\n");
   // }
 
-  auto nss = newform_subspaces(atoi(argv[1]));
+  // Test newform subspaces
+  auto nss = newform_subspaces(level);
   printf("[output] newform subspace bases:\n");
   std::vector<int> sizes;
   for (auto ns : nss) {

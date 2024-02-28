@@ -50,9 +50,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
 
-  printf("basis matrix:\n");
-  fmpz_mat_print_pretty(B_matrix_z);
-  printf("\n");
+  // printf("basis matrix:\n");
+  // fmpz_mat_print_pretty(B_matrix_z);
+  // printf("\n");
 
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
@@ -66,6 +66,8 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   for (int col = 0; col < B.size(); col++) {
     // [ ]: maybe inline map() and cache f(mbe)?
     ManinElement fb = B[col].map(f, M);
+    // B[col].print_with_generators();
+    // printf(" -> ");
     // fb.print_with_generators();
     // printf("\n");
     for (MBEWC component : fb.components) {
@@ -76,13 +78,18 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   }
 
+  // printf("map matrix:\n");
+  // fmpq_mat_print(map_matrix);
+  // printf("\n");
+
   // XXX: this feels a bit wasteful
-  fmpq_mat_get_fmpz_mat_colwise(map_matrix_z, NULL, map_matrix);
+  fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
 
-  // printf("map matrix:\n");
+  // printf("map matrix z:\n");
   // fmpz_mat_print_pretty(map_matrix_z);
   // printf("\n");
+
 
   fmpz_mat_t map_kernel, map_kernel_window;
   fmpz_mat_init(map_kernel, B.size(), B.size());
@@ -131,6 +138,10 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     output.push_back(element);
   }
 
+  // printf("output matrix:\n");
+  // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
+  // printf("\n");
+
   fmpz_mat_clear(map_kernel_in_orig_basis);
 
   return output;
@@ -170,8 +181,8 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
   int degree = fmpz_poly_degree(f);
 
   printf("[debug] fmpz_poly_apply_fmpq_mat called with "); // arguments\n");
-  // printf("src: \n");
-  // fmpq_mat_print(src);
+  // // printf("src: \n");
+  // // fmpq_mat_print(src);
   printf("f: ");
   fmpz_poly_print_pretty(f, "x");
   printf("\n");
@@ -248,12 +259,13 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   std::vector<int> pivots;
   fmpz* pivot_coeffs = _fmpz_vec_init(B.size());
 
-  printf("[debug] B_matrix_z:\n");
-  fmpz_mat_print_pretty(B_matrix_z);
-  printf("\n");
+  // printf("[debug] B_matrix_z:\n");
+  // fmpz_mat_print_pretty(B_matrix_z);
+  // printf("\n");
 
   int current_col = 0;
   for (int row = 0; row < N_basis.size(); row++) {
+    // printf("%d %d\n", row, current_col);
     bool is_pivot = true;
     for (int col = 0; col < B.size(); col++) {
       if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
@@ -269,17 +281,19 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     pivots.push_back(row);
     fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B_matrix_z, row, current_col));
     current_col++;
+
+    if (current_col == B.size()) break;
   }
 
-  for (int i = 0; i < B.size(); i++) {
-    printf("%d ", pivots[i]);
-    fmpz_print(pivot_coeffs + i);
-    printf("\n");
-  }
+  // for (int i = 0; i < B.size(); i++) {
+  //   printf("%d ", pivots[i]);
+  //   fmpz_print(pivot_coeffs + i);
+  //   printf("\n");
+  // }
 
   // XXX: this section is here for debugging purposes
   // Construct matrix of the map
-  int debug = 1;
+  int debug = 0;
   if (debug) {
     fmpq_mat_t map_matrix;
     fmpq_mat_init(map_matrix, N_basis.size(), B.size());
@@ -288,8 +302,8 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     for (int col = 0; col < B.size(); col++) {
       // [ ]: maybe inline map() and cache f(mbe)?
       ManinElement fb = B[col].map(f, N);
-      fb.print_with_generators();
-      printf("\n");
+      // fb.print_with_generators();
+      // printf("\n");
       for (MBEWC component : fb.components) {
         int row = component.basis_index;
         // printf("%d\n", row);
@@ -355,9 +369,9 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     // printf("\n");
   }
 
-  printf("[debug] f_matrix:\n");
-  fmpq_mat_print(f_matrix);
-  printf("\n");
+  // printf("[debug] f_matrix:\n");
+  // fmpq_mat_print(f_matrix);
+  // printf("\n");
 
   fmpq_poly_t min_poly;
   fmpz_poly_t min_poly_z;
