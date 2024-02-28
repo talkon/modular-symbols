@@ -47,6 +47,10 @@ ManinSymbol ManinSymbol::apply_T_2() {
   return {.N = this->N, .c = this->d, .d = -(this->c + this->d)};
 }
 
+ManinSymbol ManinSymbol::right_action_by(IntMatrix2x2 mat) {
+  return {.N = this->N, .c = this->c * mat.x + this->d * mat.z, .d = this->c * mat.y + this->d * mat.w};
+}
+
 ModularSymbol ManinSymbol::as_modular_symbol() {
   utils::XgcdResult xgcd = utils::xgcd(c, d);
   return {.a = xgcd.b, .b = -xgcd.a, .c = c, .d = d};

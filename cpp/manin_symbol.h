@@ -9,6 +9,7 @@
 struct ManinGenerator;
 struct ManinElement;
 struct ModularSymbol;
+struct IntMatrix2x2;
 
 // Represents a Manin symbol. The level N should fit in 32 bits.
 struct ManinSymbol {
@@ -36,6 +37,9 @@ struct ManinSymbol {
 
   // Applies the T^2 relation to this Manin symbol.  [Stein Ch 3.3]
   ManinSymbol apply_T_2();
+
+  // Applies the right action of a 2x2 matrix on this Manin symbol. [Stein Ch 3.3]
+  ManinSymbol right_action_by(IntMatrix2x2);
 
   // Converts this Manin symbol to a modular symbol.
   ModularSymbol as_modular_symbol();

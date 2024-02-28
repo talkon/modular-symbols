@@ -77,11 +77,30 @@ int main(int argc, char** argv) {
 
   // flint_cleanup_master();
 
-  std::vector<IntMatrix2x2> mtxs = heilbronn_matrices(atoi(argv[1]));
-  for (auto mtx : mtxs) {
-    mtx.print();
-    printf("\n");
+  // // Heilbronn matrices
+  // std::vector<IntMatrix2x2> mtxs = heilbronn_matrices(atoi(argv[1]));
+  // for (auto mtx : mtxs) {
+  //   mtx.print();
+  //   printf("\n");
+  // }
+
+  auto nss = newform_subspaces(atoi(argv[1]));
+  printf("[output] newform subspace bases:\n");
+  std::vector<int> sizes;
+  for (auto ns : nss) {
+    printf("[\n");
+    for (auto mbe : ns) {
+      printf("  ");
+      mbe.print_with_generators();
+      printf(",\n");
+    }
+    printf("];\n");
+    sizes.push_back(ns.size());
   }
+  std::sort(sizes.begin(), sizes.end());
+  printf("[output] newform subspace sizes: ");
+  for (auto i : sizes) printf("%d,", i);
+  printf("\n");
 
   return 0;
 }

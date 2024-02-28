@@ -188,7 +188,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   fmpz_init(neg_den);
   fmpz_neg(neg_den, den);
 
-  std::vector<ManinBasisElement> basis;
+  std::map<int, ManinBasisElement> basis_map;
   std::vector<ManinElement> generator_to_basis;
 
   std::map<int64_t, int64_t> index_to_basis_index;
@@ -218,7 +218,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       ManinGenerator generator = generators[filt_generators[col].index];
       int64_t basis_index = get_basis_index(filt_generators[col].index);
       ManinBasisElement mbe(basis_index, generator);
-      basis.push_back(mbe);
+      basis_map.insert(std::pair(basis_index, mbe));
       generator_to_basis.push_back(mbe.as_element());
     }
     // We found a pivot, so now we construct the ManinElement corresponding to that pivot.
@@ -239,6 +239,12 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     // printf("[%lld] = ", filt_generators[pivot_index].index);
     // element.print();
     // printf("\n");
+  }
+
+  std::vector<ManinBasisElement> basis;
+  for (int bi = 0; bi < basis_size; bi++) {
+    auto pair = basis_map.find(bi);
+    basis.push_back(pair->second);
   }
 
   fmpz_mat_clear(ST);
