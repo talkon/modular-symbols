@@ -107,10 +107,23 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_init(den);
   fmpz_mat_init(map_kernel_in_orig_basis, N_basis.size(), rank);
   fmpz_mat_mul(map_kernel_in_orig_basis, B_matrix_z, map_kernel_window);
-  fmpz_mat_content(den, map_kernel_in_orig_basis);
-  if (!fmpz_is_zero(den)) {
-    fmpz_mat_scalar_divexact_fmpz(map_kernel_in_orig_basis, map_kernel_in_orig_basis, den);
+  // fmpz_mat_content(den, map_kernel_in_orig_basis);
+  // if (!fmpz_is_zero(den)) {
+  //   fmpz_mat_scalar_divexact_fmpz(map_kernel_in_orig_basis, map_kernel_in_orig_basis, den);
+  // }
+
+  fmpz_mat_t window;
+  for (int col = 0; col < rank; col++) {
+    fmpz_mat_window_init(window, map_kernel_in_orig_basis, 0, col, N_basis.size(), col+1);
+
+    fmpz_mat_content(den, window);
+    if (!fmpz_is_zero(den)) {
+      fmpz_mat_scalar_divexact_fmpz(window, window, den);
+    }
+    fmpz_mat_window_clear(window);
   }
+
+  fmpz_clear(den);
 
   fmpz_mat_window_clear(map_kernel_window);
   fmpz_mat_clear(map_kernel);
@@ -180,7 +193,7 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
   fmpz_init(coeff);
   int degree = fmpz_poly_degree(f);
 
-  printf("[debug] fmpz_poly_apply_fmpq_mat called with "); // arguments\n");
+  printf("[info] fmpz_poly_apply_fmpq_mat called with "); // arguments\n");
   // // printf("src: \n");
   // // fmpq_mat_print(src);
   printf("f: ");
@@ -251,6 +264,10 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     }
   }
 
+  // printf("[debug] B_matrix:\n");
+  // fmpq_mat_print(B_matrix);
+  // printf("\n");
+
   // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
@@ -312,9 +329,9 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
       }
     }
 
-    printf("[debug] map_matrix:\n");
-    fmpq_mat_print(map_matrix);
-    printf("\n");
+    // printf("[debug] map_matrix:\n");
+    // fmpq_mat_print(map_matrix);
+    // printf("\n");
 
     fmpq_mat_clear(map_matrix);
   }
@@ -351,22 +368,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
         it++;
       }
     }
-
-    // for (MBEWC component : fb.components) {
-    //   // printf("%d ", component.basis_index);
-    //   if (component.basis_index == pivots[pivot_index]) {
-    //     fmpq_t coeff;
-    //     fmpq_set(coeff, &component.coeff);
-    //     fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
-    //     fmpq_set(fmpq_mat_entry(f_matrix, pivot_index, col), coeff);
-    //     fmpq_clear(coeff);
-    //   }
-    //   else {
-    //     while (pivot_index < pivots.size() && component.basis_index > pivots[pivot_index]) pivot_index++;
-    //     if (pivot_index == pivots.size()) break;
-    //   }
-    // }
-    // printf("\n");
   }
 
   // printf("[debug] f_matrix:\n");
@@ -383,6 +384,10 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
   fmpq_poly_get_numerator(min_poly_z, min_poly);
   fmpq_poly_clear(min_poly);
+
+  printf("[info] min_poly_z: ");
+  fmpz_poly_print_pretty(min_poly_z, "x");
+  printf("\n");
 
   fmpz_poly_factor_t min_poly_factored;
   fmpz_poly_factor_init(min_poly_factored);
@@ -411,7 +416,8 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     fmpz_poly_struct *factor = min_poly_factored->p + i;
     fmpz_poly_apply_fmpq_mat(poly_on_f_matrix, f_matrix, factor);
     int degree = fmpz_poly_degree(factor);
-    fmpq_mat_get_fmpz_mat_colwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
+    // NOTE: this needs to be rowwise!
+    fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
     int rank = fmpz_mat_nullspace(poly_mat_kernel, poly_on_f_matrix_z);
     fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
 
@@ -419,9 +425,15 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
     fmpz_mat_window_clear(poly_mat_kernel_window);
 
-    fmpz_mat_content(den, poly_mat_kernel_in_orig_basis);
-    if (!fmpz_is_zero(den)) {
-      fmpz_mat_scalar_divexact_fmpz(poly_mat_kernel_in_orig_basis, poly_mat_kernel_in_orig_basis, den);
+    fmpz_mat_t window;
+    for (int col = 0; col < rank; col++) {
+      fmpz_mat_window_init(window, poly_mat_kernel_in_orig_basis, 0, col, N_basis.size(), col+1);
+
+      fmpz_mat_content(den, window);
+      if (!fmpz_is_zero(den)) {
+        fmpz_mat_scalar_divexact_fmpz(window, window, den);
+      }
+      fmpz_mat_window_clear(window);
     }
 
     std::vector<ManinElement> output;
@@ -442,6 +454,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
     fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
 
+    printf("[info] subspace dimension: %d, factor degree: %d\n", rank, degree);
     if (degree == rank) {
       done.push_back(output);
     } else {
