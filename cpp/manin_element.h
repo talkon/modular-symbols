@@ -88,9 +88,4 @@ struct ManinElement {
   void print_with_generators() const;
 };
 
-// Computes the kernel (represented by a basis) of a given linear map `f` acting on
-// a vector space of ManinElements (also represented by a basis).
-// `f` should be a map to Manin symbols of level `M`.
-std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)>, int64_t M);
-
 #endif // MANIN_ELEMENT_H

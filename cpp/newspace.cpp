@@ -3,6 +3,7 @@
 #include "modular_symbol.h"
 #include "manin_symbol.h"
 #include "manin_element.h"
+#include "linalg.h"
 
 #include <flint/fmpz_poly.h>
 #include <flint/arith.h>
@@ -14,24 +15,6 @@ ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
   assert(N % (d * M) == 0);
   IntMatrix2x2 matrix = {.x = d, .y = 0, .z = 0, .w = 1};
   return mbe.as_modular_symbol().left_action_by(matrix).to_manin_element(M);
-
-  // printf("[info] oldspace_map called with (d, M) = (%lld, %lld)\n", d, M);
-
-  // printf("mbe: "); mbe.print_with_indices(); printf("\n");
-
-  // auto ms = mbe.as_modular_symbol();
-
-  // printf("ms: "); ms.print(); printf("\n");
-
-  // auto msl = ms.left_action_by(matrix);
-
-  // printf("msl: "); msl.print(); printf("\n");
-
-  // auto me = msl.to_manin_element(M);
-
-  // printf("me: "); me.print_with_generators(); printf("\n");
-
-  // return me;
 }
 
 std::vector<ManinElement> newspace_basis(int64_t level) {
