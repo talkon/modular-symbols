@@ -5,6 +5,7 @@
 #include "linalg.h"
 #include "utils.h"
 #include "debug_timer.h"
+#include "cache_decorator.h"
 
 #include <flint/ulong_extras.h>
 #include <cmath>
@@ -42,7 +43,7 @@ std::vector<IntMatrix2x2> heilbronn_matrices(int64_t p) {
 
 // TODO: consider caching this, or really, just caching its matrix.
 
-ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
+ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   int64_t level = mbe.N;
   ManinElement result = ManinElement::zero(level);
   for (auto mat : heilbronn_matrices(p)) {
@@ -59,11 +60,21 @@ ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
   return result;
 }
 
-ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
+ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
+  static CacheDecorator<ManinElement, ManinBasisElement, int64_t> _cache_hecke_action(_impl_hecke_action);
+  return _cache_hecke_action(mbe, p);
+}
+
+ManinElement _impl_atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   int64_t level = mbe.N;
   utils::XgcdResult xgcd = utils::xgcd(q, level / q);
   IntMatrix2x2 matrix = {.x = q, .y = -xgcd.b, .z = level, .w = xgcd.a * q};
   return mbe.as_modular_symbol().left_action_by(matrix).to_manin_element(level);
+}
+
+ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
+  static CacheDecorator<ManinElement, ManinBasisElement, int64_t> _cache_atkin_lehner_action(_impl_atkin_lehner_action);
+  return _cache_atkin_lehner_action(mbe, q);
 }
 
 std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {

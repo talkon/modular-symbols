@@ -5,17 +5,23 @@
 #include "manin_element.h"
 #include "linalg.h"
 #include "debug_timer.h"
+#include "cache_decorator.h"
 
 #include <flint/fmpz_poly.h>
 #include <flint/arith.h>
 
 #include <cassert>
 
-ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
+ManinElement _impl_oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
   int64_t N = mbe.N;
   assert(N % (d * M) == 0);
   IntMatrix2x2 matrix = {.x = d, .y = 0, .z = 0, .w = 1};
   return mbe.as_modular_symbol().left_action_by(matrix).to_manin_element(M);
+}
+
+ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
+  static CacheDecorator<ManinElement, ManinBasisElement, int64_t, int64_t> _cache_oldspace_map(_impl_oldspace_map);
+  return _cache_oldspace_map(mbe, d, M);
 }
 
 std::vector<ManinElement> newspace_basis(int64_t level) {
