@@ -3,6 +3,7 @@
 #include "manin_basis.h"
 #include "newspace.h"
 #include "linalg.h"
+#include "utils.h"
 #include "debug_timer.h"
 
 #include <flint/ulong_extras.h>
@@ -40,6 +41,7 @@ std::vector<IntMatrix2x2> heilbronn_matrices(int64_t p) {
 }
 
 // TODO: consider caching this, or really, just caching its matrix.
+
 ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
   int64_t level = mbe.N;
   ManinElement result = ManinElement::zero(level);
@@ -57,6 +59,13 @@ ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
   return result;
 }
 
+ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
+  int64_t level = mbe.N;
+  utils::XgcdResult xgcd = utils::xgcd(q, level / q);
+  IntMatrix2x2 matrix = {.x = q, .y = -xgcd.b, .z = level, .w = xgcd.a * q};
+  return mbe.as_modular_symbol().left_action_by(matrix).to_manin_element(level);
+}
+
 std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
@@ -71,7 +80,29 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining = { basis };
 
-  // TODO: add Atkin-Lehner
+  n_factor_t factors;
+  n_factor_init(&factors);
+  n_factor(&factors, level, 1);
+  for (int i = 0; i < factors.num && remaining.size() > 0; i++){
+    int64_t q = n_pow(factors.p[i], factors.exp[i]);
+    info_with_time();
+    printf(" decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
+    auto f = [q](ManinBasisElement mbe) { return atkin_lehner_action(mbe, q); };
+    std::vector<std::vector<ManinElement>> new_remaining;
+    // XXX: This causes the action of `f` to be recomputed many times.
+    for (auto subspace_basis : remaining) {
+      info_with_time();
+      printf(" space size: %zu\n", subspace_basis.size());
+      // TODO: since all eigenvalues are +1 or -1, we don't need to use the full power of decompose()
+      DecomposeResult dr = decompose(subspace_basis, f);
+      // minpoly factor degree should always be 1, so if anything goes in done, it's actually done
+      done.insert(done.end(), dr.done.begin(), dr.done.end());
+      new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
+    }
+    remaining = new_remaining;
+  }
+
+  // n_factor is just a struct, does not need to be cleared
 
   n_primes_t prime_iter;
   n_primes_init(prime_iter);
@@ -80,7 +111,7 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
     if (level % p == 0) continue;
 
     info_with_time();
-    printf(" decomposing spaces using prime %lld\n", p);
+    printf(" decomposing spaces using Hecke operator for prime %lld\n", p);
     auto f = [p](ManinBasisElement mbe) { return hecke_action(mbe, p); };
     std::vector<std::vector<ManinElement>> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
