@@ -4,6 +4,7 @@
 #include "manin_symbol.h"
 #include "manin_element.h"
 #include "linalg.h"
+#include "debug_timer.h"
 
 #include <flint/fmpz_poly.h>
 #include <flint/arith.h>
@@ -19,7 +20,8 @@ ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
 
 std::vector<ManinElement> newspace_basis(int64_t level) {
   std::vector<ManinElement> current_basis = cuspidal_manin_basis(level);
-  printf("\n[info] started computation of newspace basis for level %lld\n", level);
+  info_with_time();
+  printf(" started computation of newspace basis for level %lld\n", level);
   printf("Starting current_basis size: %zu\n\n", current_basis.size());
 
   fmpz_t N, M, D, N_over_M;
@@ -50,7 +52,8 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
       int64_t d = fmpz_get_si(D);
       auto f = [d, m](ManinBasisElement mbe) { return oldspace_map(mbe, d, m); };
       current_basis = map_kernel(current_basis, f, m);
-      printf("[info] M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
+      info_with_time();
+      printf(" M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
       // for (auto mbe : current_basis) {
       //   mbe.print_with_generators();
       //   printf("\n");

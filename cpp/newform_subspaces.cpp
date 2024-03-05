@@ -3,6 +3,7 @@
 #include "manin_basis.h"
 #include "newspace.h"
 #include "linalg.h"
+#include "debug_timer.h"
 
 #include <flint/ulong_extras.h>
 #include <cmath>
@@ -59,7 +60,8 @@ ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
 std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
-  printf("[info] starting computation of newform subspaces for level %lld\n", level);
+  info_with_time();
+  printf(" starting computation of newform subspaces for level %lld\n", level);
   // printf("basis:\n");
   // for(auto elt : basis) {
   //   elt.print();
@@ -77,12 +79,14 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
     int64_t p = n_primes_next(prime_iter);
     if (level % p == 0) continue;
 
-    printf("[info] decomposing spaces using prime %lld\n", p);
+    info_with_time();
+    printf(" decomposing spaces using prime %lld\n", p);
     auto f = [p](ManinBasisElement mbe) { return hecke_action(mbe, p); };
     std::vector<std::vector<ManinElement>> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto subspace_basis : remaining) {
-      printf("[info] space size: %zu\n", subspace_basis.size());
+      info_with_time();
+      printf(" space size: %zu\n", subspace_basis.size());
       DecomposeResult dr = decompose(subspace_basis, f);
       done.insert(done.end(), dr.done.begin(), dr.done.end());
       new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());

@@ -5,9 +5,11 @@
 #include "boundary_map.h"
 #include "newspace.h"
 #include "newform_subspaces.h"
+#include "debug_timer.h"
 
 int main(int argc, char** argv) {
 
+  init_debug_time();
   int level = atoi(argv[1]);
 
   // // Tests manin_generators

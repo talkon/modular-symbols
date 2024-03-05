@@ -1,6 +1,7 @@
 #include "linalg.h"
 #include "manin_basis.h"
 #include "manin_element.h"
+#include "debug_timer.h"
 
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
@@ -193,7 +194,8 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
   fmpz_init(coeff);
   int degree = fmpz_poly_degree(f);
 
-  printf("[info] fmpz_poly_apply_fmpq_mat called with "); // arguments\n");
+  info_with_time();
+  printf(" fmpz_poly_apply_fmpq_mat called with "); // arguments\n");
   // // printf("src: \n");
   // // fmpq_mat_print(src);
   printf("f: ");
@@ -385,7 +387,8 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   fmpq_poly_get_numerator(min_poly_z, min_poly);
   fmpq_poly_clear(min_poly);
 
-  printf("[info] min_poly_z: ");
+  info_with_time();
+  printf(" min_poly_z: ");
   fmpz_poly_print_pretty(min_poly_z, "x");
   printf("\n");
 
@@ -454,7 +457,8 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
     fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
 
-    printf("[info] subspace dimension: %d, factor degree: %d\n", rank, degree);
+    info_with_time();
+    printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
     if (degree == rank) {
       done.push_back(output);
     } else {
