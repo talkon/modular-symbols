@@ -4,7 +4,7 @@
 #include "newspace.h"
 #include "linalg.h"
 #include "utils.h"
-#include "debug_timer.h"
+#include "debug_utils.h"
 #include "cache_decorator.h"
 
 #include <flint/ulong_extras.h>
@@ -77,7 +77,7 @@ ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
+std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use_atkin_lehner) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
   info_with_time();
@@ -91,26 +91,28 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining = { basis };
 
-  n_factor_t factors;
-  n_factor_init(&factors);
-  n_factor(&factors, level, 1);
-  for (int i = 0; i < factors.num && remaining.size() > 0; i++){
-    int64_t q = n_pow(factors.p[i], factors.exp[i]);
-    info_with_time();
-    printf(" decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
-    auto f = [q](ManinBasisElement mbe) { return atkin_lehner_action(mbe, q); };
-    std::vector<std::vector<ManinElement>> new_remaining;
-    // XXX: This causes the action of `f` to be recomputed many times.
-    for (auto subspace_basis : remaining) {
+  if (use_atkin_lehner) {
+    n_factor_t factors;
+    n_factor_init(&factors);
+    n_factor(&factors, level, 1);
+    for (int i = 0; i < factors.num && remaining.size() > 0; i++){
+      int64_t q = n_pow(factors.p[i], factors.exp[i]);
       info_with_time();
-      printf(" space size: %zu\n", subspace_basis.size());
-      // TODO: since all eigenvalues are +1 or -1, we don't need to use the full power of decompose()
-      DecomposeResult dr = decompose(subspace_basis, f);
-      // minpoly factor degree should always be 1, so if anything goes in done, it's actually done
-      done.insert(done.end(), dr.done.begin(), dr.done.end());
-      new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
+      printf(" decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
+      auto f = [q](ManinBasisElement mbe) { return atkin_lehner_action(mbe, q); };
+      std::vector<std::vector<ManinElement>> new_remaining;
+      // XXX: This causes the action of `f` to be recomputed many times.
+      for (auto subspace_basis : remaining) {
+        info_with_time();
+        printf(" space size: %zu\n", subspace_basis.size());
+        // TODO: since all eigenvalues are +1 or -1, we don't need to use the full power of decompose()
+        DecomposeResult dr = decompose(subspace_basis, f);
+        // minpoly factor degree should always be 1, so if anything goes in done, it's actually done
+        done.insert(done.end(), dr.done.begin(), dr.done.end());
+        new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
+      }
+      remaining = new_remaining;
     }
-    remaining = new_remaining;
   }
 
   // n_factor is just a struct, does not need to be cleared
@@ -141,8 +143,8 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level) {
   return done;
 }
 
-std::vector<int> newform_subspace_dimensions(int64_t level) {
-  auto nss = newform_subspaces(level);
+std::vector<int> newform_subspace_dimensions(int64_t level, bool use_atkin_lehner) {
+  auto nss = newform_subspaces(level, use_atkin_lehner);
   std::vector<int> sizes;
   for (auto ns : nss) {
     sizes.push_back(ns.size());

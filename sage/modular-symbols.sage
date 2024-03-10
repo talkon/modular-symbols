@@ -22,10 +22,14 @@ def fraction_to_manin_comb(a: Integer, b: Integer, N: Integer) -> 'ManinSymbolCo
   qs = [cf.q(i) for i in range(cf.length())]
   for j in range(1, cf.length()):
     if j % 2 == 1:
+      # print(qs[j], qs[j-1])
       sym = ManinSymbol(N, qs[j], qs[j-1]).to_generator(omit_index = True)
+      # print("=", stb[sym])
       out -= stb[sym]
     else:
+      # print(-qs[j], qs[j-1])
       sym = ManinSymbol(N, -qs[j], qs[j-1]).to_generator(omit_index = True)
+      # print("=", stb[sym])
       out -= stb[sym]
 
   return out
@@ -396,20 +400,20 @@ def manin_combs_to_matrix(manin_combs : list[ManinSymbolCombination]):
 def newspace(N):
   mbasis, current_basis = boundary_map_kernel(N)
   cuspidal_basis = current_basis
-  # print("Boundary map kernel:\n" + str(current_basis))
+  print("Boundary map kernel:\n" + str(current_basis))
   for M in divisors(N):
     if M > 10 and M != N:
       for d in divisors(N/M):
-        # print(f"Taking oldspace map with M = {M} and d = {d}")
+        print(f"Taking oldspace map with M = {M} and d = {d}")
         combs = rows_to_manin_combs(mbasis, current_basis)
         map_output = [oldspace_map_comb(comb, d, M) for comb in combs]
         mtx = manin_combs_to_matrix(map_output)
-        # print("Output mtx:\n" + str(mtx))
+        print("Output mtx:\n" + str(mtx))
         new_basis_in_old_basis = mtx.kernel().basis_matrix()
-        # print("Output mtx kernel:\n" + str(new_basis_in_old_basis))
+        print("Output mtx kernel:\n" + str(new_basis_in_old_basis))
         current_basis = new_basis_in_old_basis * current_basis
-        # print("New kernel:\n" + str(current_basis))
-        # print("New kernel dimension:", str(current_basis.nrows()))
+        print("New kernel:\n" + str(current_basis))
+        print("New kernel dimension:", str(current_basis.nrows()))
   return mbasis, cuspidal_basis, current_basis
 
 # from Cremona ch.2
@@ -441,7 +445,9 @@ def hecke_action(manin_sym : ManinSymbol, p) -> ManinSymbolCombination:
   out = ManinSymbolCombination.zero(manin_sym.N)
   stb = sym_to_basis(manin_sym.N)
   for mtx in heilbronn_matrices(p):
-    out += stb[manin_sym.right_action_by(mtx)]
+    x = stb[manin_sym.right_action_by(mtx)]
+    # print(manin_sym.right_action_by(mtx), " -> ", x)
+    out += x
   return out
 
 def hecke_action_comb(manin_comb : ManinSymbolCombination, p) -> ManinSymbolCombination:
@@ -478,16 +484,19 @@ def atkin_lehner_action_matrix(mbasis, subspace_basis, Q):
 
 # decomposes a subspace with the given basis into simple (mtx)-modules
 def decompose(mtx, basis):
-  # print("decompose() called")
-  # print("mtx:\n", mtx)
-  # print("basis:\n", basis)
+  print("decompose() called")
+  print("mtx:\n", mtx)
+  print("basis:\n", basis)
   pivots = basis.pivots()
   mtx_on_basis = (basis * mtx).matrix_from_columns(pivots)
+  print("mtx_on_basis:\n", basis * mtx, "\n", mtx_on_basis)
   out = []
-  for poly, _ in factor(mtx_on_basis.minimal_polynomial()):
+  factors = factor(mtx_on_basis.minimal_polynomial())
+  print("factors: ", factors)
+  for poly, _ in factors:
     new_basis = poly(mtx_on_basis).kernel().basis_matrix()
     out += [(new_basis * basis, poly.degree() == new_basis.nrows())]
-  # print("decompose() output:", out)
+  print("decompose() output:\n", out)
   return out
 
 @cache
@@ -529,6 +538,7 @@ def newform_subspaces(N, use_atkin_lehner = True):
       # print("Hecke matrix:", mtx)
       new_remaining = []
       for basis in remaining:
+        print(basis.nrows(), basis.ncols())
         # print("Basis:\n" + str(basis))
         for new_basis, done in decompose(mtx, basis):
           if done:

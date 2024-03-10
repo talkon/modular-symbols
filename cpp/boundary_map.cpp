@@ -2,7 +2,7 @@
 #include "manin_element.h"
 #include "utils.h"
 
-#include "debug_timer.h"
+#include "debug_utils.h"
 #include "cache_decorator.h"
 
 #include <flint/fmpz_mat.h>

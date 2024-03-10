@@ -4,7 +4,7 @@
 #include "manin_symbol.h"
 #include "manin_element.h"
 #include "linalg.h"
-#include "debug_timer.h"
+#include "debug_utils.h"
 #include "cache_decorator.h"
 
 #include <flint/fmpz_poly.h>

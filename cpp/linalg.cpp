@@ -1,7 +1,7 @@
 #include "linalg.h"
 #include "manin_basis.h"
 #include "manin_element.h"
-#include "debug_timer.h"
+#include "debug_utils.h"
 
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
