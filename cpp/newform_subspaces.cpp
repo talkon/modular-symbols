@@ -126,6 +126,7 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
       new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
     }
     remaining = new_remaining;
+    DEBUG_INFO_PRINT(2, "completed prime %lld, done = %zu, remaining = %zu\n", p, done.size(), remaining.size());
   }
 
   n_primes_clear(prime_iter);

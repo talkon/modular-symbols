@@ -56,7 +56,7 @@ def perft(command: list[str]) -> None:
   primesieve_time = primesieve()
   ratio = SPLIT_FILE_CALIBRATE / primesieve_time
   print(f"[info] Primesieve finished in: {primesieve_time:7.4}s")
-  print(f"[info] Machine performance ratio: {ratio:6.4}")
+  print(f"[info] Machine performance ratio: {ratio:6.4}\n")
 
   category_scores = []
   for k, v in TESTS.items():
@@ -78,7 +78,7 @@ def perft(command: list[str]) -> None:
 
     avg_score = geometric_mean(scores)
     category_scores.append(avg_score)
-    print(f"[result] Finished category {k}, average speedup: {avg_score:6.4}")
+    print(f"[result] Finished category {k}, average speedup: {avg_score:6.4}\n")
 
   print("[result] Finished all categories")
   avg_cat_score = geometric_mean(category_scores)

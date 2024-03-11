@@ -198,8 +198,8 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
 
   DEBUG_INFO(3,
     {
-      printf("fmpz_poly_apply_fmpq_mat called with f:");
-      fmpz_poly_print_pretty(f, "x");
+      printf("fmpz_poly_apply_fmpq_mat called with f(T) = ");
+      fmpz_poly_print_pretty(f, "T");
       printf("\n");
     }
   )
@@ -377,28 +377,35 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
   _fmpz_vec_clear(pivot_coeffs, B.size());
 
-  // printf("[debug] f_matrix:\n");
-  // fmpq_mat_print(f_matrix);
-  // printf("\n");
-
   fmpq_poly_t min_poly;
   fmpz_poly_t min_poly_z;
   fmpq_poly_init(min_poly);
   fmpz_poly_init(min_poly_z);
 
-  fmpq_mat_minpoly(min_poly, f_matrix);
-  // fmpq_mat_clear(f_matrix);
-
-  fmpq_poly_get_numerator(min_poly_z, min_poly);
-  fmpq_poly_clear(min_poly);
+  // XXX: FLINT seems to think that the minimal polynomial of the zero matrix is 1, and not T.
+  if (fmpq_mat_is_zero(f_matrix)) {
+    // Manually set the minimal polynomial to x.
+    fmpz_poly_set_coeff_si(min_poly_z, 1, 1);
+  } else {
+    fmpq_mat_minpoly(min_poly, f_matrix);
+    fmpq_poly_get_numerator(min_poly_z, min_poly);
+  }
 
   DEBUG_INFO(3,
     {
+      // printf("[debug] f_matrix:\n");
+      // fmpq_mat_print(f_matrix);
+      // printf("\n");
+      // printf(" [debug] min_poly: ");
+      // fmpq_poly_print_pretty(min_poly, "T");
+      // printf("\n");
       printf(" min_poly_z: ");
-      fmpz_poly_print_pretty(min_poly_z, "x");
+      fmpz_poly_print_pretty(min_poly_z, "T");
       printf("\n");
     }
   )
+
+  fmpq_poly_clear(min_poly);
 
   fmpz_poly_factor_t min_poly_factored;
   fmpz_poly_factor_init(min_poly_factored);
