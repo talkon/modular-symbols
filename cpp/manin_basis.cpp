@@ -47,12 +47,10 @@ struct BasisComputationResult {
 };
 
 BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
-  info_with_time();
-  printf(" started computation of Manin basis for level %lld\n", level);
+  DEBUG_INFO_PRINT(2, "Started computation of Manin basis for level %lld\n", level);
   std::vector<ManinGenerator> generators = manin_generators(level);
   int64_t num_generators = generators.size();
-  info_with_time();
-  printf(" finished computing generators\nnum_generators: %lld\n", num_generators);
+  DEBUG_INFO_PRINT(2, "Finished computing generators, num_generators: %lld\n", num_generators);
 
   // Modulo out by Eta relations (see Cremona Ch 2.5)
 
@@ -70,15 +68,20 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   // A value of -1 means mapped index has not been computed yet.
   std::vector<int64_t> generator_to_filt_generators (num_generators, -1);
 
-  // info_with_time();
-  // printf(" eta relations:\n");
+  DEBUG_INFO_PRINT(5, "eta relations:\n")
+
   for (ManinGenerator generator : generators) {
     if (generator_to_filt_generators[generator.index] == -1) {
       ManinGenerator generator_eta = generator.apply_eta().as_generator();
-      // generator.print();
-      // printf(", eta: ");
-      // generator_eta.print();
-      // printf("\n");
+
+      DEBUG_INFO(5,
+        {
+          generator.print();
+          printf(", eta: ");
+          generator_eta.print();
+          printf("\n");
+        }
+      );
 
       generator_to_filt_generators[generator.index] = filt_index;
       generator_to_filt_generators[generator_eta.index] = filt_index;
@@ -89,7 +92,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   }
 
   int64_t num_filt_gens = filt_generators.size();
-  printf("num_filt_gens: %lld\n", num_filt_gens);
+  DEBUG_INFO_PRINT(3, "num_filt_gens: %lld\n", num_filt_gens);
   // for (int i = 0; i < num_filt_gens; i++) {
   //   filt_generators[i].print();
   //   printf(" %lld\n", filt_generators[i].index);
@@ -107,15 +110,20 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   }
   std::vector<std::vector<int64_t>> S_rows;
 
-  // info_with_time();
-  // printf(" S relations:\n");
+  DEBUG_INFO_PRINT(5, " S relations:\n")
+
   for (ManinGenerator generator : generators) {
     if (!done_S[generator.index]) {
       ManinGenerator generator_S = generator.apply_S().as_generator();
-      // generator.print();
-      // printf(", S: ");
-      // generator_S.print();
-      // printf("\n");
+
+      DEBUG_INFO(5,
+        {
+          generator.print();
+          printf(", S: ");
+          generator_S.print();
+          printf("\n");
+        }
+      )
 
       std::vector<int64_t> row (num_filt_gens, 0);
       row[generator_to_filt_generators[generator.index]]++;
@@ -154,9 +162,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   int64_t num_T_rows = T_rows.size();
 
-  info_with_time();
-  printf(" finished computing relations\n");
-
   // Create ST relation matrix
   fmpz_mat_t ST;
   fmpz_mat_init(ST, num_S_rows + num_T_rows, num_filt_gens);
@@ -173,22 +178,25 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   }
 
-  // fmpz_mat_print_pretty(ST);
-  printf("nrows: %ld\nncols: %ld\n", fmpz_mat_nrows(ST), fmpz_mat_ncols(ST));
+
+  DEBUG_INFO_PRINT(3, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(ST), fmpz_mat_ncols(ST));
 
   fmpz_t den;
   fmpz_init(den);
   int64_t rank = fmpz_mat_rref(ST, den, ST);
   int64_t basis_size = fmpz_mat_ncols(ST) - rank;
 
-  info_with_time();
-  printf(" finished computing rref\n");
-  printf("rref denom: ");
-  fmpz_print(den);
-  // printf("\nrref: \n");
-  // fmpz_mat_print_pretty(ST);
-  printf("\n");
-  printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
+  DEBUG_INFO(3,
+    {
+      printf("Finished computing rref\n");
+      printf("rref denom: ");
+      fmpz_print(den);
+      // printf("\nrref: \n");
+      // fmpz_mat_print_pretty(ST);
+      printf("\n");
+      printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
+    }
+  )
 
   // Extract information from the RREF form
   fmpz_t neg_den;
@@ -258,25 +266,28 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   fmpz_clear(den);
   fmpz_clear(neg_den);
 
-  // info_with_time();
-  // printf(" basis computation result\n");
-  // printf(".basis: %zu\n", basis.size());
-  // for (auto mbe: basis) {
-  //   mbe.print_with_indices();
-  //   printf("\n");
-  // }
-  // printf(".generator_to_basis: %zu\n", generator_to_basis.size());
-  // for (int i = 0; i < generator_to_basis.size(); i++) {
-  //   generators[i].print();
-  //   printf(" = ");
-  //   generator_to_basis[i].print();
-  //   printf("\n");
-  // }
-  // printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
-  // for (auto i: generator_to_filt_generators) {
-  //   printf("%lld ", i);
-  // }
-  // printf("\n");
+  DEBUG_INFO(5,
+    {
+      printf(" basis computation result\n");
+      printf(".basis: %zu\n", basis.size());
+      for (auto mbe: basis) {
+        mbe.print_with_indices();
+        printf("\n");
+      }
+      printf(".generator_to_basis: %zu\n", generator_to_basis.size());
+      for (int i = 0; i < generator_to_basis.size(); i++) {
+        generators[i].print();
+        printf(" = ");
+        generator_to_basis[i].print();
+        printf("\n");
+      }
+      printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
+      for (auto i: generator_to_filt_generators) {
+        printf("%lld ", i);
+      }
+      printf("\n");
+    }
+  )
 
   return {
     .basis = basis,

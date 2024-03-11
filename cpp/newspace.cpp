@@ -26,9 +26,9 @@ ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
 
 std::vector<ManinElement> newspace_basis(int64_t level) {
   std::vector<ManinElement> current_basis = cuspidal_manin_basis(level);
-  info_with_time();
-  printf(" started computation of newspace basis for level %lld\n", level);
-  printf("Starting current_basis size: %zu\n\n", current_basis.size());
+
+  DEBUG_INFO_PRINT(1, "Started computation of newspace basis for level %lld\n", level)
+  DEBUG_INFO_PRINT(2, "Starting current_basis size: %zu\n", current_basis.size())
 
   fmpz_t N, M, D, N_over_M;
   fmpz_init_set_si(N, level);
@@ -58,13 +58,7 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
       int64_t d = fmpz_get_si(D);
       auto f = [d, m](ManinBasisElement mbe) { return oldspace_map(mbe, d, m); };
       current_basis = map_kernel(current_basis, f, m);
-      info_with_time();
-      printf(" M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
-      // for (auto mbe : current_basis) {
-      //   mbe.print_with_generators();
-      //   printf("\n");
-      // }
-      // printf("\n\n");
+      DEBUG_INFO_PRINT(2, " M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
     }
   }
 

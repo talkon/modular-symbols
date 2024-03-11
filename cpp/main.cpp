@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   init_timer();
 
   auto dims = newform_subspace_dimensions(level, use_atkin_lehner);
-  DEBUG_INFO(1, "finished computation, output:\n");
+  DEBUG_INFO_PRINT(1, "Finished computation\n");
   printf("%lld:[", level);
   for (int i = 0; i < dims.size(); i++) {
     printf("%d", dims[i]);

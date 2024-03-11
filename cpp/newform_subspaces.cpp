@@ -80,13 +80,7 @@ ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
 std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use_atkin_lehner) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
-  info_with_time();
-  printf(" starting computation of newform subspaces for level %lld\n", level);
-  // printf("basis:\n");
-  // for(auto elt : basis) {
-  //   elt.print();
-  //   printf("\n\n");
-  // }
+  DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
 
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining = { basis };
@@ -97,14 +91,12 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
     n_factor(&factors, level, 1);
     for (int i = 0; i < factors.num && remaining.size() > 0; i++){
       int64_t q = n_pow(factors.p[i], factors.exp[i]);
-      info_with_time();
-      printf(" decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
+      DEBUG_INFO_PRINT(1, "Decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
       auto f = [q](ManinBasisElement mbe) { return atkin_lehner_action(mbe, q); };
       std::vector<std::vector<ManinElement>> new_remaining;
       // XXX: This causes the action of `f` to be recomputed many times.
       for (auto subspace_basis : remaining) {
-        info_with_time();
-        printf(" space size: %zu\n", subspace_basis.size());
+        DEBUG_INFO_PRINT(2, "Space size: %zu\n", subspace_basis.size());
         // TODO: since all eigenvalues are +1 or -1, we don't need to use the full power of decompose()
         DecomposeResult dr = decompose(subspace_basis, f);
         // minpoly factor degree should always be 1, so if anything goes in done, it's actually done
@@ -123,14 +115,12 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
     int64_t p = n_primes_next(prime_iter);
     if (level % p == 0) continue;
 
-    info_with_time();
-    printf(" decomposing spaces using Hecke operator for prime %lld\n", p);
+    DEBUG_INFO_PRINT(1, "decomposing spaces using Hecke operator for prime %lld\n", p);
     auto f = [p](ManinBasisElement mbe) { return hecke_action(mbe, p); };
     std::vector<std::vector<ManinElement>> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto subspace_basis : remaining) {
-      info_with_time();
-      printf(" space size: %zu\n", subspace_basis.size());
+      DEBUG_INFO_PRINT(2, "space size: %zu\n", subspace_basis.size());
       DecomposeResult dr = decompose(subspace_basis, f);
       done.insert(done.end(), dr.done.begin(), dr.done.end());
       new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());

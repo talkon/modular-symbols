@@ -196,13 +196,13 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
   fmpz_init(coeff);
   int degree = fmpz_poly_degree(f);
 
-  info_with_time();
-  printf(" fmpz_poly_apply_fmpq_mat called with "); // arguments\n");
-  // // printf("src: \n");
-  // // fmpq_mat_print(src);
-  printf("f: ");
-  fmpz_poly_print_pretty(f, "x");
-  printf("\n");
+  DEBUG_INFO(3,
+    {
+      printf("fmpz_poly_apply_fmpq_mat called with f:");
+      fmpz_poly_print_pretty(f, "x");
+      printf("\n");
+    }
+  )
 
   fmpq_mat_zero(dst);
 
@@ -392,10 +392,13 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   fmpq_poly_get_numerator(min_poly_z, min_poly);
   fmpq_poly_clear(min_poly);
 
-  info_with_time();
-  printf(" min_poly_z: ");
-  fmpz_poly_print_pretty(min_poly_z, "x");
-  printf("\n");
+  DEBUG_INFO(3,
+    {
+      printf(" min_poly_z: ");
+      fmpz_poly_print_pretty(min_poly_z, "x");
+      printf("\n");
+    }
+  )
 
   fmpz_poly_factor_t min_poly_factored;
   fmpz_poly_factor_init(min_poly_factored);
@@ -462,8 +465,12 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
     fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
 
-    info_with_time();
-    printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
+    DEBUG_INFO(3,
+      {
+        printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
+      }
+    )
+
     if (degree == rank) {
       done.push_back(output);
     } else {

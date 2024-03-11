@@ -55,8 +55,7 @@ std::pair<Cusp, Cusp> boundary_map(const ManinGenerator mg) {
 
 std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
   std::vector<ManinBasisElement> full_basis = manin_basis(level);
-  info_with_time();
-  printf(" started computation of cuspidal Manin basis for level %lld\n", level);
+  DEBUG_INFO_PRINT(1, "Started computation of cuspidal Manin basis for level %lld\n", level);
 
   std::vector<Cusp> representatives;
   // XXX: not sure result_cache is any helpful.
@@ -100,10 +99,9 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
     mapped_basis.push_back(std::make_pair(first, second));
   }
 
-  info_with_time();
-  printf(" finished computing representatives\n");
-  printf("full_basis size: %zu\n", full_basis.size());
-  printf("num_representatives: %zu\n", representatives.size());
+  DEBUG_INFO_PRINT(2, "Finished computing representatives\
+  \nfull_basis size: %zu\
+  \nnum_representatives: %zu\n", full_basis.size(), representatives.size());
 
   // Construct boundary map matrix as a dense fmpz_mat_t
   fmpz_mat_t boundary_map_matrix;
