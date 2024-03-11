@@ -4,6 +4,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from statistics import geometric_mean
+from colorama import Fore, Style
 
 SPLIT_FILE = "./analysis/split.txt"
 SPLIT_FILE_CALIBRATE = 13.4
@@ -78,11 +79,11 @@ def perft(command: list[str]) -> None:
 
     avg_score = geometric_mean(scores)
     category_scores.append(avg_score)
-    print(f"[result] Finished category {k}, average speedup: {avg_score:6.4}\n")
+    print(Fore.YELLOW + f"[result] Finished category {k}, average speedup: {avg_score:6.4}\n" + Style.RESET_ALL)
 
   print("[result] Finished all categories")
   avg_cat_score = geometric_mean(category_scores)
-  print(f"[result] Overall speedup: {avg_cat_score:6.4}")
+  print(Fore.YELLOW + f"[result] Overall speedup: {avg_cat_score:6.4}" + Style.RESET_ALL)
 
 if __name__ == "__main__":
   command = ["./bin/main"] + sys.argv[1:]
