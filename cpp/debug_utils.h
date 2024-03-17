@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <chrono>
+#include "debug_temp.h"
 
 // --- Printing ---
 
@@ -36,9 +37,9 @@ inline void info_with_time() {
   printf(BLU "%.4lfs > " RESET, get_elapsed_time());
 }
 
-#define DEBUG_INFO_PRINT(v, ...) if (verbosity >= v) { info_with_time(); printf(__VA_ARGS__); }
+#define DEBUG_INFO_PRINT(v, ...) if (verbosity >= v) { info_with_time(); printf(__VA_ARGS__); debug_temp(); }
 
-#define DEBUG_INFO(v, ...) if (verbosity >= v) { info_with_time(); __VA_ARGS__ }
+#define DEBUG_INFO(v, ...) if (verbosity >= v) { info_with_time(); __VA_ARGS__ debug_temp(); }
 
 // --- Verbosity level ---
 

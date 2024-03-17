@@ -61,7 +61,7 @@ def perft(command: list[str]) -> None:
 
   category_scores = []
   for k, v in TESTS.items():
-    print(f"[info] Running tests for category {k}")
+    print(Fore.YELLOW + f"[info] Running tests for category {k}" + Style.RESET_ALL)
     scores = []
 
     for level in v:
@@ -71,19 +71,20 @@ def perft(command: list[str]) -> None:
       if correct:
         rel_speed = ref_splits[level].time / (ratio * test_split.time)
         print(test_split.time, ratio, ref_splits[level].time)
-        print(f"[result] Output correct, finished in {test_split.time:7.4}s, speedup: {rel_speed:6.4}")
+        print(f"[result] Output correct, finished in {test_split.time:7.4f}s, speedup: {rel_speed:6.4f}")
         scores.append(rel_speed)
       else:
-        print(f"[result] Output incorrect, aborting perft")
+        print(Fore.RED + f"[result] Output incorrect, aborting perft" + Style.RESET_ALL)
         return
 
     avg_score = geometric_mean(scores)
     category_scores.append(avg_score)
-    print(Fore.YELLOW + f"[result] Finished category {k}, average speedup: {avg_score:6.4}\n" + Style.RESET_ALL)
+    print(Fore.GREEN + f"[result] Finished category {k}, average speedup: {avg_score:6.4f}\n" + Style.RESET_ALL)
 
-  print("[result] Finished all categories")
+  print(Fore.GREEN + "[result] Finished all categories" + Style.RESET_ALL)
+
   avg_cat_score = geometric_mean(category_scores)
-  print(Fore.YELLOW + f"[result] Overall speedup: {avg_cat_score:6.4}" + Style.RESET_ALL)
+  print(Fore.GREEN + f"[result] Overall speedup: {avg_cat_score:6.4f}" + Style.RESET_ALL)
 
 if __name__ == "__main__":
   command = ["./bin/main"] + sys.argv[1:]

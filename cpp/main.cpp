@@ -6,6 +6,7 @@
 #include "newspace.h"
 #include "newform_subspaces.h"
 #include "debug_utils.h"
+#include "debug_temp.h"
 
 #include <unistd.h>
 
@@ -17,7 +18,7 @@ int main(int argc, char** argv) {
   int verbose = 0;
   bool use_atkin_lehner = false;
 
-  while ((c = getopt (argc, argv, "n:v:ah")) != -1) {
+  while ((c = getopt (argc, argv, "n:v:ahd")) != -1) {
     switch (c) {
       case 'n':
         level = atol(optarg);
@@ -28,11 +29,15 @@ int main(int argc, char** argv) {
       case 'a':
         use_atkin_lehner = true;
         break;
+      case 'd':
+        debug_temp();
+        return 0;
       case 'h':
         printf("Usage\
         \n -n N : (required) sets level to N\
         \n -v V : sets verbosity to V\
         \n -a   : uses Atkin-Lehner involutions\
+        \n -d   : (used for debugging purposes)\
         \n -h   : prints this help message and exits\
         \n");
         return 0;
