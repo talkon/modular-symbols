@@ -46,7 +46,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
       int row = component.basis_index;
       // printf("%d\n", row);
       assert(row < N_basis.size());
-      fmpq_set(fmpq_mat_entry(B_matrix, row, col), &component.coeff);
+      fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
     }
   }
 
@@ -58,7 +58,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // fmpz_mat_print_pretty(B_matrix_z);
   // printf("\n");
 
-  DEBUG_INFO_PRINT(3, "0\n");
+  // DEBUG_INFO_PRINT(3, "0\n");
 
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
@@ -69,37 +69,51 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_init(map_matrix_z, M_basis.size(), B.size());
   fmpz_mat_zero(map_matrix_z);
 
+  // if (B.size() == 317) {
+  //   int col = 21;
+  //   DEBUG_INFO(3,
+  //     {
+  //       B[col].print();
+  //       printf("\n");
+  //     }
+  //   )
+  //   ManinElement fb = B[col].map(f, M);
+  //   DEBUG_INFO(3,
+  //     {
+  //       printf("-> \n");
+  //       fb.print();
+  //       printf("\n");
+  //     }
+  //   )
+  //   throw std::runtime_error("dlkjafhlakfegh");
+  // }
+
   for (int col = 0; col < B.size(); col++) {
     // [ ]: maybe inline map() and cache f(mbe)?
+    // if (B.size() == 317 && col == 21) {
+    //   DEBUG_INFO(3,
+    //     {
+    //       B[col].print();
+    //       printf("\n");
+    //     }
+    //   )
+    // }
     ManinElement fb = B[col].map(f, M);
-    // B[col].print_with_generators();
-    // printf(" -> ");
-    // fb.print_with_generators();
-    // printf("\n");
+    // if (B.size() == 317 && col == 21) {
+    //   DEBUG_INFO(3,
+    //     {
+    //       printf("-> \n");
+    //       fb.print();
+    //       printf("\n");
+    //     }
+    //   )
+    // }
+
     for (MBEWC component : fb.components) {
       int row = component.basis_index;
       // printf("%d\n", row);
       assert(row < M_basis.size());
-      fmpq_t temp;
-      fmpq_set(temp, &component.coeff);
-      if (B.size() == 317 && col == 21) {
-        DEBUG_INFO_PRINT(3, "aaa\n");
-        DEBUG_INFO(3,
-          {
-            fmpq_print(temp);
-            printf("\n");
-          }
-        )
-      }
-      fmpq_set(fmpq_mat_entry(map_matrix, row, col), temp);
-      if (B.size() == 317 && col == 21) {
-        DEBUG_INFO(3,
-          {
-            component.print();
-            printf("\n");
-          }
-        )
-      }
+      fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
     }
   }
 
@@ -107,7 +121,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // fmpq_mat_print(map_matrix);
   // printf("\n");
 
-  DEBUG_INFO_PRINT(3, "5\n");
+  // DEBUG_INFO_PRINT(3, "5\n");
 
   // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
@@ -305,10 +319,11 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
         fmpq_t coeff;
         fmpq_init(coeff);
         fmpq_set_fmpz(coeff, fmpz_mat_entry(map_kernel_in_orig_basis, row, col));
-        components.push_back({.basis_index = row, .coeff = *coeff});
+        components.push_back(MBEWC(row, coeff));
+        fmpq_clear(coeff);
       }
     }
-    ManinElement element = {.N = N, .components = components};
+    ManinElement element = ManinElement(N, components);
     element.sort();
     output.push_back(element);
   }
@@ -423,7 +438,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
       int row = component.basis_index;
       // printf("%d\n", row);
       assert(row < N_basis.size());
-      fmpq_set(fmpq_mat_entry(B_matrix, row, col), &component.coeff);
+      fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
     }
   }
 
@@ -488,7 +503,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
         int row = component.basis_index;
         // printf("%d\n", row);
         assert(row < N_basis.size());
-        fmpq_set(fmpq_mat_entry(map_matrix, row, col), &component.coeff);
+        fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
       }
     }
 
@@ -522,7 +537,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
       } else if (row == pivots[pivot_index]) {
         fmpq_t coeff;
         fmpq_init(coeff);
-        fmpq_set(coeff, &it->coeff);
+        fmpq_set(coeff, it->coeff);
         fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
         fmpq_set(fmpq_mat_entry(f_matrix, pivot_index, col), coeff);
         fmpq_clear(coeff);
@@ -621,10 +636,11 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
           fmpq_t coeff;
           fmpq_init(coeff);
           fmpq_set_fmpz(coeff, fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col));
-          components.push_back({.basis_index = row, .coeff = *coeff});
+          components.push_back(MBEWC(row, coeff));
+          fmpq_clear(coeff);
         }
       }
-      ManinElement element = {.N = N, .components = components};
+      ManinElement element = ManinElement(N, components);
       element.sort();
       output.push_back(element);
     }

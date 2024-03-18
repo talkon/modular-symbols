@@ -141,10 +141,11 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
         fmpq_t coeff;
         fmpq_init(coeff);
         fmpq_set_fmpz(coeff, fmpz_mat_entry(boundary_map_kernel, row, col));
-        components.push_back({.basis_index = row, .coeff = *coeff});
+        components.push_back(MBEWC(row, coeff));
+        fmpq_clear(coeff);
       }
     }
-    ManinElement element = {.N = level, .components = components};
+    ManinElement element = ManinElement(level, components);
     element.sort();
     output.push_back(element);
   }

@@ -17,7 +17,11 @@ struct ManinBasisElement;
 // For now, the coefficient is stored by value to simplify memory management.
 struct MBEWC {
   int64_t basis_index;
-  fmpq coeff;
+  fmpq_t coeff;
+
+  MBEWC(int64_t, fmpq_t);
+
+  MBEWC(const MBEWC&);
 
   ~MBEWC();
 
@@ -49,6 +53,9 @@ struct ManinElement {
   int64_t N;
   std::vector<MBEWC> components;
   bool is_sorted = false;
+
+  ManinElement(int64_t N, std::vector<MBEWC>);
+  ManinElement(const ManinElement&);
 
   // Zero element of a given level
   static ManinElement zero(const int64_t level);

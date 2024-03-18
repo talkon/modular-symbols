@@ -19,9 +19,10 @@ ManinElement ManinBasisElement::as_element() {
   fmpq_t one;
   fmpq_init(one);
   fmpq_one(one);
-  std::vector<MBEWC> components = {{.coeff = *one, .basis_index = basis_index}};
+  std::vector<MBEWC> components = {MBEWC(basis_index, one)};
+  fmpq_clear(one);
 
-  ManinElement result = {.N = N, .components = components};
+  ManinElement result = ManinElement(N, components);
   result.mark_as_sorted_unchecked();
   return result;
 }
@@ -247,10 +248,11 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
         fmpq_init(coeff);
         fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(ST, row, col), neg_den);
         int64_t basis_index = get_basis_index(filt_generators[col].index);
-        components.push_back({.basis_index = basis_index, .coeff = *coeff});
+        components.push_back(MBEWC(basis_index, coeff));
+        fmpq_clear(coeff);
       }
     }
-    ManinElement element = {.N = level, .components = components};
+    ManinElement element = ManinElement(level, components);
     element.sort();
     generator_to_basis.push_back(element);
     // printf("[%lld] = ", filt_generators[pivot_index].index);

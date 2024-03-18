@@ -1,10 +1,30 @@
 #include <flint/fmpz_mat.h>
 #include <flint/fmpz.h>
+#include <flint/fmpq.h>
 
 #include "debug_utils.h"
 #include <stdexcept>
+#include "manin_element.h"
 
 void debug_temp() {
+  fmpq_t large;
+  fmpq_init(large);
+  fmpq_set_str(large, "100000000000000000000", 10);
+
+  auto mbewc = MBEWC(0, large);
+
+  DEBUG_INFO_PRINT(3, "created mbewc\n");
+
+  for (int i = 0; i < 100000; i++) {
+    fmpq_set(large, mbewc.coeff);
+  }
+
+  DEBUG_INFO_PRINT(3, "accessed mbewc.coeff\n");
+
+  fmpq_clear(large);
+}
+
+void check_status() {
 
   // printf(YEL "<starting debug_temp>\n" RESET);
 

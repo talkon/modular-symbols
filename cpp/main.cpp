@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
         use_atkin_lehner = true;
         break;
       case 'd':
+        set_verbosity(10);
         debug_temp();
         return 0;
       case 'h':

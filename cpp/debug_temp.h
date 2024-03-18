@@ -3,4 +3,6 @@
 
 void debug_temp();
 
+void check_status();
+
 #endif // DEBUG_TEMP_H
