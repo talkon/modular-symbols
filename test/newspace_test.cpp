@@ -34,3 +34,7 @@ TEST(NewspaceTests, BasisSizes_Prime) {
   expect_newspace_basis_size(421, 34);
   expect_newspace_basis_size(463, 38);
 }
+
+TEST(NewspaceTests, BasisSizes_2532) {
+  expect_newspace_basis_size(2532, 36);
+}

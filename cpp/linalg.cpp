@@ -54,11 +54,26 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
 
-  // printf("basis matrix:\n");
-  // fmpz_mat_print_pretty(B_matrix_z);
-  // printf("\n");
+  if (B.size() == 317) {
+    printf("basis matrix:\n");
+    fmpz_mat_print_pretty(B_matrix_z);
+    printf("\n");
+  }
 
   // DEBUG_INFO_PRINT(3, "0\n");
+
+  fmpq_mat_t map_of_basis;
+  fmpq_mat_init(map_of_basis, M_basis.size(), N_basis.size());
+  for (int col = 0; col < N_basis.size(); col++) {
+    ManinElement fb = f(N_basis[col]);
+
+    for (MBEWC component : fb.components) {
+      int row = component.basis_index;
+      // printf("%d\n", row);
+      assert(row < M_basis.size());
+      fmpq_set(fmpq_mat_entry(map_of_basis, row, col), component.coeff);
+    }
+  }
 
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
@@ -69,57 +84,20 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_init(map_matrix_z, M_basis.size(), B.size());
   fmpz_mat_zero(map_matrix_z);
 
-  // if (B.size() == 317) {
-  //   int col = 21;
-  //   DEBUG_INFO(3,
-  //     {
-  //       B[col].print();
-  //       printf("\n");
-  //     }
-  //   )
+  fmpq_mat_mul_fmpz_mat(map_matrix, map_of_basis, B_matrix_z);
+  fmpq_mat_clear(map_of_basis);
+
+  // for (int col = 0; col < B.size(); col++) {
+  //   // [ ]: maybe inline map()?
   //   ManinElement fb = B[col].map(f, M);
-  //   DEBUG_INFO(3,
-  //     {
-  //       printf("-> \n");
-  //       fb.print();
-  //       printf("\n");
-  //     }
-  //   )
-  //   throw std::runtime_error("dlkjafhlakfegh");
+
+  //   for (MBEWC component : fb.components) {
+  //     int row = component.basis_index;
+  //     // printf("%d\n", row);
+  //     assert(row < M_basis.size());
+  //     fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
+  //   }
   // }
-
-  for (int col = 0; col < B.size(); col++) {
-    // [ ]: maybe inline map() and cache f(mbe)?
-    // if (B.size() == 317 && col == 21) {
-    //   DEBUG_INFO(3,
-    //     {
-    //       B[col].print();
-    //       printf("\n");
-    //     }
-    //   )
-    // }
-    ManinElement fb = B[col].map(f, M);
-    // if (B.size() == 317 && col == 21) {
-    //   DEBUG_INFO(3,
-    //     {
-    //       printf("-> \n");
-    //       fb.print();
-    //       printf("\n");
-    //     }
-    //   )
-    // }
-
-    for (MBEWC component : fb.components) {
-      int row = component.basis_index;
-      // printf("%d\n", row);
-      assert(row < M_basis.size());
-      fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
-    }
-  }
-
-  // printf("map matrix:\n");
-  // fmpq_mat_print(map_matrix);
-  // printf("\n");
 
   // DEBUG_INFO_PRINT(3, "5\n");
 
@@ -127,140 +105,13 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
 
-  // debug_temp();
-
-  // printf("map matrix z:\n");
-  // fmpz_mat_print_pretty(map_matrix_z);
-  // printf("\n");
-  // fflush(stdout);
-  // for(int i = 0; i < B.size() && i < M_basis.size(); i++) {
-  //   printf("element (%d, %d): ", i, i);
-  //   fmpz_print(fmpz_mat_entry(map_matrix_z, i, i));
-  //   printf("\n");
-  // }
-
   // if (B.size() == 317) {
-
-  //   char buf[1000];
-
-  //   printf("here\n");
-  //   // fmpz_t tmp;
-  //   // fmpz_init(tmp);
-  //   // for (int r = 0; r < 55; r++) {
-  //   //   for (int c = 0; c < 317; c++) {
-  //   //     fmpz_set(tmp, fmpz_mat_entry(map_matrix_z, r, c));
-  //   //     fmpz_get_str(buf, 10, tmp);
-  //   //     fmpz_add_si(tmp, tmp, 1);
-  //   //     fmpz_add_si(tmp, tmp, -1);
-  //   //     fmpz_set_str(tmp, buf, 10);
-  //   //     fmpz_set(fmpz_mat_entry(map_matrix_z, r, c), tmp);
-  //   //   }
-  //   // }
-  //   // fmpz_clear(tmp);
-
-  //   int tr = 3, tc = 4, sr = 1, sc = 0;
-  //   DEBUG_INFO_PRINT(3, "trying size %d x %d\n", tr, tc);
-  //   fmpz_mat_t manual_window;
-  //   fmpz_mat_init(manual_window, tr, tc);
-  //   fmpz_mat_zero(manual_window);
-
-  //   for (int i = 0; i < tr; i++) {
-  //     for (int j = 0; j < tc; j++) {
-  //       fmpz_set(fmpz_mat_entry(manual_window, i, j), fmpz_mat_entry(map_matrix_z, tr + i, tc + j));
-  //     }
-  //   }
-
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 0, 0), "981911205996571756", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 0, 1), "240491096708991556", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 0, 2), "-16813084898157095", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 0, 3), "1189660152027260618", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 1, 0), "-566527823500001314", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 1, 1), "-131592927616542154", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 1, 2), "9889030447594245", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 1, 3), "-686023046642061734", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 2, 0), "1305348122731461211", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 2, 1), "311297869126224287", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 2, 2), "-22198802700696000", 10);
-  //   // fmpz_set_str(fmpz_mat_entry(manual_window, 2, 3), "1608323242553626377", 10);
-
-  //   printf("manual_window:\n");
-  //   fmpz_mat_print_pretty(manual_window);
+  //   printf("map_matrix_z:\n");
+  //   fmpz_mat_print_pretty(map_matrix_z);
   //   printf("\n");
-
-  //   fmpz_mat_t map_kernel; //, map_kernel_window;
-  //   fmpz_mat_init(map_kernel, tc, tc);
-  //   fmpz_mat_zero(map_kernel);
-  //   int64_t rank = fmpz_mat_nullspace(map_kernel, manual_window);
-  //   printf("rank = %lld\n", rank);
-
-  //   DEBUG_INFO_PRINT(3, "map_kernel:\n");
-  //   fmpz_mat_print_pretty(map_kernel);
-  //   printf("\n");
-
-  //   fmpz_mat_clear(map_kernel);
-  //   fmpz_mat_clear(manual_window);
-
-  //   fmpz_mat_t m, k, window;
-  //   fmpz_mat_init(m, 3, 4);
-  //   fmpz_mat_init(k, 4, 4);
-  //   fmpz_mat_zero(m);
-
-  //   fmpz_set_str(fmpz_mat_entry(m, 0, 0), "981911205996571756", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 0, 1), "240491096708991556", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 0, 2), "-16813084898157095", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 0, 3), "1189660152027260618", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 1, 0), "-566527823500001314", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 1, 1), "-131592927616542154", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 1, 2), "9889030447594245", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 1, 3), "-686023046642061734", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 2, 0), "1305348122731461211", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 2, 1), "311297869126224287", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 2, 2), "-22198802700696000", 10);
-  //   fmpz_set_str(fmpz_mat_entry(m, 2, 3), "1608323242553626377", 10);
-
-  //   fmpz_mat_print_pretty(m);
-  //   int rk = fmpz_mat_nullspace(k, m);
-  //   printf("\nrank: %d\n", rk);
-
-  //   fmpz_t den;
-
-  //   for (int col = 0; col < rk; col++) {
-  //     fmpz_mat_window_init(window, k, 0, col, 4, col+1);
-  //     fmpz_mat_content(den, window);
-  //     if (!fmpz_is_zero(den)) {
-  //       fmpz_mat_scalar_divexact_fmpz(window, window, den);
-  //     }
-  //     fmpz_mat_window_clear(window);
-  //   }
-
-  //   fmpz_mat_print_pretty(k);
-
-  //   fmpz_mat_clear(m);
-  //   fmpz_mat_clear(k);
-  //   fmpz_clear(den);
-
-  //   // printf("here 2\n");
-  //   // fmpz_mat_t map_kernel, map_kernel_window, mmz_window;
-  //   // int i = 4;
-  //   // for (int j = 1; j <= B.size(); j++) {
-  //   //   DEBUG_INFO_PRINT(3, "trying size %d x %d\n", i - 1, j);
-  //   //   fmpz_mat_window_init(mmz_window, map_matrix_z, 1, 0, i, j);
-  //   //   printf("mmz_window:\n");
-  //   //   fmpz_mat_print_pretty(mmz_window);
-  //   //   printf("\n");
-
-  //   //   fmpz_mat_init(map_kernel, j, j);
-  //   //   int64_t rank = fmpz_mat_nullspace(map_kernel, mmz_window);
-  //   //   printf("rank = %lld\n", rank);
-  //   //   fmpz_mat_window_clear(mmz_window);
-
-  //   //   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, j, rank);
-  //   //   DEBUG_INFO_PRINT(3, "map kernel window:\n");
-  //   //   fmpz_mat_print_pretty(map_kernel_window);
-  //   //   printf("\n");
-  //   // }
-  //   // fmpz_mat_clear(map_kernel);
   // }
+
+  fflush(stdout);
 
   fmpz_mat_t map_kernel, map_kernel_window;
   // printf("aa %zu\n", B.size());
@@ -268,6 +119,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // printf("bb %zu\n", B.size());
   int64_t rank = fmpz_mat_nullspace(map_kernel, map_matrix_z);
   // printf("cc %lld\n", rank);
+  // if (B.size() == 317 && rank != 299) {
+  //   throw std::runtime_error("Unexpected rank");
+  // }
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
 
   fmpz_mat_clear(map_matrix_z);

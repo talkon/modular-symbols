@@ -83,6 +83,7 @@ void ManinElement::mark_as_sorted_unchecked() {
   is_sorted = true;
 }
 
+// BUG: there's something wrong in here about lifetimes?? that causes weird behavior
 ManinElement& ManinElement::operator+= (const ManinElement& other) {
   assert(is_sorted);
   assert(other.is_sorted);
@@ -120,7 +121,7 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
         merged.push_back(new_MBEWC);
       }
 
-      // fmpq_clear(new_coeff);
+      fmpq_clear(new_coeff);
 
       it1++;
       it2++;

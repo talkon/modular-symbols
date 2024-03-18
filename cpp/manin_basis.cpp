@@ -293,6 +293,8 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
+  DEBUG_INFO_PRINT(2, "Finished computation of Manin basis for level %lld\n", level);
+
   return {
     .basis = basis,
     .generator_to_basis = generator_to_basis,
