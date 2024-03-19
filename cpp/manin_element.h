@@ -87,6 +87,7 @@ struct ManinElement {
   // Returns the result of applying a linear map f to this element.
   // The map f should always return ManinElements of level `M`.
   ManinElement map(std::function<ManinElement(ManinBasisElement)> f, int64_t M) const;
+  ManinElement map_debug(std::function<ManinElement(ManinBasisElement)> f, int64_t M) const;
 
   // --- Displaying ---
 

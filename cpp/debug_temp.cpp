@@ -1,16 +1,25 @@
 #include <flint/fmpz_mat.h>
+#include <flint/fmpz_vec.h>
 #include <flint/fmpz.h>
 #include <flint/fmpq.h>
 
-#include "debug_utils.h"
 #include <stdexcept>
+#include <cassert>
+#include <map>
+
+#include "debug_utils.h"
 #include "manin_element.h"
 
 void debug_temp() {
-  fmpq_t large;
+  fmpq_t large, to_be_freed;
   fmpq_init(large);
+  fmpq_init(to_be_freed);
   fmpq_set_str(large, "100000000000000000000", 10);
   std::vector<MBEWC> vec;
+
+  fmpq_set(to_be_freed, large);
+  for (int i = 0; i < 10000; i++)
+    fmpq_clear(to_be_freed);
 
   for (int i = 0; i < 33; i++) {
     fmpq_t x;
@@ -28,6 +37,29 @@ void debug_temp() {
   }
 
   fmpq_clear(large);
+}
+
+void probe_fmpz_freelist(int depth) {
+  fmpz_t large;
+  fmpz_set_str(large, "100000000000000000000", 10);
+
+  fmpz* vec = _fmpz_vec_init(depth);
+  std::map<uint64_t, int> map;
+
+  for (int i = 0; i < depth; i++) {
+    fmpz_set(vec + i, large);
+    uint64_t val = *(vec + i);
+    assert(COEFF_IS_MPZ(val));
+    if (map.contains(val)) {
+      printf(RED "<error>" RESET " key %llx duplicated, first index: %d, second index: %d\n", val, map[val], i);
+      throw std::runtime_error("duplicates found");
+    }
+    map.insert(std::make_pair(val, i));
+  }
+
+  _fmpz_vec_clear(vec, depth);
+
+  printf(GRN "<info>" RESET " no duplicates found to depth %d\n", depth);
 }
 
 void check_status() {

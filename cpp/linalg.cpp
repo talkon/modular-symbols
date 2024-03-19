@@ -71,20 +71,28 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_init(map_matrix_z, M_basis.size(), B.size());
   fmpz_mat_zero(map_matrix_z);
 
-  // if (B.size() == 317) {
-  //   int col = 37;
-  //   printf("col %d\n", col);
-  //   ManinElement fb = B[col].map(f, M);
+  if (B.size() == 317) {
+    for (int col = 0; col < B.size(); col++) {
+      printf("col %d\n", col);
 
+      // [ ]: maybe inline map()?
+      if (col == 500) {
+        ManinElement fb = B[col].map_debug(f, M);
+        // probe_fmpz_freelist(100);
+        throw std::runtime_error("qqq");
+      }
 
-  //   for (MBEWC component : fb.components) {
-  //     int row = component.basis_index;
-  //     // printf("%d\n", row);
-  //     assert(row < M_basis.size());
-  //     fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
-  //   }
-  //   throw std::runtime_error("Quit");
-  // }
+      else {
+        ManinElement fb = B[col].map(f, M);
+        for (MBEWC component : fb.components) {
+          int row = component.basis_index;
+          // printf("%d\n", row);
+          assert(row < M_basis.size());
+          fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
+        }
+      }
+    }
+  }
 
   bool use_map_of_basis = false;
 
@@ -108,14 +116,8 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   } else {
 
     for (int col = 0; col < B.size(); col++) {
-
-      if (B.size() == 317) {
-        printf("col %d\n", col);
-      }
-
       // [ ]: maybe inline map()?
       ManinElement fb = B[col].map(f, M);
-
       for (MBEWC component : fb.components) {
         int row = component.basis_index;
         // printf("%d\n", row);

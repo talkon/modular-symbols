@@ -12,17 +12,25 @@
 
 #include <cassert>
 
+
+
+#ifdef CACHE_OLDSPACE_MAP
 ManinElement _impl_oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
+#else
+ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
+#endif
   int64_t N = mbe.N;
   assert(N % (d * M) == 0);
   IntMatrix2x2 matrix = {.x = d, .y = 0, .z = 0, .w = 1};
   return mbe.as_modular_symbol().left_action_by(matrix).to_manin_element(M);
 }
 
+#ifdef CACHE_OLDSPACE_MAP
 ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
   static CacheDecorator<ManinElement, ManinBasisElement, int64_t, int64_t> _cache_oldspace_map(_impl_oldspace_map);
   return _cache_oldspace_map(mbe, d, M);
 }
+#endif
 
 std::vector<ManinElement> newspace_basis(int64_t level) {
   std::vector<ManinElement> current_basis = cuspidal_manin_basis(level);
