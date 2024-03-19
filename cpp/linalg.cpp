@@ -54,14 +54,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
 
-  // if (B.size() == 317) {
-  //   printf("basis matrix:\n");
-  //   fmpz_mat_print_pretty(B_matrix_z);
-  //   printf("\n");
-  // }
-
-  // DEBUG_INFO_PRINT(3, "0\n");
-
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
   fmpq_mat_init(map_matrix, M_basis.size(), B.size());
@@ -70,29 +62,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_t map_matrix_z;
   fmpz_mat_init(map_matrix_z, M_basis.size(), B.size());
   fmpz_mat_zero(map_matrix_z);
-
-  if (B.size() == 317) {
-    for (int col = 0; col < B.size(); col++) {
-      printf("col %d\n", col);
-
-      // [ ]: maybe inline map()?
-      if (col == 500) {
-        ManinElement fb = B[col].map_debug(f, M);
-        // probe_fmpz_freelist(100);
-        throw std::runtime_error("qqq");
-      }
-
-      else {
-        ManinElement fb = B[col].map(f, M);
-        for (MBEWC component : fb.components) {
-          int row = component.basis_index;
-          // printf("%d\n", row);
-          assert(row < M_basis.size());
-          fmpq_set(fmpq_mat_entry(map_matrix, row, col), component.coeff);
-        }
-      }
-    }
-  }
 
   bool use_map_of_basis = false;
 
@@ -132,12 +101,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
-
-  // if (B.size() == 317) {
-  //   printf("map_matrix_z:\n");
-  //   fmpz_mat_print_pretty(map_matrix_z);
-  //   printf("\n");
-  // }
 
   fflush(stdout);
 

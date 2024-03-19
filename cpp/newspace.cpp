@@ -12,7 +12,7 @@
 
 #include <cassert>
 
-
+#define CACHE_OLDSPACE_MAP
 
 #ifdef CACHE_OLDSPACE_MAP
 ManinElement _impl_oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
