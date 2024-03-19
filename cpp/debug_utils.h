@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <chrono>
-#include "debug_temp.h"
 
 // --- Printing ---
 
@@ -48,5 +47,18 @@ inline int verbosity = 0;
 inline void set_verbosity(int v) {
   verbosity = v;
 }
+
+// --- Functions used for debugging ---
+
+// Debugging function that is run when using `./bin/main -d`.
+void debug_temp();
+
+// Attempts a 4x3 matrix nullspace computation.
+// Can detect issues when FLINT is trying to access an mpz that has already been freed.
+void check_status();
+
+// Probes FLINT's mpz freelist by requesting `depth` new mpzs.
+// Can detect double-frees (which will end up duplicated on the free list).
+void probe_fmpz_freelist(int depth);
 
 #endif // DEBUG_UTILS_H

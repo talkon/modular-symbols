@@ -1,3 +1,7 @@
+
+#include "debug_utils.h"
+#include "manin_element.h"
+
 #include <flint/fmpz_mat.h>
 #include <flint/fmpz_vec.h>
 #include <flint/fmpz.h>
@@ -7,33 +11,40 @@
 #include <cassert>
 #include <map>
 
-#include "debug_utils.h"
-#include "manin_element.h"
-
 void debug_temp() {
   fmpq_t large, to_be_freed;
   fmpq_init(large);
-  fmpq_init(to_be_freed);
+  // fmpq_init(to_be_freed);
   fmpq_set_str(large, "100000000000000000000", 10);
-  std::vector<MBEWC> vec;
+  std::vector<MBEWC> vec4, vec5;
 
-  fmpq_set(to_be_freed, large);
-  for (int i = 0; i < 10000; i++)
-    fmpq_clear(to_be_freed);
+  if (true) {
+    std::vector<MBEWC> vec;
+    vec.emplace_back(0, large);
+    vec4.emplace_back(0, large);
 
-  for (int i = 0; i < 33; i++) {
-    fmpq_t x;
-    fmpq_init(x);
-    fmpq_add_si(x, large, i);
-    auto y = MBEWC(0, x);
-    vec.push_back(y);
-    printf(YEL "\nvec:\n" RESET);
-    for (auto it = vec.begin(); it != vec.end(); it++) {
-      printf("  ");
-      it->print_internals();
-      printf("\n");
-    }
-    printf("\n");
+    printf("aaa\n");
+
+    std::vector<MBEWC> vec2(vec);
+
+    printf("bbb\n");
+
+    std::vector<MBEWC> vec3 = vec;
+
+    printf("ccc\n");
+    vec4 = vec;
+
+    printf("ddd\n");
+    vec5 = vec;
+
+    printf("internals:\nvec: ");
+    vec.begin()->print_internals();
+    printf("\nvec4: ");
+    vec4.begin()->print_internals();
+    printf("\nvec5: ");
+    vec5.begin()->print_internals();
+
+    printf("\nend scope\n");
   }
 
   fmpq_clear(large);

@@ -1,6 +1,7 @@
 #include "manin_symbol.h"
 #include "manin_element.h"
 #include "manin_basis.h"
+#include "debug_utils.h"
 
 #include <flint/fmpq_mat.h>
 #include <flint/fmpz_mat.h>
@@ -11,8 +12,6 @@
 #include <cassert>
 #include <stdexcept>
 
-#include "debug_utils.h"
-#include "debug_temp.h"
 
 // --- MBEWC functions ---
 
@@ -123,9 +122,6 @@ ManinElement::ManinElement(const ManinElement& me)
   is_sorted(me.is_sorted),
   components(me.components)
 {
-  // for (auto component : me.components) {
-  //   components.push_back(component);
-  // }
 }
 
 ManinElement ManinElement::zero(const int64_t level) {
@@ -144,7 +140,6 @@ void ManinElement::mark_as_sorted_unchecked() {
   is_sorted = true;
 }
 
-// BUG: there's something wrong in here about lifetimes?? that causes weird behavior
 ManinElement& ManinElement::operator+= (const ManinElement& other) {
   assert(is_sorted);
   assert(other.is_sorted);
@@ -194,6 +189,7 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
   }
 
   // Force copying of elements from merged to this.components()
+  // XXX: it seems like `this->components = merged` will call the
   this->components.clear();
   this->components.insert(this->components.end(), merged.begin(), merged.end());
 

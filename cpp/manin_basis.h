@@ -5,6 +5,7 @@
 
 #include "manin_symbol.h"
 #include "cache_decorator.h"
+
 #include <flint/fmpq.h>
 
 // A basis element, represented as a ManinGenerator with an additional index,

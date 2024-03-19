@@ -12,8 +12,6 @@
 
 #include <vector>
 #include <cassert>
-
-#include "debug_temp.h"
 #include <stdexcept>
 
 std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f, int64_t M) {

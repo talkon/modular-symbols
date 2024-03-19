@@ -6,7 +6,6 @@
 #include "newspace.h"
 #include "newform_subspaces.h"
 #include "debug_utils.h"
-#include "debug_temp.h"
 
 #include <unistd.h>
 

@@ -13,8 +13,6 @@
 #include <iostream>
 #include <vector>
 
-#include "debug_temp.h"
-
 ManinElement ManinBasisElement::as_element() {
   fmpq_t one;
   fmpq_init(one);
