@@ -7,7 +7,9 @@
 #include <flint/fmpz.h>
 
 #include <iostream>
+#include <set>
 #include <cassert>
+#include <stdexcept>
 
 #include "debug_utils.h"
 
@@ -16,11 +18,25 @@
 MBEWC::MBEWC(int64_t bi, fmpq_t c) : basis_index(bi) {
   fmpq_init(coeff);
   fmpq_set(coeff, c);
+
+  uint64_t num = *fmpq_numref(coeff);
+  if (COEFF_IS_MPZ(num)) printf("+ <ref 0x%llx>\n", num);
+
+  uint64_t den = *fmpq_denref(coeff);
+  if (COEFF_IS_MPZ(den)) printf("+ <ref 0x%llx>\n", den);
 }
 
 MBEWC::MBEWC(const MBEWC& mbewc) : basis_index(mbewc.basis_index) {
   fmpq_init(coeff);
   fmpq_set(coeff, mbewc.coeff);
+
+  uint64_t old_num = *fmpq_numref(mbewc.coeff);
+  uint64_t num = *fmpq_numref(coeff);
+  if (COEFF_IS_MPZ(num)) printf("c <ref 0x%llx> -> <ref 0x%llx>\n", old_num, num);
+
+  uint64_t old_den = *fmpq_denref(mbewc.coeff);
+  uint64_t den = *fmpq_denref(coeff);
+  if (COEFF_IS_MPZ(den)) printf("c <ref 0x%llx> -> <ref 0x%llx>\n", old_den, den);
 }
 
 MBEWC::~MBEWC() {
@@ -29,6 +45,13 @@ MBEWC::~MBEWC() {
   // if (fmpq_equal_fmpz(coeff, i)) {
   //   printf("<----------- destroyed!! ----------->\n");
   // }
+
+  uint64_t num = *fmpq_numref(coeff);
+  if (COEFF_IS_MPZ(num)) printf("~ <ref 0x%llx>\n", num);
+
+  uint64_t den = *fmpq_denref(coeff);
+  if (COEFF_IS_MPZ(den)) printf("~ <ref 0x%llx>\n", den);
+
   fmpq_clear(coeff);
 }
 
@@ -55,7 +78,61 @@ void MBEWC::print() const {
   printf(" * [%lld]", basis_index);
 }
 
+void MBEWC::print_internals() const {
+  printf("(");
+  uint64_t num = *fmpq_numref(coeff);
+  if (COEFF_IS_MPZ(num)) printf("<ref 0x%llx> / ", num);
+  else printf("%lld / ", num);
+
+  uint64_t den = *fmpq_denref(coeff);
+  if (COEFF_IS_MPZ(den)) printf("<ref 0x%llx>", den);
+  else printf("%lld", den);
+
+  printf(") * [%lld]", basis_index);
+}
+
 // --- ManinElement functions ---
+
+bool has_duplicate_keys(const std::vector<MBEWC>& components) {
+  std::map<uint64_t, int> map;
+  for (auto it = components.begin(); it != components.end(); it++) {
+    uint64_t key = *fmpq_numref(it->coeff);
+    if (COEFF_IS_MPZ(key)) {
+      if (map.contains(key)) {
+        printf(RED "<warning>" RESET " key %llx duplicated, first index: %d, second index: %lld\n", key, map[key], it->basis_index);
+        return true;
+      }
+      map.insert(std::make_pair(key, it->basis_index));
+    }
+  }
+  return false;
+}
+
+bool has_duplicate_keys(const std::vector<MBEWC>& c1, const std::vector<MBEWC>& c2) {
+  std::map<uint64_t, int> map;
+  for (auto it = c1.begin(); it != c1.end(); it++) {
+    uint64_t key = *fmpq_numref(it->coeff);
+    if (COEFF_IS_MPZ(key)) {
+      if (map.contains(key)) {
+        printf(RED "<warning>" RESET " key %llx duplicated, first index: %d, second index: %lld\n", key, map[key], it->basis_index);
+        return true;
+      }
+      map.insert(std::make_pair(key, it->basis_index));
+    }
+  }
+  for (auto it = c2.begin(); it != c2.end(); it++) {
+    uint64_t key = *fmpq_numref(it->coeff);
+    if (COEFF_IS_MPZ(key)) {
+      if (map.contains(key)) {
+        printf(RED "<warning>" RESET " key %llx duplicated, first index: %d, second index: %lld\n", key, map[key], it->basis_index);
+        return true;
+      }
+      map.insert(std::make_pair(key, it->basis_index));
+    }
+  }
+  return false;
+}
+
 
 ManinElement::ManinElement(int64_t N, std::vector<MBEWC> components) : N(N), components(components) {}
 
@@ -65,6 +142,9 @@ ManinElement::ManinElement(const ManinElement& me)
   is_sorted(me.is_sorted),
   components(me.components)
 {
+  // for (auto component : me.components) {
+  //   components.push_back(component);
+  // }
 }
 
 ManinElement ManinElement::zero(const int64_t level) {
@@ -94,22 +174,69 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
   auto it1 = this->components.begin();
   auto it2 = other.components.begin();
 
+  bool found_duplicate_keys = false;
+  if (!found_duplicate_keys && has_duplicate_keys(other.components)) {
+    printf("other has duplicate keys\n");
+    found_duplicate_keys = true;
+  }
+  if (!found_duplicate_keys && has_duplicate_keys(this->components)) {
+    printf("this has duplicate keys\n");
+    found_duplicate_keys = true;
+  }
+  if (!found_duplicate_keys && has_duplicate_keys(this->components, other.components)) {
+    printf("operands have duplicate keys\n");
+    found_duplicate_keys = true;
+  }
+
   while (true) {
+
+    if (N == 422) {
+      printf(YEL "\nmerged:\n" RESET);
+      for (auto it = merged.begin(); it != merged.end(); it++) {
+        printf("  ");
+        it->print_internals();
+        printf("\n");
+      }
+      printf("\n");
+    }
 
     // If we run out of components in `this`, append the remaining part of `other` to `merged`.
     if (it1 == this->components.end()) {
       merged.insert(merged.end(), it2, other.components.end());
+      if (!found_duplicate_keys && has_duplicate_keys(merged)) {
+        printf("caused by it2 insert\n");
+        found_duplicate_keys = true;
+        break;
+      }
       break;
     }
 
     // If we run out of components in` other`, append the remaining part of `this` to `merged`.
     if (it2 == other.components.end()) {
       merged.insert(merged.end(), it1, this->components.end());
+      if (!found_duplicate_keys && has_duplicate_keys(merged)) {
+        printf("caused by it1 insert\n");
+        found_duplicate_keys = true;
+        break;
+      }
       break;
     }
 
     if (it1->basis_index < it2->basis_index) {
-      merged.push_back(*it1);
+      printf("it1 at bi %lld\n", it1->basis_index);
+      auto x = *it1;
+      printf("dereferenced\n");
+      x.print_internals();
+      printf("attempting push_back\n");
+      merged.push_back(x);
+      printf("pushed back\n");
+      merged.back().print_internals();
+      printf("\n");
+      if (!found_duplicate_keys && has_duplicate_keys(merged)) {
+        printf("caused by it1 push_back at bi %lld\n", it1->basis_index);
+        found_duplicate_keys = true;
+        break;
+      }
       it1++;
     } else if (it1->basis_index == it2->basis_index) {
       fmpq_t new_coeff;
@@ -117,18 +244,62 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
       fmpq_add(new_coeff, it1->coeff, it2->coeff);
 
       if (!fmpq_is_zero(new_coeff)) {
+        printf("add at bi %lld\n", it1->basis_index);
         MBEWC new_MBEWC = MBEWC(it1->basis_index, new_coeff);
+        printf("mbewc created\n");
+        new_MBEWC.print_internals();
+        printf("\n");
         merged.push_back(new_MBEWC);
+        printf("mbewc pushed back\n");
+        merged.back().print_internals();
+        printf("\n");
       }
 
       fmpq_clear(new_coeff);
 
+
+      if (!found_duplicate_keys && has_duplicate_keys(merged)) {
+        printf("caused by add at bi %lld\n", it1->basis_index);
+        found_duplicate_keys = true;
+        break;
+      }
+
       it1++;
       it2++;
     } else if (it1->basis_index > it2->basis_index) {
-      merged.push_back(*it2);
+      printf("it2 at bi %lld\n", it2->basis_index);
+      auto x = *it2;
+      printf("dereferenced\n");
+      x.print_internals();
+      printf("attempting push_back\n");
+      merged.push_back(x);
+      printf("pushed back\n");
+      merged.back().print_internals();
+      printf("\n");
+      if (!found_duplicate_keys && has_duplicate_keys(merged)) {
+        printf("caused by it2 push_back at bi %lld\n", it2->basis_index);
+        found_duplicate_keys = true;
+        break;
+      }
       it2++;
     }
+  }
+
+  if (found_duplicate_keys) {
+    DEBUG_INFO_PRINT(0, "this: \n");
+    this->print_with_internals();
+    DEBUG_INFO_PRINT(0, "other: \n");
+    other.print_with_internals();
+    printf("merged:\n");
+    for (auto it = merged.begin(); it != merged.end(); it++) {
+      printf("  ");
+      it->print_internals();
+      printf("\n");
+    }
+    this->components = merged;
+    DEBUG_INFO_PRINT(0, "this, after merged: \n");
+    this->print_with_internals();
+    throw std::runtime_error("Duplicate keys found");
   }
 
   this->components = merged;
@@ -233,6 +404,8 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f,
   //   DEBUG_INFO_PRINT(3, "1\n");
   // }
 
+  bool found_duplicate_keys = false;
+
   std::vector<ManinBasisElement> full_basis = manin_basis(N);
   for (MBEWC component: components) {
     // [ ] cache result of f?
@@ -247,27 +420,9 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f,
     // fmbe.print_with_generators();
     // printf("\n\n");
 
-    // if (M == 422) {
-    //   DEBUG_INFO(3,
-    //     {
-    //       component.print();
-    //       printf("\n");
-    //     }
-    //   )
+    if (M == 422) printf("cbi: %lld\n", component.basis_index);
 
-    //   fmbe.scale(component.coeff);
-
-    //   DEBUG_INFO(3,
-    //     {
-    //       result.print();
-    //       printf("\n");
-    //     }
-    //   )
-    // }
-
-    // else {
     result += fmbe.scale(component.coeff);
-    // }
   }
 
   // printf("result:");
@@ -291,5 +446,14 @@ void ManinElement::print_with_generators() const {
     fmpq_print(component.coeff);
     printf(" * ");
     manin_basis(N)[component.basis_index].print();
+  }
+}
+
+void ManinElement::print_with_internals() const {
+  printf("level: %lld, components:\n", N);
+  for (auto it = components.begin(); it != components.end(); it++) {
+    printf("  ");
+    it->print_internals();
+    printf("\n");
   }
 }

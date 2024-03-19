@@ -10,16 +10,22 @@ void debug_temp() {
   fmpq_t large;
   fmpq_init(large);
   fmpq_set_str(large, "100000000000000000000", 10);
+  std::vector<MBEWC> vec;
 
-  auto mbewc = MBEWC(0, large);
-
-  DEBUG_INFO_PRINT(3, "created mbewc\n");
-
-  for (int i = 0; i < 100000; i++) {
-    fmpq_set(large, mbewc.coeff);
+  for (int i = 0; i < 33; i++) {
+    fmpq_t x;
+    fmpq_init(x);
+    fmpq_add_si(x, large, i);
+    auto y = MBEWC(0, x);
+    vec.push_back(y);
+    printf(YEL "\nvec:\n" RESET);
+    for (auto it = vec.begin(); it != vec.end(); it++) {
+      printf("  ");
+      it->print_internals();
+      printf("\n");
+    }
+    printf("\n");
   }
-
-  DEBUG_INFO_PRINT(3, "accessed mbewc.coeff\n");
 
   fmpq_clear(large);
 }

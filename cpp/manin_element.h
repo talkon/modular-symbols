@@ -37,6 +37,8 @@ struct MBEWC {
 
   // Prints this MBEWC.
   void print() const;
+
+  void print_internals() const;
 };
 
 // An element of the space of Manin symbols of level N.
@@ -93,6 +95,8 @@ struct ManinElement {
 
   // Prints this Manin element, with index expanded into ManinGenerators
   void print_with_generators() const;
+
+  void print_with_internals() const;
 };
 
 #endif // MANIN_ELEMENT_H
