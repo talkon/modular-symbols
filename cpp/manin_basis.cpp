@@ -12,6 +12,8 @@
 
 #include <iostream>
 #include <vector>
+#include <set>
+#include <cassert>
 
 ManinElement ManinBasisElement::as_element() {
   fmpq_t one;
@@ -45,6 +47,16 @@ struct BasisComputationResult {
   // This additional indirection is used to save memory used for
   // duplicate generators.
   std::vector<int64_t> generator_index_to_GTB_index;
+
+  BasisComputationResult(
+    std::vector<ManinBasisElement> basis,
+    std::vector<ManinElement> generator_to_basis,
+    std::vector<int64_t> generator_index_to_GTB_index
+  ) :
+    basis(basis),
+    generator_to_basis(generator_to_basis),
+    generator_index_to_GTB_index(generator_index_to_GTB_index)
+  {}
 };
 
 BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
@@ -60,19 +72,19 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   // [ ] change ManinSymbol.is_equivalent to allow N | cd' + dc'
 
   // Manin generators modulo eta relations
-  std::vector<ManinGenerator> filt_generators;
+  std::vector<ManinGenerator> eta_generators;
 
-  // Current size of `filt_generators`
-  int64_t filt_index = 0;
+  // Current size of `eta_generators`
+  int64_t eta_index = 0;
 
-  // Mapping from index of generator to index in `filt_generators`
+  // Mapping from index of generator to index in `eta_generators`
   // A value of -1 means mapped index has not been computed yet.
-  std::vector<int64_t> generator_to_filt_generators (num_generators, -1);
+  std::vector<int64_t> generator_to_eta_generators (num_generators, -1);
 
   DEBUG_INFO_PRINT(5, "eta relations:\n")
 
   for (ManinGenerator generator : generators) {
-    if (generator_to_filt_generators[generator.index] == -1) {
+    if (generator_to_eta_generators[generator.index] == -1) {
       ManinGenerator generator_eta = generator.apply_eta().as_generator();
 
       DEBUG_INFO(5,
@@ -84,118 +96,282 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
         }
       );
 
-      generator_to_filt_generators[generator.index] = filt_index;
-      generator_to_filt_generators[generator_eta.index] = filt_index;
+      generator_to_eta_generators[generator.index] = eta_index;
+      generator_to_eta_generators[generator_eta.index] = eta_index;
 
-      filt_generators.push_back(generator);
-      filt_index++;
+      eta_generators.push_back(generator);
+      eta_index++;
     }
   }
 
-  int64_t num_filt_gens = filt_generators.size();
-  DEBUG_INFO_PRINT(3, "num_filt_gens: %lld\n", num_filt_gens);
-  // for (int i = 0; i < num_filt_gens; i++) {
-  //   filt_generators[i].print();
-  //   printf(" %lld\n", filt_generators[i].index);
-  // }
+  int64_t num_eta_gens = eta_generators.size();
+  assert(eta_index = num_eta_gens);
 
-  // Compute S and T relations (see Stein Ch 3.3)
+  DEBUG_INFO_PRINT(3, "num_eta_gens: %lld\n", num_eta_gens);
+
+  DEBUG_INFO(5,
+    {
+      for (int i = 0; i < num_eta_gens; i++) {
+        printf("%d ", i);
+        eta_generators[i].print();
+        printf(" %lld\n", eta_generators[i].index);
+      }
+    }
+  )
+
+
+  // Modulo out by S relations (see Stein Ch 3.3)
 
   // BUG: contains duplicate rows.
-  // [ ] Start with filt_generators instead of generators to avoid redundant relations.
+  // [ ] Start with eta_generators instead of generators to avoid redundant relations.
   // Also see Cremona Ch 2.5.
 
-  bool done_S[num_generators];
-  for (int i = 0; i < num_generators; i++) {
+  bool done_S[num_eta_gens];
+  for (int i = 0; i < num_eta_gens; i++) {
     done_S[i] = false;
   }
-  std::vector<std::vector<int64_t>> S_rows;
 
-  DEBUG_INFO_PRINT(5, " S relations:\n")
+  // Manin generators modulo eta and S generators
+  std::vector<ManinGenerator> S_generators_pos;
+  std::vector<ManinGenerator> S_generators_neg;
 
-  for (ManinGenerator generator : generators) {
-    if (!done_S[generator.index]) {
-      ManinGenerator generator_S = generator.apply_S().as_generator();
+  // Current index of `S_generators`
+  int64_t S_index = 1;
 
-      DEBUG_INFO(5,
-        {
-          generator.print();
-          printf(", S: ");
-          generator_S.print();
-          printf("\n");
-        }
-      )
+  // Mapping from index of generator to index in `eta_generators`
+  // A value of 0 means mapped index has not been computed yet, or
+  // the eta generator is zero
+  std::vector<int64_t> eta_to_S_generators (num_eta_gens, 0);
 
-      std::vector<int64_t> row (num_filt_gens, 0);
-      row[generator_to_filt_generators[generator.index]]++;
-      row[generator_to_filt_generators[generator_S.index]]++;
-      S_rows.push_back(row);
+  for (ManinGenerator eta_gen : eta_generators) {
 
-      done_S[generator.index] = true;
-      done_S[generator_S.index] = true;
+    int index = generator_to_eta_generators[eta_gen.index];
+
+    if (!done_S[index]) {
+
+      ManinGenerator eta_gen_S = eta_gen.apply_S().as_generator();
+      int index_S = generator_to_eta_generators[eta_gen_S.index];
+      eta_gen_S = eta_generators[index_S];
+
+      if (eta_gen_S.index == eta_gen.index) {
+
+        // eta_gen.print();
+        // printf(" -> zero\n");
+
+        done_S[index] = true;
+        eta_to_S_generators[eta_gen.index] = 0;
+
+      } else {
+
+        done_S[index] = true;
+        done_S[index_S] = true;
+
+        eta_to_S_generators[index] = S_index;
+        eta_to_S_generators[index_S] = -S_index;
+
+        S_generators_pos.push_back(eta_gen);
+        S_generators_neg.push_back(eta_gen_S);
+
+        S_index++;
+
+      }
     }
   }
 
-  int64_t num_S_rows = S_rows.size();
+  int64_t num_S_gens = S_generators_pos.size();
+  assert(S_index - 1 == num_S_gens);
+  assert(S_index - 1 == S_generators_neg.size());
 
-  bool done_T[num_generators];
+
+  std::vector<int64_t> generator_to_S_generators (num_generators, 0);
   for (int i = 0; i < num_generators; i++) {
+    generator_to_S_generators[i] = eta_to_S_generators[generator_to_eta_generators[i]];
+  }
+
+  DEBUG_INFO_PRINT(3, "num_S_gens: 2 * %lld\n", num_S_gens);
+
+  DEBUG_INFO(5,
+    {
+      for (int i = 0; i < num_S_gens; i++) {
+        S_generators_pos[i].print();
+        int idx = S_generators_pos[i].index;
+        printf(" id %d eta %lld s %lld \n", idx, generator_to_eta_generators[idx], generator_to_S_generators[idx]);
+      }
+
+      for (int i = 0; i < num_S_gens; i++) {
+        S_generators_neg[i].print();
+        int idx = S_generators_neg[i].index;
+        printf(" id %d eta %lld s %lld \n", idx, generator_to_eta_generators[idx], generator_to_S_generators[idx]);
+      }
+    }
+  )
+
+
+  // Compute T relations (see Stein Ch 3.3)
+
+  // std::vector<ManinGenerator> S_generators = S_generators_pos;
+  // S_generators.insert(S_generators.end(), S_generators_neg.begin(), S_generators_neg.end());
+
+  // bool done_T_pos[num_S_gens];
+  // bool done_T_neg[num_S_gens];
+  // for (int i = 0; i < num_S_gens; i++) {
+  //   done_T_pos[i] = false;
+  //   done_T_neg[i] = false;
+  // }
+
+  bool done_T[num_eta_gens];
+  for (int i = 0; i < num_eta_gens; i++) {
     done_T[i] = false;
   }
+
+  std::set<std::tuple<int64_t, int64_t, int64_t>> T_orbits;
   std::vector<std::vector<int64_t>> T_rows;
 
+  // XXX: think about this more and figure out what the math actually is.
   for (ManinGenerator generator : generators) {
-    if (!done_T[generator.index]) {
-      ManinGenerator generator_T = generator.apply_T().as_generator();
-      ManinGenerator generator_T_2 = generator.apply_T_2().as_generator();
 
-      std::vector<int64_t> row (num_generators, 0);
-      row[generator_to_filt_generators[generator.index]]++;
-      row[generator_to_filt_generators[generator_T.index]]++;
-      row[generator_to_filt_generators[generator_T_2.index]]++;
-      T_rows.push_back(row);
+    int index = generator_to_S_generators[generator.index];
+    int eta_index = generator_to_eta_generators[generator.index];
 
-      done_T[generator.index] = true;
-      done_T[generator_T.index] = true;
-      done_T[generator_T_2.index] = true;
+    // if (index == 0) {
+    //   throw std::runtime_error("S_generators should not contain zero elements");
+    // }
+
+    // bool done = done_T[eta_index];
+    // // bool done = false;
+
+    // if (!done) {
+
+    ManinGenerator generator_T = generator.apply_T().as_generator();
+    ManinGenerator generator_T_2 = generator.apply_T_2().as_generator();
+
+    int index_T = generator_to_S_generators[generator_T.index];
+    int index_T_2 = generator_to_S_generators[generator_T_2.index];
+
+    DEBUG_INFO(5,
+      {
+        printf("%4lld %4lld %4lld -> ", generator.index, generator_T.index, generator_T_2.index);
+        printf("%4lld %4lld %4lld -> ",
+          generator_to_eta_generators[generator.index],
+          generator_to_eta_generators[generator_T.index],
+          generator_to_eta_generators[generator_T_2.index]
+        );
+        printf("%4d %4d %4d\n",
+          index,
+          index_T,
+          index_T_2
+        );
+      }
+    )
+
+    if ((index == 0 || index_T == 0 || index_T_2 == 0) && (index + index_T + index_T_2 == 0)) continue;
+
+    std::tuple<int64_t, int64_t, int64_t> orbit = {0, 0, 0};
+
+    if (index <= index_T && index_T <= index_T_2)   orbit = {index, index_T, index_T_2};
+    if (index <= index_T_2 && index_T_2 <= index_T) orbit = {index, index_T_2, index_T};
+    if (index_T <= index && index <= index_T_2)     orbit = {index_T, index, index_T_2};
+    if (index_T <= index_T_2 && index_T_2 <= index) orbit = {index_T, index_T_2, index};
+    if (index_T_2 <= index && index <= index_T)     orbit = {index_T_2, index, index_T};
+    if (index_T_2 <= index_T && index_T <= index)   orbit = {index_T_2, index_T, index};
+
+    if (orbit == std::make_tuple(0, 0, 0)) throw std::runtime_error("orbit should not be trivial");
+
+    std::tuple<int64_t, int64_t, int64_t> negated_orbit = {
+      -std::get<2>(orbit),
+      -std::get<1>(orbit),
+      -std::get<0>(orbit)
+    };
+
+    DEBUG_INFO_PRINT(5, "orbit: %lld %lld %lld, negated_orbit: %lld %lld %lld\n",
+      std::get<0>(orbit),
+      std::get<1>(orbit),
+      std::get<2>(orbit),
+      std::get<0>(negated_orbit),
+      std::get<1>(negated_orbit),
+      std::get<2>(negated_orbit)
+    );
+
+    if (T_orbits.contains(orbit) || T_orbits.contains(negated_orbit)) continue;
+
+    T_orbits.insert(orbit);
+
+    std::vector<int64_t> row (num_S_gens, 0);
+
+    // bool mark_as_done = !(index == 0 || index_T == 0 || index_T_2 == 0);
+
+    // done_T[generator_to_eta_generators[generator.index]] |= mark_as_done;
+    // done_T[generator_to_eta_generators[generator_T.index]] |= mark_as_done;
+    // done_T[generator_to_eta_generators[generator_T_2.index]] |= mark_as_done;
+
+    for (int idx : {index, index_T, index_T_2}) {
+
+      if (idx > 0) {
+        row[idx - 1]++;
+        // done_T_pos[idx - 1] |= mark_as_done;
+      }
+
+      if (idx < 0) {
+        row[-idx - 1]--;
+        // done_T_neg[-idx - 1] |= mark_as_done;
+      }
+
     }
+
+    DEBUG_INFO(5,
+      {
+        printf("new orbit!\n");
+        printf("row: ");
+        for (auto x : row) printf("%lld ", x);
+        printf("\n");
+      }
+    )
+
+    T_rows.push_back(row);
   }
 
   int64_t num_T_rows = T_rows.size();
 
-  // Create ST relation matrix
-  fmpz_mat_t ST;
-  fmpz_mat_init(ST, num_S_rows + num_T_rows, num_filt_gens);
-
-  for (int row = 0; row < num_S_rows; row++) {
-    for (int col = 0; col < num_filt_gens; col++) {
-      fmpz_set_ui(fmpz_mat_entry(ST, row, col), S_rows[row][col]);
-    }
-  }
+  // Create T relation matrix
+  fmpz_mat_t T_mat;
+  fmpz_mat_init(T_mat, num_T_rows, num_S_gens);
 
   for (int row = 0; row < num_T_rows; row++) {
-    for (int col = 0; col < num_filt_gens; col++) {
-      fmpz_set_ui(fmpz_mat_entry(ST, row + num_S_rows, col), T_rows[row][col]);
+    for (int col = 0; col < num_S_gens; col++) {
+      fmpz_set_si(fmpz_mat_entry(T_mat, row, col), T_rows[row][col]);
     }
   }
 
+  DEBUG_INFO_PRINT(3, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(T_mat), fmpz_mat_ncols(T_mat));
 
-  DEBUG_INFO_PRINT(3, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(ST), fmpz_mat_ncols(ST));
+
+  DEBUG_INFO(5,
+    {
+      printf("T_mat: \n");
+      fmpz_mat_print_pretty(T_mat);
+    }
+  )
+
 
   fmpz_t den;
   fmpz_init(den);
-  int64_t rank = fmpz_mat_rref(ST, den, ST);
-  int64_t basis_size = fmpz_mat_ncols(ST) - rank;
+  int64_t rank = fmpz_mat_rref(T_mat, den, T_mat);
+  int64_t basis_size = fmpz_mat_ncols(T_mat) - rank;
 
   DEBUG_INFO(3,
     {
       printf("Finished computing rref\n");
       printf("rref denom: ");
       fmpz_print(den);
-      // printf("\nrref: \n");
-      // fmpz_mat_print_pretty(ST);
+      printf("\nrank: %lld, basis_size: %lld\n", rank, basis_size);
+    }
+  )
+
+  DEBUG_INFO(5,
+    {
+      printf("rref: \n");
+      fmpz_mat_print_pretty(T_mat);
       printf("\n");
-      printf("rank: %lld, basis_size: %lld\n", rank, basis_size);
     }
   )
 
@@ -204,71 +380,88 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   fmpz_init(neg_den);
   fmpz_neg(neg_den, den);
 
-  std::map<int, ManinBasisElement> basis_map;
-  std::vector<ManinElement> generator_to_basis;
+  std::vector<ManinBasisElement> basis;
+  std::map<int, int> col_to_basis_index;
+  std::map<int, ManinElement> generator_to_basis;
 
-  std::map<int64_t, int64_t> index_to_basis_index;
-  int64_t bi = 0;
+  int basis_index = 0;
 
-  auto get_basis_index = [&index_to_basis_index, &bi] (int64_t i) {
-    if (auto it = index_to_basis_index.find(i); it != index_to_basis_index.end()) {
-      return it->second;
-    } else {
-      index_to_basis_index.insert(std::make_pair(i, bi));
-      bi++;
-      return bi - 1;
-    }
-  };
-
+  // Find nonpivots
   int previous_pivot = -1;
-  // rank + 1 is needed to add the basis elements at the end.
   for (int row = 0; row < rank + 1; row++) {
-    int pivot_index;
-    for (int col = previous_pivot + 1; col < num_filt_gens; col++) {
+    for (int col = previous_pivot + 1; col < num_S_gens; col++) {
       // If nonzero element in row, this is the next pivot.
-      if (!(fmpz_is_zero(fmpz_mat_entry(ST, row, col)))) {
+      if (row < rank && !(fmpz_is_zero(fmpz_mat_entry(T_mat, row, col)))) {
+        previous_pivot = col;
+        break;
+      }
+
+      // Everything else is a nonpivot (and thus in the basis)
+      // printf("(%d, %d)\n", row, col);
+      ManinGenerator generator = S_generators_pos.at(col);
+
+      // generator.print();
+      // printf("\n");
+
+      ManinBasisElement mbe(basis_index, generator);
+      basis.push_back(mbe);
+      col_to_basis_index.insert(std::make_pair(col, basis_index));
+      generator_to_basis.insert(std::make_pair(col, mbe.as_element()));
+
+      // printf("nonpivot %d -> ", col);
+      // mbe.as_element().print();
+      // printf("\n");
+
+      basis_index++;
+    }
+  }
+
+  // Fix: order of things added to generator_to_basis;
+  // Deals with pivots
+  previous_pivot = -1;
+  for (int row = 0; row < rank; row++) {
+    int pivot_index;
+    for (int col = previous_pivot + 1; col < num_S_gens; col++) {
+      // If nonzero element in row, this is the next pivot.
+      if (!(fmpz_is_zero(fmpz_mat_entry(T_mat, row, col)))) {
         pivot_index = col;
         break;
       }
       // Everything else is a nonpivot (and thus in the basis)
-      ManinGenerator generator = generators[filt_generators[col].index];
-      int64_t basis_index = get_basis_index(filt_generators[col].index);
-      ManinBasisElement mbe(basis_index, generator);
-      basis_map.insert(std::pair(basis_index, mbe));
-      generator_to_basis.push_back(mbe.as_element());
     }
     // We found a pivot, so now we construct the ManinElement corresponding to that pivot.
     previous_pivot = pivot_index;
     std::vector<MBEWC> components;
-    for (int col = pivot_index + 1; col < num_filt_gens; col++) {
-      if (!(fmpz_is_zero(fmpz_mat_entry(ST, row, col)))) {
+    for (int col = pivot_index + 1; col < num_S_gens; col++) {
+      if (!(fmpz_is_zero(fmpz_mat_entry(T_mat, row, col)))) {
         fmpq_t coeff;
         fmpq_init(coeff);
-        fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(ST, row, col), neg_den);
-        int64_t basis_index = get_basis_index(filt_generators[col].index);
-        components.push_back(MBEWC(basis_index, coeff));
+        fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(T_mat, row, col), neg_den);
+        int64_t basis_index = col_to_basis_index[col];
+        components.emplace_back(basis_index, coeff);
         fmpq_clear(coeff);
       }
     }
     ManinElement element = ManinElement(level, components);
-    element.sort();
-    generator_to_basis.push_back(element);
-    // printf("[%lld] = ", filt_generators[pivot_index].index);
+    element.mark_as_sorted_unchecked();
+    generator_to_basis.insert(std::make_pair(pivot_index, element));
+
+    // printf("pivot %d -> ", pivot_index);
     // element.print();
     // printf("\n");
+
   }
 
-  std::vector<ManinBasisElement> basis;
-  for (int bi = 0; bi < basis_size; bi++) {
-    auto pair = basis_map.find(bi);
-    basis.push_back(pair->second);
-  }
-
-  fmpz_mat_clear(ST);
+  fmpz_mat_clear(T_mat);
   fmpz_clear(den);
   fmpz_clear(neg_den);
 
-  DEBUG_INFO(5,
+  std::vector<ManinElement> gtb_vec;
+  for (int i = 0; i < num_S_gens; i++) {
+    gtb_vec.push_back(generator_to_basis.at(i));
+  }
+
+  DEBUG_INFO(4,
     {
       printf(" basis computation result\n");
       printf(".basis: %zu\n", basis.size());
@@ -277,14 +470,14 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
         printf("\n");
       }
       printf(".generator_to_basis: %zu\n", generator_to_basis.size());
-      for (int i = 0; i < generator_to_basis.size(); i++) {
+      for (int i = 0; i < gtb_vec.size(); i++) {
         generators[i].print();
         printf(" = ");
-        generator_to_basis[i].print();
+        gtb_vec[i].print();
         printf("\n");
       }
-      printf(".generator_index_to_GTB_index: %zu\n", generator_to_filt_generators.size());
-      for (auto i: generator_to_filt_generators) {
+      printf(".generator_index_to_GTB_index: %zu\n", generator_to_eta_generators.size());
+      for (auto i: generator_to_S_generators) {
         printf("%lld ", i);
       }
       printf("\n");
@@ -293,13 +486,10 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   DEBUG_INFO_PRINT(2, "Finished computation of Manin basis for level %lld\n", level);
 
-  return {
-    .basis = basis,
-    .generator_to_basis = generator_to_basis,
-    .generator_index_to_GTB_index = generator_to_filt_generators
-  };
+  return BasisComputationResult(basis, gtb_vec, generator_to_S_generators);
 }
 
+// FIXME: figure out a way to return cached things as references instead of values in order to avoid unnecessary copying.
 BasisComputationResult compute_manin_basis(const int64_t level) {
   static CacheDecorator<BasisComputationResult, const int64_t> _cache_compute_manin_basis(_impl_compute_manin_basis);
   return _cache_compute_manin_basis(level);
@@ -308,7 +498,13 @@ BasisComputationResult compute_manin_basis(const int64_t level) {
 ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) {
   const BasisComputationResult result = compute_manin_basis(level);
   const int64_t GTB_index = result.generator_index_to_GTB_index[index];
-  return result.generator_to_basis[GTB_index];
+  if (GTB_index > 0) {
+    return result.generator_to_basis[GTB_index - 1];
+  } else if (GTB_index == 0) {
+    return ManinElement::zero(level);
+  } else {
+    return result.generator_to_basis[-GTB_index - 1].negate();
+  }
 }
 
 std::vector<ManinBasisElement> manin_basis(const int64_t level) {

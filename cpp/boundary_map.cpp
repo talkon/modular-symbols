@@ -146,7 +146,7 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
       }
     }
     ManinElement element = ManinElement(level, components);
-    element.sort();
+    element.mark_as_sorted_unchecked();
     output.push_back(element);
   }
 

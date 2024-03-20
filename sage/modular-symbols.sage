@@ -218,6 +218,8 @@ def ST_relation_matrix(N):
     gens[k] : filt_gens[v] for k, v in gen_index_to_filt_gen_index.items()
   }
 
+  print("# eta_gens:", len(filt_gens))
+
   # Compute S and T relations
   done_S = set()
   done_T = set()

@@ -103,11 +103,11 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fflush(stdout);
 
   fmpz_mat_t map_kernel, map_kernel_window;
-  printf("aa %zu\n", B.size());
+  // printf("aa %zu\n", B.size());
   fmpz_mat_init(map_kernel, B.size(), B.size());
-  printf("bb %zu\n", B.size());
+  // printf("bb %zu\n", B.size());
   int64_t rank = fmpz_mat_nullspace(map_kernel, map_matrix_z);
-  printf("cc %lld\n", rank);
+  // printf("cc %lld\n", rank);
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
 
   fmpz_mat_clear(map_matrix_z);
@@ -125,6 +125,8 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // if (!fmpz_is_zero(den)) {
   //   fmpz_mat_scalar_divexact_fmpz(map_kernel_in_orig_basis, map_kernel_in_orig_basis, den);
   // }
+
+  // printf("dd %lld\n", rank);
 
   fmpz_mat_clear(B_matrix_z);
 
@@ -148,25 +150,30 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
   // printf("\n");
 
+  // printf("ee %lld\n", rank);
 
   // Convert each column of the kernel to a ManinElement
   std::vector<ManinElement> output;
 
   for (int col = 0; col < rank; col++) {
+    // printf("col %d\n", col);
     std::vector<MBEWC> components;
     for (int row = 0; row < N_basis.size(); row++) {
       if (!(fmpz_is_zero(fmpz_mat_entry(map_kernel_in_orig_basis, row, col)))) {
         fmpq_t coeff;
         fmpq_init(coeff);
         fmpq_set_fmpz(coeff, fmpz_mat_entry(map_kernel_in_orig_basis, row, col));
-        components.push_back(MBEWC(row, coeff));
+        components.emplace_back(row, coeff);
         fmpq_clear(coeff);
       }
     }
+    has_duplicate_keys(components);
     ManinElement element = ManinElement(N, components);
-    element.sort();
+    element.mark_as_sorted_unchecked();
     output.push_back(element);
   }
+
+  // printf("ff %lld\n", rank);
 
   // printf("output matrix:\n");
   // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
@@ -481,7 +488,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
         }
       }
       ManinElement element = ManinElement(N, components);
-      element.sort();
+      element.mark_as_sorted_unchecked();
       output.push_back(element);
     }
 

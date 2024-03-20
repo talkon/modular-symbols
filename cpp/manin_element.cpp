@@ -40,10 +40,10 @@ MBEWC::MBEWC(const MBEWC& mbewc) : basis_index(mbewc.basis_index) {
   //     printf(RED "<error>" RESET " attempted move to same address");
   //     throw std::runtime_error("alkjsdfhah;a");
   //   }
-  //   fmpq_print(mbewc.coeff);
-  //   printf(" -> ");
-  //   fmpq_print(coeff);
-  //   printf("\n");
+  //   // fmpq_print(mbewc.coeff);
+  //   // printf(" -> ");
+  //   // fmpq_print(coeff);
+  //   // printf("\n");
   // }
 
   // uint64_t old_den = *fmpq_denref(mbewc.coeff);
@@ -114,14 +114,18 @@ bool has_duplicate_keys(const std::vector<MBEWC>& components) {
   return false;
 }
 
-ManinElement::ManinElement(int64_t N, std::vector<MBEWC> components) : N(N), components(components) {}
+ManinElement::ManinElement(int64_t N, std::vector<MBEWC>& components) : N(N) {
+  this->components.clear();
+  this->components.insert(this->components.end(), components.begin(), components.end());
+}
 
 ManinElement::ManinElement(const ManinElement& me)
 :
   N(me.N),
-  is_sorted(me.is_sorted),
-  components(me.components)
+  is_sorted(me.is_sorted)
 {
+  this->components.clear();
+  this->components.insert(this->components.end(), me.components.begin(), me.components.end());
 }
 
 ManinElement ManinElement::zero(const int64_t level) {
@@ -131,8 +135,12 @@ ManinElement ManinElement::zero(const int64_t level) {
   return result;
 }
 
+// FIXME: this causes some ownership issues!
 void ManinElement::sort() {
+  throw std::runtime_error("ManinElement::sort() currently has issues\n");
+  // printf("x\n");
   std::sort(components.begin(), components.end());
+  // printf("y\n");
   is_sorted = true;
 }
 
@@ -288,6 +296,7 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f,
   int64_t out_level = M ? M : N;
   ManinElement result = ManinElement::zero(out_level);
 
+  // FIXME: this causes basis to be copied many times.
   std::vector<ManinBasisElement> full_basis = manin_basis(N);
   for (MBEWC component: components) {
     // [ ] cache result of f?

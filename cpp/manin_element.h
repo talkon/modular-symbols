@@ -41,6 +41,8 @@ struct MBEWC {
   void print_internals() const;
 };
 
+bool has_duplicate_keys(const std::vector<MBEWC>&);
+
 // An element of the space of Manin symbols of level N.
 // Represented as a sparse linear combination of basis elements.
 //
@@ -56,7 +58,7 @@ struct ManinElement {
   std::vector<MBEWC> components;
   bool is_sorted = false;
 
-  ManinElement(int64_t N, std::vector<MBEWC>);
+  ManinElement(int64_t N, std::vector<MBEWC>&);
   ManinElement(const ManinElement&);
 
   // Zero element of a given level
