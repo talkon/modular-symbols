@@ -11,7 +11,7 @@ class CacheDecorator {
   public:
     CacheDecorator(std::function<R(A...)> f) : f_(f) {}
 
-    R operator()(A... a) {
+    R& operator()(A... a) {
         std::tuple<A...> key(a...);
         auto search = map_.find(key);
         if (search != map_.end()) {
@@ -19,8 +19,8 @@ class CacheDecorator {
         }
 
         auto result = f_(a...);
-        map_.insert(std::make_pair(key, result));
-        return result;
+        auto [it, success] = map_.insert(std::make_pair(key, result));
+        return it->second;
     }
 
   private:

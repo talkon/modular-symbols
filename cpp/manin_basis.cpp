@@ -490,13 +490,13 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 }
 
 // FIXME: figure out a way to return cached things as references instead of values in order to avoid unnecessary copying.
-BasisComputationResult compute_manin_basis(const int64_t level) {
+BasisComputationResult& compute_manin_basis(const int64_t level) {
   static CacheDecorator<BasisComputationResult, const int64_t> _cache_compute_manin_basis(_impl_compute_manin_basis);
   return _cache_compute_manin_basis(level);
 }
 
 ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) {
-  const BasisComputationResult result = compute_manin_basis(level);
+  const BasisComputationResult& result = compute_manin_basis(level);
   const int64_t GTB_index = result.generator_index_to_GTB_index[index];
   if (GTB_index > 0) {
     return result.generator_to_basis[GTB_index - 1];
@@ -508,7 +508,7 @@ ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) 
 }
 
 std::vector<ManinBasisElement> manin_basis(const int64_t level) {
-  const BasisComputationResult result = compute_manin_basis(level);
+  const BasisComputationResult& result = compute_manin_basis(level);
   return result.basis;
 }
 
