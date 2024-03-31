@@ -14,6 +14,111 @@
 #include <cassert>
 #include <stdexcept>
 
+void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat) {
+  fmpz_mat_t window;
+  fmpz_t den;
+  fmpz_init(den);
+
+  int nrows = fmpz_mat_nrows(mat);
+  int ncols = fmpz_mat_ncols(mat);
+
+  for (int row = 0; row < nrows; row++) {
+    fmpz_mat_window_init(window, mat, row, 0, row+1, ncols);
+
+    fmpz_mat_content(den, window);
+    if (!fmpz_is_zero(den)) {
+      fmpz_mat_scalar_divexact_fmpz(window, window, den);
+    }
+    fmpz_mat_window_clear(window);
+  }
+
+  fmpz_clear(den);
+}
+
+void fmpz_mat_div_colwise_gcd(fmpz_mat_t mat) {
+  fmpz_mat_t window;
+  fmpz_t den;
+  fmpz_init(den);
+
+  int nrows = fmpz_mat_nrows(mat);
+  int ncols = fmpz_mat_ncols(mat);
+
+  for (int col = 0; col < ncols; col++) {
+    fmpz_mat_window_init(window, mat, 0, col, nrows, col+1);
+
+    fmpz_mat_content(den, window);
+    if (!fmpz_is_zero(den)) {
+      fmpz_mat_scalar_divexact_fmpz(window, window, den);
+    }
+    fmpz_mat_window_clear(window);
+  }
+
+  fmpz_clear(den);
+}
+
+void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_poly_t f) {
+  fmpq_t coeff;
+  fmpq_init(coeff);
+  int degree = fmpq_poly_degree(f);
+
+  fmpq_mat_zero(dst);
+
+  // XXX: might be faster to just add to diagonal elements directly.
+  fmpq_mat_t one, coeff_times_one;
+  fmpq_mat_init_set(one, dst);
+  fmpq_mat_one(one);
+  fmpq_mat_init_set(coeff_times_one, one);
+
+  for (int i = 0; i <= degree; i++) {
+    fmpq_poly_get_coeff_fmpq(coeff, f, degree - i);
+    fmpq_mat_scalar_mul_fmpq(coeff_times_one, one, coeff);
+    fmpq_mat_add(dst, dst, coeff_times_one);
+    if (i != degree) {
+      fmpq_mat_mul(dst, dst, src);
+    }
+  }
+
+  fmpq_mat_clear(one);
+  fmpq_mat_clear(coeff_times_one);
+  fmpq_clear(coeff);
+}
+
+void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+  fmpz_t coeff;
+  fmpz_init(coeff);
+  int degree = fmpz_poly_degree(f);
+
+  DEBUG_INFO(3,
+    {
+      printf("fmpz_poly_apply_fmpq_mat called with f(T) = ");
+      fmpz_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  fmpq_mat_zero(dst);
+
+  // XXX: might be faster to just add to diagonal elements directly.
+  fmpq_mat_t one, coeff_times_one;
+  fmpq_mat_init_set(one, dst);
+  fmpq_mat_one(one);
+  fmpq_mat_init_set(coeff_times_one, one);
+
+  for (int i = 0; i <= degree; i++) {
+    fmpz_poly_get_coeff_fmpz(coeff, f, degree - i);
+    fmpq_mat_scalar_mul_fmpz(coeff_times_one, one, coeff);
+    fmpq_mat_add(dst, dst, coeff_times_one);
+    if (i != degree) {
+      fmpq_mat_mul(dst, dst, src);
+    }
+  }
+
+  fmpq_mat_clear(one);
+  fmpq_mat_clear(coeff_times_one);
+  fmpz_clear(coeff);
+}
+
+
 // TODO: consider requiring f to return a reference?
 std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f, int64_t M) {
   // If the input space is trivial, the result is also trivial.
@@ -48,6 +153,8 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
       fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
     }
   }
+
+  DEBUG_INFO_PRINT(3, "0\n");
 
   // XXX: this feels a bit wasteful, also is colwise right??
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
@@ -95,21 +202,24 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   }
 
-  // DEBUG_INFO_PRINT(3, "5\n");
+  DEBUG_INFO_PRINT(3, "5\n");
 
   // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
 
-  fflush(stdout);
+  // fflush(stdout);
 
   fmpz_mat_t map_kernel, map_kernel_window;
   // printf("aa %zu\n", B.size());
   fmpz_mat_init(map_kernel, B.size(), B.size());
   // printf("bb %zu\n", B.size());
+  DEBUG_INFO_PRINT(3, "9\n");
   int64_t rank = fmpz_mat_nullspace(map_kernel, map_matrix_z);
+  DEBUG_INFO_PRINT(3, "10\n");
   // printf("cc %lld\n", rank);
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
+  fmpz_mat_div_colwise_gcd(map_kernel_window);
 
   fmpz_mat_clear(map_matrix_z);
 
@@ -118,40 +228,57 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // printf("\n");
 
   fmpz_mat_t map_kernel_in_orig_basis;
-  fmpz_t den;
-  fmpz_init(den);
   fmpz_mat_init(map_kernel_in_orig_basis, N_basis.size(), rank);
+
+  // TODO: this matmul is very slow, investigate
+  DEBUG_INFO(4,
+    {
+      int max_1 = fmpz_mat_max_bits(B_matrix_z);
+      int r_1 = fmpz_mat_nrows(B_matrix_z);
+      int c_1 = fmpz_mat_ncols(B_matrix_z);
+
+      int max_2 = fmpz_mat_max_bits(map_kernel_window);
+      int r_2 = fmpz_mat_nrows(map_kernel_window);
+      int c_2 = fmpz_mat_ncols(map_kernel_window);
+
+      printf("mul: (%d x %d, %d) x (%d x %d, %d)\n", r_1, c_1, max_1, r_2, c_2, max_2);
+    }
+  )
+
   fmpz_mat_mul(map_kernel_in_orig_basis, B_matrix_z, map_kernel_window);
-  // fmpz_mat_content(den, map_kernel_in_orig_basis);
-  // if (!fmpz_is_zero(den)) {
-  //   fmpz_mat_scalar_divexact_fmpz(map_kernel_in_orig_basis, map_kernel_in_orig_basis, den);
-  // }
+
+  DEBUG_INFO(4,
+    {
+      int max_3 = fmpz_mat_max_bits(map_kernel_in_orig_basis);
+      int r_3 = fmpz_mat_nrows(map_kernel_in_orig_basis);
+      int c_3 = fmpz_mat_ncols(map_kernel_in_orig_basis);
+
+      printf("res: (%d x %d, %d)\n", r_3, c_3, max_3);
+    }
+  )
 
   // printf("dd %lld\n", rank);
 
   fmpz_mat_clear(B_matrix_z);
 
-  fmpz_mat_t window;
-  for (int col = 0; col < rank; col++) {
-    fmpz_mat_window_init(window, map_kernel_in_orig_basis, 0, col, N_basis.size(), col+1);
-
-    fmpz_mat_content(den, window);
-    if (!fmpz_is_zero(den)) {
-      fmpz_mat_scalar_divexact_fmpz(window, window, den);
-    }
-    fmpz_mat_window_clear(window);
-  }
-
-  fmpz_clear(den);
+  fmpz_mat_div_colwise_gcd(map_kernel_in_orig_basis);
 
   fmpz_mat_window_clear(map_kernel_window);
   fmpz_mat_clear(map_kernel);
 
+  DEBUG_INFO(4,
+    {
+      int max_4 = fmpz_mat_max_bits(map_kernel_in_orig_basis);
+      int r_4 = fmpz_mat_nrows(map_kernel_in_orig_basis);
+      int c_4 = fmpz_mat_ncols(map_kernel_in_orig_basis);
+
+      printf("res: (%d x %d, %d)\n", r_4, c_4, max_4);
+    }
+  )
+
   // printf("map kernel in orig basis:\n");
   // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
   // printf("\n");
-
-  // printf("ee %lld\n", rank);
 
   // Convert each column of the kernel to a ManinElement
   std::vector<ManinElement> output;
@@ -183,69 +310,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_clear(map_kernel_in_orig_basis);
 
   return output;
-}
-
-void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_poly_t f) {
-  fmpq_t coeff;
-  fmpq_init(coeff);
-  int degree = fmpq_poly_degree(f);
-
-  fmpq_mat_zero(dst);
-
-  // XXX: might be faster to just add to diagonal elements directly.
-  fmpq_mat_t one, coeff_times_one;
-  fmpq_mat_init_set(one, dst);
-  fmpq_mat_one(one);
-  fmpq_mat_init_set(coeff_times_one, one);
-
-  for (int i = 0; i <= degree; i++) {
-    fmpq_poly_get_coeff_fmpq(coeff, f, degree - i);
-    fmpq_mat_scalar_mul_fmpq(coeff_times_one, one, coeff);
-    fmpq_mat_add(dst, dst, coeff_times_one);
-    if (i != degree) {
-      fmpq_mat_mul(dst, dst, src);
-    }
-  }
-
-  fmpq_mat_clear(one);
-  fmpq_mat_clear(coeff_times_one);
-  fmpq_clear(coeff);
-}
-
-
-void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
-  fmpz_t coeff;
-  fmpz_init(coeff);
-  int degree = fmpz_poly_degree(f);
-
-  DEBUG_INFO(3,
-    {
-      printf("fmpz_poly_apply_fmpq_mat called with f(T) = ");
-      fmpz_poly_print_pretty(f, "T");
-      printf("\n");
-    }
-  )
-
-  fmpq_mat_zero(dst);
-
-  // XXX: might be faster to just add to diagonal elements directly.
-  fmpq_mat_t one, coeff_times_one;
-  fmpq_mat_init_set(one, dst);
-  fmpq_mat_one(one);
-  fmpq_mat_init_set(coeff_times_one, one);
-
-  for (int i = 0; i <= degree; i++) {
-    fmpz_poly_get_coeff_fmpz(coeff, f, degree - i);
-    fmpq_mat_scalar_mul_fmpz(coeff_times_one, one, coeff);
-    fmpq_mat_add(dst, dst, coeff_times_one);
-    if (i != degree) {
-      fmpq_mat_mul(dst, dst, src);
-    }
-  }
-
-  fmpq_mat_clear(one);
-  fmpq_mat_clear(coeff_times_one);
-  fmpz_clear(coeff);
 }
 
 DecomposeResult DecomposeResult::empty() {
@@ -458,11 +522,9 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
   fmpq_mat_t poly_on_f_matrix;
   fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
-  fmpz_t den;
   fmpq_mat_init(poly_on_f_matrix, B.size(), B.size());
   fmpz_mat_init(poly_on_f_matrix_z, B.size(), B.size());
   fmpz_mat_init(poly_mat_kernel, B.size(), B.size());
-  fmpz_init(den);
 
   for (int i = 0; i < num_factors; i++) {
     fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
@@ -474,20 +536,13 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     int rank = fmpz_mat_nullspace(poly_mat_kernel, poly_on_f_matrix_z);
     fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
 
+    fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);
+
     fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
     fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
     fmpz_mat_window_clear(poly_mat_kernel_window);
 
-    fmpz_mat_t window;
-    for (int col = 0; col < rank; col++) {
-      fmpz_mat_window_init(window, poly_mat_kernel_in_orig_basis, 0, col, N_basis.size(), col+1);
-
-      fmpz_mat_content(den, window);
-      if (!fmpz_is_zero(den)) {
-        fmpz_mat_scalar_divexact_fmpz(window, window, den);
-      }
-      fmpz_mat_window_clear(window);
-    }
+    fmpz_mat_div_colwise_gcd(poly_mat_kernel_in_orig_basis);
 
     std::vector<ManinElement> output;
     for (int col = 0; col < rank; col++) {
@@ -527,7 +582,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   fmpz_mat_clear(poly_on_f_matrix_z);
   fmpz_mat_clear(poly_mat_kernel);
   fmpz_poly_factor_clear(min_poly_factored);
-  fmpz_clear(den);
 
   return {.done = done, .remaining = remaining};
 }

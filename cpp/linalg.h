@@ -11,11 +11,6 @@
 
 #include <vector>
 
-// Computes the kernel (represented by a basis) of a given linear map `f` acting on
-// a vector space of ManinElements (also represented by a basis).
-// `f` should be a map to Manin symbols of level `M`.
-std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, int64_t M);
-
 // Sets dst to f(src).
 // `dst` and `src` must be square matrices with the same dimension, and cannot alias.
 void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_poly_t f);
@@ -23,6 +18,18 @@ void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_p
 // Sets dst to f(src).
 // `dst` and `src` must be square matrices with the same dimension, and cannot alias.
 void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f);
+
+// Divides each row by the gcd of the row.
+void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat);
+
+// Divides each row by the gcd of the row.
+void fmpz_mat_div_colwise_gcd(fmpz_mat_t mat);
+
+// Computes the kernel (represented by a basis) of a given linear map `f` acting on
+// a vector space of ManinElements (also represented by a basis).
+// `f` should be a map to Manin symbols of level `M`.
+std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, int64_t M);
+
 
 struct DecomposeResult {
   std::vector<std::vector<ManinElement>> done;

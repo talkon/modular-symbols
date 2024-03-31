@@ -87,7 +87,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     if (generator_to_eta_generators[generator.index] == -1) {
       ManinGenerator generator_eta = generator.apply_eta().as_generator();
 
-      DEBUG_INFO(5,
+      DEBUG_INFO(6,
         {
           generator.print();
           printf(", eta: ");
@@ -109,7 +109,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   DEBUG_INFO_PRINT(3, "num_eta_gens: %lld\n", num_eta_gens);
 
-  DEBUG_INFO(5,
+  DEBUG_INFO(6,
     {
       for (int i = 0; i < num_eta_gens; i++) {
         printf("%d ", i);
@@ -190,7 +190,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   DEBUG_INFO_PRINT(3, "num_S_gens: 2 * %lld\n", num_S_gens);
 
-  DEBUG_INFO(5,
+  DEBUG_INFO(6,
     {
       for (int i = 0; i < num_S_gens; i++) {
         S_generators_pos[i].print();
@@ -248,7 +248,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     int index_T = generator_to_S_generators[generator_T.index];
     int index_T_2 = generator_to_S_generators[generator_T_2.index];
 
-    DEBUG_INFO(5,
+    DEBUG_INFO(6,
       {
         printf("%4lld %4lld %4lld -> ", generator.index, generator_T.index, generator_T_2.index);
         printf("%4lld %4lld %4lld -> ",
@@ -318,7 +318,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
     }
 
-    DEBUG_INFO(5,
+    DEBUG_INFO(6,
       {
         printf("new orbit!\n");
         printf("row: ");
@@ -345,7 +345,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   DEBUG_INFO_PRINT(3, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(T_mat), fmpz_mat_ncols(T_mat));
 
 
-  DEBUG_INFO(5,
+  DEBUG_INFO(6,
     {
       printf("T_mat: \n");
       fmpz_mat_print_pretty(T_mat);
@@ -367,7 +367,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
-  DEBUG_INFO(5,
+  DEBUG_INFO(6,
     {
       printf("rref: \n");
       fmpz_mat_print_pretty(T_mat);
@@ -461,7 +461,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     gtb_vec.push_back(generator_to_basis.at(i));
   }
 
-  DEBUG_INFO(4,
+  DEBUG_INFO(5,
     {
       printf(" basis computation result\n");
       printf(".basis: %zu\n", basis.size());
