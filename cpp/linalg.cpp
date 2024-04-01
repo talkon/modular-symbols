@@ -2,6 +2,7 @@
 #include "manin_basis.h"
 #include "manin_element.h"
 #include "debug_utils.h"
+#include "fmpz_mat_helpers.h"
 
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
@@ -13,111 +14,6 @@
 #include <vector>
 #include <cassert>
 #include <stdexcept>
-
-void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat) {
-  fmpz_mat_t window;
-  fmpz_t den;
-  fmpz_init(den);
-
-  int nrows = fmpz_mat_nrows(mat);
-  int ncols = fmpz_mat_ncols(mat);
-
-  for (int row = 0; row < nrows; row++) {
-    fmpz_mat_window_init(window, mat, row, 0, row+1, ncols);
-
-    fmpz_mat_content(den, window);
-    if (!fmpz_is_zero(den)) {
-      fmpz_mat_scalar_divexact_fmpz(window, window, den);
-    }
-    fmpz_mat_window_clear(window);
-  }
-
-  fmpz_clear(den);
-}
-
-void fmpz_mat_div_colwise_gcd(fmpz_mat_t mat) {
-  fmpz_mat_t window;
-  fmpz_t den;
-  fmpz_init(den);
-
-  int nrows = fmpz_mat_nrows(mat);
-  int ncols = fmpz_mat_ncols(mat);
-
-  for (int col = 0; col < ncols; col++) {
-    fmpz_mat_window_init(window, mat, 0, col, nrows, col+1);
-
-    fmpz_mat_content(den, window);
-    if (!fmpz_is_zero(den)) {
-      fmpz_mat_scalar_divexact_fmpz(window, window, den);
-    }
-    fmpz_mat_window_clear(window);
-  }
-
-  fmpz_clear(den);
-}
-
-void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_poly_t f) {
-  fmpq_t coeff;
-  fmpq_init(coeff);
-  int degree = fmpq_poly_degree(f);
-
-  fmpq_mat_zero(dst);
-
-  // XXX: might be faster to just add to diagonal elements directly.
-  fmpq_mat_t one, coeff_times_one;
-  fmpq_mat_init_set(one, dst);
-  fmpq_mat_one(one);
-  fmpq_mat_init_set(coeff_times_one, one);
-
-  for (int i = 0; i <= degree; i++) {
-    fmpq_poly_get_coeff_fmpq(coeff, f, degree - i);
-    fmpq_mat_scalar_mul_fmpq(coeff_times_one, one, coeff);
-    fmpq_mat_add(dst, dst, coeff_times_one);
-    if (i != degree) {
-      fmpq_mat_mul(dst, dst, src);
-    }
-  }
-
-  fmpq_mat_clear(one);
-  fmpq_mat_clear(coeff_times_one);
-  fmpq_clear(coeff);
-}
-
-void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
-  fmpz_t coeff;
-  fmpz_init(coeff);
-  int degree = fmpz_poly_degree(f);
-
-  DEBUG_INFO(3,
-    {
-      printf("fmpz_poly_apply_fmpq_mat called with f(T) = ");
-      fmpz_poly_print_pretty(f, "T");
-      printf("\n");
-    }
-  )
-
-  fmpq_mat_zero(dst);
-
-  // XXX: might be faster to just add to diagonal elements directly.
-  fmpq_mat_t one, coeff_times_one;
-  fmpq_mat_init_set(one, dst);
-  fmpq_mat_one(one);
-  fmpq_mat_init_set(coeff_times_one, one);
-
-  for (int i = 0; i <= degree; i++) {
-    fmpz_poly_get_coeff_fmpz(coeff, f, degree - i);
-    fmpq_mat_scalar_mul_fmpz(coeff_times_one, one, coeff);
-    fmpq_mat_add(dst, dst, coeff_times_one);
-    if (i != degree) {
-      fmpq_mat_mul(dst, dst, src);
-    }
-  }
-
-  fmpq_mat_clear(one);
-  fmpq_mat_clear(coeff_times_one);
-  fmpz_clear(coeff);
-}
-
 
 // TODO: consider requiring f to return a reference?
 std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f, int64_t M) {
@@ -157,6 +53,14 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // XXX: this feels a bit wasteful, also is colwise right??
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
+
+  DEBUG_INFO(4,
+    {
+      printf("B_matrix_z: ");
+      fmpz_mat_print_dimensions(B_matrix_z);
+      printf("\n");
+    }
+  )
 
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
@@ -210,9 +114,86 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // printf("aa %zu\n", B.size());
   fmpz_mat_init(map_kernel, B.size(), B.size());
   // printf("bb %zu\n", B.size());
-  int64_t rank = fmpz_mat_nullspace(map_kernel, map_matrix_z);
+  DEBUG_INFO(4,
+    {
+      printf("map_matrix_z: ");
+      fmpz_mat_print_dimensions(map_matrix_z);
+      printf("\n");
+    }
+  )
+
+  // TODO: consider forcing this to use rref_mul instead of rref_fflu
+  int64_t rank = fmpz_mat_nullspace_mul(map_kernel, map_matrix_z);
   // printf("cc %lld\n", rank);
+
+  if (false) {
+    fmpz_t d;
+    fmpz_init(d);
+
+    fmpz_mat_t tmp;
+    fmpz_mat_init(tmp, M_basis.size(), B.size());
+
+    DEBUG_INFO_PRINT(4, "computing tmp\n");
+    fmpz_mat_rref_fflu(tmp, d, map_matrix_z);
+
+    DEBUG_INFO(4,
+      {
+        printf("tmp [fflu]: ");
+        fmpz_mat_print_dimensions(tmp);
+        printf("\n");
+      }
+    )
+
+    fmpz_mat_div_colwise_gcd(tmp);
+
+    DEBUG_INFO(4,
+      {
+        printf("tmp: ");
+        fmpz_mat_print_dimensions(tmp);
+        printf("\n");
+      }
+    )
+
+    fmpz_mat_clear(tmp);
+
+    fmpz_mat_t tmp2;
+    fmpz_mat_init(tmp2, M_basis.size(), B.size());
+
+    DEBUG_INFO_PRINT(4, "computing tmp2\n");
+    fmpz_mat_rref_mul(tmp2, d, map_matrix_z);
+
+    DEBUG_INFO(4,
+      {
+        printf("tmp2 [mul]: ");
+        fmpz_mat_print_dimensions(tmp2);
+        printf("\n");
+      }
+    )
+
+    fmpz_mat_div_colwise_gcd(tmp2);
+
+    DEBUG_INFO(4,
+      {
+        printf("tmp2: ");
+        fmpz_mat_print_dimensions(tmp2);
+        printf("\n");
+      }
+    )
+
+    fmpz_mat_clear(tmp2);
+    fmpz_clear(d);
+  }
+
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
+
+  DEBUG_INFO(4,
+    {
+      printf("kernel: ");
+      fmpz_mat_print_dimensions(map_kernel_window);
+      printf("\n");
+    }
+  )
+
   fmpz_mat_div_colwise_gcd(map_kernel_window);
 
   fmpz_mat_clear(map_matrix_z);
@@ -224,18 +205,11 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_t map_kernel_in_orig_basis;
   fmpz_mat_init(map_kernel_in_orig_basis, N_basis.size(), rank);
 
-  // TODO: this matmul is very slow, investigate
   DEBUG_INFO(4,
     {
-      int max_1 = fmpz_mat_max_bits(B_matrix_z);
-      int r_1 = fmpz_mat_nrows(B_matrix_z);
-      int c_1 = fmpz_mat_ncols(B_matrix_z);
-
-      int max_2 = fmpz_mat_max_bits(map_kernel_window);
-      int r_2 = fmpz_mat_nrows(map_kernel_window);
-      int c_2 = fmpz_mat_ncols(map_kernel_window);
-
-      printf("mul: (%d x %d, %d) x (%d x %d, %d)\n", r_1, c_1, max_1, r_2, c_2, max_2);
+      printf("kernel (cleared): ");
+      fmpz_mat_print_dimensions(map_kernel_window);
+      printf("\n");
     }
   )
 
@@ -243,11 +217,9 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
 
   DEBUG_INFO(4,
     {
-      int max_3 = fmpz_mat_max_bits(map_kernel_in_orig_basis);
-      int r_3 = fmpz_mat_nrows(map_kernel_in_orig_basis);
-      int c_3 = fmpz_mat_ncols(map_kernel_in_orig_basis);
-
-      printf("res: (%d x %d, %d)\n", r_3, c_3, max_3);
+      printf("result: ");
+      fmpz_mat_print_dimensions(map_kernel_in_orig_basis);
+      printf("\n");
     }
   )
 
@@ -262,13 +234,12 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
 
   DEBUG_INFO(4,
     {
-      int max_4 = fmpz_mat_max_bits(map_kernel_in_orig_basis);
-      int r_4 = fmpz_mat_nrows(map_kernel_in_orig_basis);
-      int c_4 = fmpz_mat_ncols(map_kernel_in_orig_basis);
-
-      printf("res: (%d x %d, %d)\n", r_4, c_4, max_4);
+      printf("result (cleared): ");
+      fmpz_mat_print_dimensions(map_kernel_in_orig_basis);
+      printf("\n");
     }
   )
+
 
   // printf("map kernel in orig basis:\n");
   // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
@@ -527,7 +498,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     int degree = fmpz_poly_degree(factor);
     // NOTE: this needs to be rowwise!
     fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
-    int rank = fmpz_mat_nullspace(poly_mat_kernel, poly_on_f_matrix_z);
+    int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
     fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
 
     fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);

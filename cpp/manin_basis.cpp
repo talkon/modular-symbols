@@ -355,7 +355,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   fmpz_t den;
   fmpz_init(den);
-  int64_t rank = fmpz_mat_rref(T_mat, den, T_mat);
+  int64_t rank = fmpz_mat_rref_mul(T_mat, den, T_mat);
   int64_t basis_size = fmpz_mat_ncols(T_mat) - rank;
 
   DEBUG_INFO(3,

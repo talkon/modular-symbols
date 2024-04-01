@@ -1,6 +1,7 @@
 #include "boundary_map.h"
 #include "manin_element.h"
 #include "utils.h"
+#include "fmpz_mat_helpers.h"
 
 #include "debug_utils.h"
 #include "cache_decorator.h"
@@ -124,8 +125,9 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
   // Compute the (right) kernel of the boundary map matrix
   fmpz_mat_t boundary_map_kernel;
   fmpz_mat_init(boundary_map_kernel, full_basis.size(), full_basis.size());
-  int64_t rank = fmpz_mat_nullspace(boundary_map_kernel, boundary_map_matrix);
+  int64_t rank = fmpz_mat_nullspace_mul(boundary_map_kernel, boundary_map_matrix);
 
+  fmpz_mat_div_colwise_gcd(boundary_map_kernel);
 
   // printf("boundary map kernel:\n");
   // fmpz_mat_print_pretty(boundary_map_kernel);
