@@ -47,8 +47,9 @@ int main(int argc, char** argv) {
   set_verbosity(verbose);
   init_timer();
 
+  DEBUG_INFO_PRINT(1, "Started computation for level %lld\n", level);
   auto dims = newform_subspace_dimensions(level, use_atkin_lehner);
-  DEBUG_INFO_PRINT(1, "Finished computation\n");
+  DEBUG_INFO_PRINT(1, "Finished computation for level %lld\n", level);
   printf("%lld:[", level);
   for (int i = 0; i < dims.size(); i++) {
     printf("%d", dims[i]);

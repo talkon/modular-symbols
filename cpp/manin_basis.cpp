@@ -60,10 +60,10 @@ struct BasisComputationResult {
 };
 
 BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
-  DEBUG_INFO_PRINT(2, "Started computation of Manin basis for level %lld\n", level);
+  DEBUG_INFO_PRINT(3, "Started computation of Manin basis for level %lld\n", level);
   std::vector<ManinGenerator> generators = manin_generators(level);
   int64_t num_generators = generators.size();
-  DEBUG_INFO_PRINT(2, "Finished computing generators, num_generators: %lld\n", num_generators);
+  DEBUG_INFO_PRINT(3, "Finished computing generators, num_generators: %lld\n", num_generators);
 
   // Modulo out by Eta relations (see Cremona Ch 2.5)
 
@@ -107,7 +107,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   int64_t num_eta_gens = eta_generators.size();
   assert(eta_index = num_eta_gens);
 
-  DEBUG_INFO_PRINT(3, "num_eta_gens: %lld\n", num_eta_gens);
+  DEBUG_INFO_PRINT(4, "num_eta_gens: %lld\n", num_eta_gens);
 
   DEBUG_INFO(6,
     {
@@ -188,7 +188,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     generator_to_S_generators[i] = eta_to_S_generators[generator_to_eta_generators[i]];
   }
 
-  DEBUG_INFO_PRINT(3, "num_S_gens: 2 * %lld\n", num_S_gens);
+  DEBUG_INFO_PRINT(4, "num_S_gens: 2 * %lld\n", num_S_gens);
 
   DEBUG_INFO(6,
     {
@@ -342,7 +342,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   }
 
-  DEBUG_INFO_PRINT(3, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(T_mat), fmpz_mat_ncols(T_mat));
+  DEBUG_INFO_PRINT(4, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(T_mat), fmpz_mat_ncols(T_mat));
 
 
   DEBUG_INFO(6,
@@ -484,7 +484,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
-  DEBUG_INFO_PRINT(2, "Finished computation of Manin basis for level %lld\n", level);
+  DEBUG_INFO_PRINT(3, "Finished computation of Manin basis for level %lld\n", level);
 
   return BasisComputationResult(basis, gtb_vec, generator_to_S_generators);
 }

@@ -99,7 +99,7 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
     mapped_basis.push_back(std::make_pair(first, second));
   }
 
-  DEBUG_INFO_PRINT(2, "Finished computing representatives\
+  DEBUG_INFO_PRINT(3, "Finished computing representatives\
   \nfull_basis size: %zu\
   \nnum_representatives: %zu\n", full_basis.size(), representatives.size());
 

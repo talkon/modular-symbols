@@ -154,8 +154,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   }
 
-  DEBUG_INFO_PRINT(3, "0\n");
-
   // XXX: this feels a bit wasteful, also is colwise right??
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
@@ -202,8 +200,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   }
 
-  DEBUG_INFO_PRINT(3, "5\n");
-
   // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
@@ -214,9 +210,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // printf("aa %zu\n", B.size());
   fmpz_mat_init(map_kernel, B.size(), B.size());
   // printf("bb %zu\n", B.size());
-  DEBUG_INFO_PRINT(3, "9\n");
   int64_t rank = fmpz_mat_nullspace(map_kernel, map_matrix_z);
-  DEBUG_INFO_PRINT(3, "10\n");
   // printf("cc %lld\n", rank);
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
   fmpz_mat_div_colwise_gcd(map_kernel_window);
