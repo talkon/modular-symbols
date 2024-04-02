@@ -51,7 +51,8 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
   arith_divisors(divisors, N);
 
   int64_t tau = fmpz_poly_length(divisors);
-  for (int i = 0; i < tau - 1; i++) {
+  // Compute oldspace maps for larger M first, so that basis size is reduced faster.
+  for (int i = tau - 2; i >= 0; i--) {
     fmpz_poly_get_coeff_fmpz(M, divisors, i);
     int64_t m = fmpz_get_si(M);
 
