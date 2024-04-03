@@ -8,7 +8,7 @@
 #include "cache_decorator.h"
 
 #include <flint/fmpz_poly.h>
-#include <flint/arith.h>
+#include <flint/ulong_extras.h>
 
 #include <cassert>
 
@@ -38,48 +38,32 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
   DEBUG_INFO_PRINT(1, "Started computation of newspace basis for level %lld\n", level)
   DEBUG_INFO_PRINT(2, "Starting current_basis size: %zu\n", current_basis.size())
 
-  fmpz_t N, M, D, N_over_M;
-  fmpz_init_set_si(N, level);
-  fmpz_init(M);
-  fmpz_init(D);
-  fmpz_init(N_over_M);
+  n_factor_t factors;
+  n_factor_init(&factors);
+  n_factor(&factors, level, 1);
 
-  fmpz_poly_t divisors; // acts as a list of divisors of N
-  fmpz_poly_t divisors_N_over_M; // acts as a list of divisors of N/M
-  fmpz_poly_init(divisors);
-  fmpz_poly_init(divisors_N_over_M);
-  arith_divisors(divisors, N);
-
-  int64_t tau = fmpz_poly_length(divisors);
-  // Compute oldspace maps for larger M first, so that basis size is reduced faster.
-  for (int i = tau - 2; i >= 0; i--) {
-    fmpz_poly_get_coeff_fmpz(M, divisors, i);
-    int64_t m = fmpz_get_si(M);
+  // Seems like it suffices to compute the oldspace maps only for M of the form N / p, where p is a prime factor of N.
+  // p is sorted by size, so that m is sorted large to small, so that `current_basis` gets smaller faster.
+  // TODO: confirm this
+  for (int i = 0; i < factors.num; i++) {
+    int64_t p = factors.p[i];
+    int64_t m = level / p;
 
     // Skip values of m with trivial newspaces
     if (m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 22 || m == 25 || m == 28) {
       continue;
     }
 
-    fmpz_poly_get_coeff_fmpz(N_over_M, divisors, tau - i - 1);
-    arith_divisors(divisors_N_over_M, N_over_M);
-    int64_t tau_N_over_M = fmpz_poly_length(divisors_N_over_M);
     DEBUG_INFO_PRINT(2, "Computing oldspace maps for M: %lld\n", m);
-    for (int j = 0; j < tau_N_over_M; j++) {
-      fmpz_poly_get_coeff_fmpz(D, divisors_N_over_M, j);
-      int64_t d = fmpz_get_si(D);
-      auto f = [d, m](ManinBasisElement mbe) { return oldspace_map(mbe, d, m); };
-      current_basis = map_kernel(current_basis, f, m);
-      DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, d, current_basis.size());
-    }
-  }
 
-  fmpz_clear(N);
-  fmpz_clear(M);
-  fmpz_clear(D);
-  fmpz_clear(N_over_M);
-  fmpz_poly_clear(divisors);
-  fmpz_poly_clear(divisors_N_over_M);
+    auto f1 = [m](ManinBasisElement mbe) { return oldspace_map(mbe, 1, m); };
+    current_basis = map_kernel(current_basis, f1, m);
+    DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.size());
+
+    auto fp = [p, m](ManinBasisElement mbe) { return oldspace_map(mbe, p, m); };
+    current_basis = map_kernel(current_basis, fp, m);
+    DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
+  }
 
   return current_basis;
 }
