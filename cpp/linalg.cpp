@@ -475,78 +475,86 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   fmpz_poly_factor_t min_poly_factored;
   fmpz_poly_factor_init(min_poly_factored);
   fmpz_poly_factor(min_poly_factored, min_poly_z);
-  fmpz_poly_clear(min_poly_z);
-
-  int num_factors = min_poly_factored->num;
-  if (num_factors == 0) {
-    fmpz_poly_factor_clear(min_poly_factored);
-    return DecomposeResult::empty();
-  }
 
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining;
 
-  fmpq_mat_t poly_on_f_matrix;
-  fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
-  fmpq_mat_init(poly_on_f_matrix, B.size(), B.size());
-  fmpz_mat_init(poly_on_f_matrix_z, B.size(), B.size());
-  fmpz_mat_init(poly_mat_kernel, B.size(), B.size());
-
-  for (int i = 0; i < num_factors; i++) {
-    fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
-    fmpz_poly_struct *factor = min_poly_factored->p + i;
-    fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
-    int degree = fmpz_poly_degree(factor);
-    // NOTE: this needs to be rowwise!
-    fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
-    int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
-    fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
-
-    fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);
-
-    fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
-    fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
-    fmpz_mat_window_clear(poly_mat_kernel_window);
-
-    fmpz_mat_div_colwise_gcd(poly_mat_kernel_in_orig_basis);
-
-    std::vector<ManinElement> output;
-    for (int col = 0; col < rank; col++) {
-      std::vector<MBEWC> components;
-      for (int row = 0; row < N_basis.size(); row++) {
-        if (!(fmpz_is_zero(fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col)))) {
-          fmpq_t coeff;
-          fmpq_init(coeff);
-          fmpq_set_fmpz(coeff, fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col));
-          components.push_back(MBEWC(row, coeff));
-          fmpq_clear(coeff);
-        }
-      }
-      ManinElement element = ManinElement(N, components);
-      element.mark_as_sorted_unchecked();
-      output.push_back(element);
-    }
-
-    fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
-
+  int num_factors = min_poly_factored->num;
+  if (num_factors == 0) {
+    // this should actually be impossible?
+    assert(false);
+  } else if (num_factors == 1 && fmpz_poly_degree(min_poly_z) == B.size()) {
+    done.push_back(B);
     DEBUG_INFO(3,
       {
-        printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
+        printf(" minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
       }
     )
+  } else {
+    fmpq_mat_t poly_on_f_matrix;
+    fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
+    fmpq_mat_init(poly_on_f_matrix, B.size(), B.size());
+    fmpz_mat_init(poly_on_f_matrix_z, B.size(), B.size());
+    fmpz_mat_init(poly_mat_kernel, B.size(), B.size());
 
-    if (degree == rank) {
-      done.push_back(output);
-    } else {
-      remaining.push_back(output);
+    for (int i = 0; i < num_factors; i++) {
+      fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
+      fmpz_poly_struct *factor = min_poly_factored->p + i;
+      fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
+      int degree = fmpz_poly_degree(factor);
+      // NOTE: this needs to be rowwise!
+      fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
+      int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
+      fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
+
+      fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);
+
+      fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
+      fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
+      fmpz_mat_window_clear(poly_mat_kernel_window);
+
+      fmpz_mat_div_colwise_gcd(poly_mat_kernel_in_orig_basis);
+
+      std::vector<ManinElement> output;
+      for (int col = 0; col < rank; col++) {
+        std::vector<MBEWC> components;
+        for (int row = 0; row < N_basis.size(); row++) {
+          if (!(fmpz_is_zero(fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col)))) {
+            fmpq_t coeff;
+            fmpq_init(coeff);
+            fmpq_set_fmpz(coeff, fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col));
+            components.push_back(MBEWC(row, coeff));
+            fmpq_clear(coeff);
+          }
+        }
+        ManinElement element = ManinElement(N, components);
+        element.mark_as_sorted_unchecked();
+        output.push_back(element);
+      }
+
+      fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
+
+      DEBUG_INFO(3,
+        {
+          printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
+        }
+      )
+
+      if (degree == rank) {
+        done.push_back(output);
+      } else {
+        remaining.push_back(output);
+      }
     }
+
+    fmpq_mat_clear(poly_on_f_matrix);
+    fmpz_mat_clear(poly_on_f_matrix_z);
+    fmpz_mat_clear(poly_mat_kernel);
   }
 
+  fmpz_poly_clear(min_poly_z);
   fmpq_mat_clear(f_matrix);
   fmpz_mat_clear(B_matrix_z);
-  fmpq_mat_clear(poly_on_f_matrix);
-  fmpz_mat_clear(poly_on_f_matrix_z);
-  fmpz_mat_clear(poly_mat_kernel);
   fmpz_poly_factor_clear(min_poly_factored);
 
   return {.done = done, .remaining = remaining};
