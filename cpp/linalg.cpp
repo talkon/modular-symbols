@@ -456,14 +456,10 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     fmpq_poly_get_numerator(min_poly_z, min_poly);
   }
 
-  DEBUG_INFO(3,
+  DEBUG_INFO_PRINT(3, " min_poly_z degree: %ld\n", fmpz_poly_degree(min_poly_z));
+
+  DEBUG_INFO(4,
     {
-      // printf("[debug] f_matrix:\n");
-      // fmpq_mat_print(f_matrix);
-      // printf("\n");
-      // printf(" [debug] min_poly: ");
-      // fmpq_poly_print_pretty(min_poly, "T");
-      // printf("\n");
       printf(" min_poly_z: ");
       fmpz_poly_print_pretty(min_poly_z, "T");
       printf("\n");
@@ -500,7 +496,11 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     for (int i = 0; i < num_factors; i++) {
       fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
       fmpz_poly_struct *factor = min_poly_factored->p + i;
+
+      // TODO: when deg(factor) is large (>6?) it's probably faster to first compute the subspace (after modding out by small factors)
+      // and verify that the minimal polynomial on that subspace has max degree.
       fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
+
       int degree = fmpz_poly_degree(factor);
       // NOTE: this needs to be rowwise!
       fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);

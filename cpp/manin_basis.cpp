@@ -355,6 +355,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   fmpz_t den;
   fmpz_init(den);
+  // TODO: Consider writing own rref function that eliminates generators in a better order? See remark in p.17 in (Cremona).
   int64_t rank = fmpz_mat_rref_mul(T_mat, den, T_mat);
   int64_t basis_size = fmpz_mat_ncols(T_mat) - rank;
 

@@ -89,7 +89,7 @@ void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const
   fmpz_init(coeff);
   int degree = fmpz_poly_degree(f);
 
-  DEBUG_INFO(3,
+  DEBUG_INFO(4,
     {
       printf("fmpz_poly_apply_fmpq_mat_horner called with f(T) = ");
       fmpz_poly_print_pretty(f, "T");
@@ -123,7 +123,7 @@ void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const
 // TODO: consider scaling up everything and work on integer matrices
 void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
 
-  DEBUG_INFO(3,
+  DEBUG_INFO(4,
     {
       printf("fmpz_poly_apply_fmpq_mat_ps called with f(T) = ");
       fmpz_poly_print_pretty(f, "T");
