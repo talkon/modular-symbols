@@ -9,6 +9,10 @@
 #include <flint/fmpq.h>
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
+#include <flint/ulong_extras.h>
+
+#include <array>
+#include <cassert>
 
 void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat) {
   fmpz_mat_t window;
@@ -79,14 +83,15 @@ void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_p
   fmpq_clear(coeff);
 }
 
-void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+// Horner's method
+void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
   fmpz_t coeff;
   fmpz_init(coeff);
   int degree = fmpz_poly_degree(f);
 
   DEBUG_INFO(3,
     {
-      printf("fmpz_poly_apply_fmpq_mat called with f(T) = ");
+      printf("fmpz_poly_apply_fmpq_mat_horner called with f(T) = ");
       fmpz_poly_print_pretty(f, "T");
       printf("\n");
     }
@@ -112,6 +117,68 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
   fmpq_mat_clear(one);
   fmpq_mat_clear(coeff_times_one);
   fmpz_clear(coeff);
+}
+
+// Algorithm B in Paterson-Stockmeyer: 2 * sqrt(deg(P)) matrix multiplications
+// TODO: consider scaling up everything and work on integer matrices
+void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+
+  DEBUG_INFO(3,
+    {
+      printf("fmpz_poly_apply_fmpq_mat_ps called with f(T) = ");
+      fmpz_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  ulong l = fmpz_poly_degree(f);
+  ulong k = n_sqrt(l);
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  // Compute T, T^2, .., T^k
+  fmpq_mat_t* pows = (fmpq_mat_t*) flint_malloc((k + 1) * sizeof(fmpq_mat_t));
+  fmpq_mat_t tmp;
+
+  fmpq_mat_init(pows[0], d, d);
+  fmpq_mat_one(pows[0]);
+
+  fmpq_mat_init_set(tmp, src);
+  for (int i = 1; i < k; i++) {
+    fmpq_mat_init_set(pows[i], tmp);
+    fmpq_mat_mul(tmp, tmp, src);
+  }
+
+  fmpq_mat_init_set(pows[k], tmp);
+
+  fmpq_mat_init(dst, d, d);
+  fmpq_mat_zero(dst);
+
+  fmpz_t a;
+
+  fmpz_init(a);
+  for (int j = l / k; j >= 0; j--) {
+
+    for (int i = 0; i < k; i++) {
+      fmpz_poly_get_coeff_fmpz(a, f, j * k + i);
+      if (!fmpz_is_zero(a)) {
+        fmpq_mat_scalar_mul_fmpz(tmp, pows[i], a);
+        fmpq_mat_add(dst, dst, tmp);
+      }
+    }
+
+    if (j > 0) {
+      fmpq_mat_mul(dst, dst, pows[k]);
+    }
+  }
+
+  fmpz_clear(a);
+  fmpq_mat_clear(tmp);
+  for (int i = 0; i <= k; i++) {
+    fmpq_mat_clear(pows[i]);
+  }
+  flint_free(pows);
 }
 
 void fmpz_mat_print_dimensions(fmpz_mat_t mat) {

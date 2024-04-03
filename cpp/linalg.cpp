@@ -213,6 +213,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
+  // XXX: This multiplication is still slow, maybe force B_matrix_z and map_kernel_window to be in rref form?
   fmpz_mat_mul(map_kernel_in_orig_basis, B_matrix_z, map_kernel_window);
 
   DEBUG_INFO(4,
@@ -494,7 +495,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   for (int i = 0; i < num_factors; i++) {
     fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
     fmpz_poly_struct *factor = min_poly_factored->p + i;
-    fmpz_poly_apply_fmpq_mat(poly_on_f_matrix, f_matrix, factor);
+    fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
     int degree = fmpz_poly_degree(factor);
     // NOTE: this needs to be rowwise!
     fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
