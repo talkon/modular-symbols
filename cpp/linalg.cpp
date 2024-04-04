@@ -320,21 +320,21 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     }
   }
 
-  // printf("[debug] B_matrix:\n");
-  // fmpq_mat_print(B_matrix);
-  // printf("\n");
-
   // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
 
+  DEBUG_INFO(4,
+    {
+      printf("B_matrix_z: ");
+      fmpz_mat_print_dimensions(B_matrix_z);
+      printf("\n");
+    }
+  )
+
   // Finds pivot rows of the matrix B.
   std::vector<int> pivots;
   fmpz* pivot_coeffs = _fmpz_vec_init(B.size());
-
-  // printf("[debug] B_matrix_z:\n");
-  // fmpz_mat_print_pretty(B_matrix_z);
-  // printf("\n");
 
   int current_col = 0;
   for (int row = 0; row < N_basis.size(); row++) {
@@ -376,8 +376,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     for (int col = 0; col < N_basis.size(); col++) {
       ManinElement fb = f(N_basis[col]);
 
-      // printf("rows: ");
-
       auto it = fb.components.begin();
       int pivot_index = 0;
 
@@ -404,8 +402,24 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
       }
     }
 
+    DEBUG_INFO(4,
+      {
+        printf("map_of_basis: ");
+        fmpq_mat_print_dimensions(map_of_basis);
+        printf("\n");
+      }
+    )
+
     fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B_matrix_z);
     fmpq_mat_clear(map_of_basis);
+
+    DEBUG_INFO(4,
+      {
+        printf("f_matrix: ");
+        fmpq_mat_print_dimensions(f_matrix);
+        printf("\n");
+      }
+    )
 
   } else {
     for (int col = 0; col < B.size(); col++) {
@@ -442,6 +456,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
   _fmpz_vec_clear(pivot_coeffs, B.size());
 
+
   fmpq_poly_t min_poly;
   fmpz_poly_t min_poly_z;
   fmpq_poly_init(min_poly);
@@ -458,7 +473,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
   DEBUG_INFO_PRINT(3, " min_poly_z degree: %ld\n", fmpz_poly_degree(min_poly_z));
 
-  DEBUG_INFO(4,
+  DEBUG_INFO(5,
     {
       printf(" min_poly_z: ");
       fmpz_poly_print_pretty(min_poly_z, "T");
@@ -501,19 +516,69 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
       // and verify that the minimal polynomial on that subspace has max degree.
       fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
 
+      DEBUG_INFO(4,
+        {
+          printf("poly_on_f_matrix: ");
+          fmpq_mat_print_dimensions(poly_on_f_matrix);
+          printf("\n");
+        }
+      )
+
       int degree = fmpz_poly_degree(factor);
       // NOTE: this needs to be rowwise!
       fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
+
+      DEBUG_INFO(4,
+        {
+          printf("poly_on_f_matrix_z: ");
+          fmpz_mat_print_dimensions(poly_on_f_matrix_z);
+          printf("\n");
+        }
+      )
+
       int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
+
       fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
 
+      DEBUG_INFO(4,
+        {
+          printf("poly_mat_kernel_window: ");
+          fmpz_mat_print_dimensions(poly_mat_kernel_window);
+          printf("\n");
+        }
+      )
+
       fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);
+
+      DEBUG_INFO(4,
+        {
+          printf("poly_mat_kernel_window (cleared): ");
+          fmpz_mat_print_dimensions(poly_mat_kernel_window);
+          printf("\n");
+        }
+      )
 
       fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
       fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
       fmpz_mat_window_clear(poly_mat_kernel_window);
 
+      DEBUG_INFO(4,
+        {
+          printf("poly_mat_kernel_in_orig_basis: ");
+          fmpz_mat_print_dimensions(poly_mat_kernel_in_orig_basis);
+          printf("\n");
+        }
+      )
+
       fmpz_mat_div_colwise_gcd(poly_mat_kernel_in_orig_basis);
+
+      DEBUG_INFO(4,
+        {
+          printf("poly_mat_kernel_in_orig_basis (cleared): ");
+          fmpz_mat_print_dimensions(poly_mat_kernel_in_orig_basis);
+          printf("\n");
+        }
+      )
 
       std::vector<ManinElement> output;
       for (int col = 0; col < rank; col++) {

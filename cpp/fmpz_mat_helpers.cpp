@@ -89,7 +89,7 @@ void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const
   fmpz_init(coeff);
   int degree = fmpz_poly_degree(f);
 
-  DEBUG_INFO(4,
+  DEBUG_INFO(5,
     {
       printf("fmpz_poly_apply_fmpq_mat_horner called with f(T) = ");
       fmpz_poly_print_pretty(f, "T");
@@ -123,7 +123,7 @@ void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const
 // TODO: consider scaling up everything and work on integer matrices
 void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
 
-  DEBUG_INFO(4,
+  DEBUG_INFO(5,
     {
       printf("fmpz_poly_apply_fmpq_mat_ps called with f(T) = ");
       fmpz_poly_print_pretty(f, "T");
@@ -181,7 +181,7 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
   flint_free(pows);
 }
 
-void fmpz_mat_print_dimensions(fmpz_mat_t mat) {
+void fmpz_mat_print_dimensions(const fmpz_mat_t mat) {
   int r = fmpz_mat_nrows(mat);
   int c = fmpz_mat_ncols(mat);
   int max = fmpz_mat_max_bits(mat);
@@ -246,3 +246,39 @@ slong fmpz_mat_nullspace_mul(fmpz_mat_t res, const fmpz_mat_t mat) {
 
   return nullity;
 }
+
+// Code modified from fmpz_mat/max_bits.c in FLINT
+slong fmpq_mat_max_bits(const fmpq_mat_t mat) {
+  slong i;
+  slong bits, row_bits, sign;
+
+  sign = 1;
+  bits = 0;
+
+  if (mat->r == 0 || mat->c == 0)
+    return 0;
+
+  for (i = 0; i < mat->r; i++)
+  {
+    row_bits = _fmpz_vec_max_bits((fmpz*) mat->rows[i], 2 * mat->c);
+    if (row_bits < 0)
+    {
+      row_bits = -row_bits;
+      sign = -1;
+    }
+    bits = FLINT_MAX(bits, row_bits);
+  }
+
+  return bits * sign;
+}
+
+void fmpq_mat_print_dimensions(const fmpq_mat_t mat) {
+  int r = fmpq_mat_nrows(mat);
+  int c = fmpq_mat_ncols(mat);
+  int max = fmpq_mat_max_bits(mat);
+
+  printf("(%d x %d, %d)_Q ", r, c, max);
+}
+
+
+
