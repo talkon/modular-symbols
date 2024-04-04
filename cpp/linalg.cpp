@@ -287,7 +287,7 @@ DecomposeResult DecomposeResult::empty() {
 
 // TODO: should be faster to decompose using a matrix of the action on the newform subspace
 
-DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f) {
+DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f, bool is_atkin_lehner) {
   // If the input space is trivial, the result is also trivial.
   if (B.size() == 0) {
     return DecomposeResult::empty();
@@ -456,171 +456,200 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
   _fmpz_vec_clear(pivot_coeffs, B.size());
 
-
-  fmpq_poly_t min_poly;
-  fmpz_poly_t min_poly_z;
-  fmpq_poly_init(min_poly);
-  fmpz_poly_init(min_poly_z);
-
-  // XXX: FLINT seems to think that the minimal polynomial of the zero matrix is 1, and not T.
-  if (fmpq_mat_is_zero(f_matrix)) {
-    // Manually set the minimal polynomial to x.
-    fmpz_poly_set_coeff_si(min_poly_z, 1, 1);
-  } else {
-    fmpq_mat_minpoly(min_poly, f_matrix);
-    fmpq_poly_get_numerator(min_poly_z, min_poly);
-  }
-
-  DEBUG_INFO_PRINT(3, " min_poly_z degree: %ld\n", fmpz_poly_degree(min_poly_z));
-
-  DEBUG_INFO(5,
-    {
-      printf(" min_poly_z: ");
-      fmpz_poly_print_pretty(min_poly_z, "T");
-      printf("\n");
-    }
-  )
-
-  fmpq_poly_clear(min_poly);
-
-  fmpz_poly_factor_t min_poly_factored;
-  fmpz_poly_factor_init(min_poly_factored);
-  fmpz_poly_factor(min_poly_factored, min_poly_z);
-
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining;
 
-  int num_factors = min_poly_factored->num;
-  if (num_factors == 0) {
-    // this should actually be impossible?
-    assert(false);
-  } else if (num_factors == 1 && fmpz_poly_degree(min_poly_z) == B.size()) {
-    done.push_back(B);
-    DEBUG_INFO(3,
-      {
-        printf(" minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
+  // Checks if Atkin-Lehner action is trivial (all +1 or all -1)
+  bool AL_action_trivial = false;
+  if (is_atkin_lehner) {
+    // If decomposing A-L action, only possible factors are T-1 and T+1
+    if (fmpq_mat_is_one(f_matrix)) {
+      // Space doesn't split: only +1 space
+      DEBUG_INFO_PRINT(3, " space doesn't split: A-L action is +1\n");
+      AL_action_trivial = true;
+      remaining.push_back(B);
+    } else {
+      fmpq_mat_t neg_one;
+      fmpq_mat_init(neg_one, B.size(), B.size());
+      fmpq_mat_one(neg_one);
+      fmpq_mat_neg(neg_one, neg_one);
+
+      if (fmpq_mat_equal(f_matrix, neg_one)) {
+        // Space doesn't split: only -1 space
+        DEBUG_INFO_PRINT(3, " space doesn't split: A-L action is -1\n");
+        AL_action_trivial = true;
+        remaining.push_back(B);
       }
-    )
-  } else {
-    fmpq_mat_t poly_on_f_matrix;
-    fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
-    fmpq_mat_init(poly_on_f_matrix, B.size(), B.size());
-    fmpz_mat_init(poly_on_f_matrix_z, B.size(), B.size());
-    fmpz_mat_init(poly_mat_kernel, B.size(), B.size());
-
-    for (int i = 0; i < num_factors; i++) {
-      fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
-      fmpz_poly_struct *factor = min_poly_factored->p + i;
-
-      // TODO: when deg(factor) is large (>6?) it's probably faster to first compute the subspace (after modding out by small factors)
-      // and verify that the minimal polynomial on that subspace has max degree.
-      fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
-
-      DEBUG_INFO(4,
-        {
-          printf("poly_on_f_matrix: ");
-          fmpq_mat_print_dimensions(poly_on_f_matrix);
-          printf("\n");
-        }
-      )
-
-      int degree = fmpz_poly_degree(factor);
-      // NOTE: this needs to be rowwise!
-      fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
-
-      DEBUG_INFO(4,
-        {
-          printf("poly_on_f_matrix_z: ");
-          fmpz_mat_print_dimensions(poly_on_f_matrix_z);
-          printf("\n");
-        }
-      )
-
-      int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
-
-      fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
-
-      DEBUG_INFO(4,
-        {
-          printf("poly_mat_kernel_window: ");
-          fmpz_mat_print_dimensions(poly_mat_kernel_window);
-          printf("\n");
-        }
-      )
-
-      fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);
-
-      DEBUG_INFO(4,
-        {
-          printf("poly_mat_kernel_window (cleared): ");
-          fmpz_mat_print_dimensions(poly_mat_kernel_window);
-          printf("\n");
-        }
-      )
-
-      fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
-      fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
-      fmpz_mat_window_clear(poly_mat_kernel_window);
-
-      DEBUG_INFO(4,
-        {
-          printf("poly_mat_kernel_in_orig_basis: ");
-          fmpz_mat_print_dimensions(poly_mat_kernel_in_orig_basis);
-          printf("\n");
-        }
-      )
-
-      fmpz_mat_div_colwise_gcd(poly_mat_kernel_in_orig_basis);
-
-      DEBUG_INFO(4,
-        {
-          printf("poly_mat_kernel_in_orig_basis (cleared): ");
-          fmpz_mat_print_dimensions(poly_mat_kernel_in_orig_basis);
-          printf("\n");
-        }
-      )
-
-      std::vector<ManinElement> output;
-      for (int col = 0; col < rank; col++) {
-        std::vector<MBEWC> components;
-        for (int row = 0; row < N_basis.size(); row++) {
-          if (!(fmpz_is_zero(fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col)))) {
-            fmpq_t coeff;
-            fmpq_init(coeff);
-            fmpq_set_fmpz(coeff, fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col));
-            components.push_back(MBEWC(row, coeff));
-            fmpq_clear(coeff);
-          }
-        }
-        ManinElement element = ManinElement(N, components);
-        element.mark_as_sorted_unchecked();
-        output.push_back(element);
-      }
-
-      fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
-
-      DEBUG_INFO(3,
-        {
-          printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
-        }
-      )
-
-      if (degree == rank) {
-        done.push_back(output);
-      } else {
-        remaining.push_back(output);
-      }
+      fmpq_mat_clear(neg_one);
     }
-
-    fmpq_mat_clear(poly_on_f_matrix);
-    fmpz_mat_clear(poly_on_f_matrix_z);
-    fmpz_mat_clear(poly_mat_kernel);
   }
 
-  fmpz_poly_clear(min_poly_z);
+  if (!AL_action_trivial) {
+
+    fmpq_poly_t min_poly;
+    fmpz_poly_t min_poly_z;
+    fmpq_poly_init(min_poly);
+    fmpz_poly_init(min_poly_z);
+
+    if (is_atkin_lehner) {
+      // If A-L action is nontrivial, minpoly is always T^2-1.
+      fmpz_poly_set_coeff_si(min_poly_z, 2, 1);
+      fmpz_poly_set_coeff_si(min_poly_z, 0, -1);
+    } else if (fmpq_mat_is_zero(f_matrix)) {
+      // XXX: FLINT seems to think that the minimal polynomial of the zero matrix is 1, and not T.
+      // Manually set the minimal polynomial to x.
+      fmpz_poly_set_coeff_si(min_poly_z, 1, 1);
+    } else {
+      fmpq_mat_minpoly(min_poly, f_matrix);
+      fmpq_poly_get_numerator(min_poly_z, min_poly);
+    }
+
+    DEBUG_INFO_PRINT(3, " min_poly_z degree: %ld\n", fmpz_poly_degree(min_poly_z));
+
+    DEBUG_INFO(5,
+      {
+        printf(" min_poly_z: ");
+        fmpz_poly_print_pretty(min_poly_z, "T");
+        printf("\n");
+      }
+    )
+
+    fmpq_poly_clear(min_poly);
+
+    fmpz_poly_factor_t min_poly_factored;
+    fmpz_poly_factor_init(min_poly_factored);
+    fmpz_poly_factor(min_poly_factored, min_poly_z);
+
+    int num_factors = min_poly_factored->num;
+    if (num_factors == 0) {
+      // this should actually be impossible?
+      assert(false);
+    } else if (num_factors == 1 && fmpz_poly_degree(min_poly_z) == B.size()) {
+      done.push_back(B);
+      DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
+    } else {
+      fmpq_mat_t poly_on_f_matrix;
+      fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
+      fmpq_mat_init(poly_on_f_matrix, B.size(), B.size());
+      fmpz_mat_init(poly_on_f_matrix_z, B.size(), B.size());
+      fmpz_mat_init(poly_mat_kernel, B.size(), B.size());
+
+      for (int i = 0; i < num_factors; i++) {
+        fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
+        fmpz_poly_struct *factor = min_poly_factored->p + i;
+
+        // TODO: when deg(factor) is large (>6?) it's probably faster to first compute the subspace (after modding out by small factors)
+        // and verify that the minimal polynomial on that subspace has max degree.
+        fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
+
+        DEBUG_INFO(4,
+          {
+            printf("poly_on_f_matrix: ");
+            fmpq_mat_print_dimensions(poly_on_f_matrix);
+            printf("\n");
+          }
+        )
+
+        int degree = fmpz_poly_degree(factor);
+        // NOTE: this needs to be rowwise!
+        fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
+
+        DEBUG_INFO(4,
+          {
+            printf("poly_on_f_matrix_z: ");
+            fmpz_mat_print_dimensions(poly_on_f_matrix_z);
+            printf("\n");
+          }
+        )
+
+        int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
+
+        fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
+
+        DEBUG_INFO(4,
+          {
+            printf("poly_mat_kernel_window: ");
+            fmpz_mat_print_dimensions(poly_mat_kernel_window);
+            printf("\n");
+          }
+        )
+
+        fmpz_mat_div_colwise_gcd(poly_mat_kernel_window);
+
+        DEBUG_INFO(4,
+          {
+            printf("poly_mat_kernel_window (cleared): ");
+            fmpz_mat_print_dimensions(poly_mat_kernel_window);
+            printf("\n");
+          }
+        )
+
+        fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
+        fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
+        fmpz_mat_window_clear(poly_mat_kernel_window);
+
+        DEBUG_INFO(4,
+          {
+            printf("poly_mat_kernel_in_orig_basis: ");
+            fmpz_mat_print_dimensions(poly_mat_kernel_in_orig_basis);
+            printf("\n");
+          }
+        )
+
+        fmpz_mat_div_colwise_gcd(poly_mat_kernel_in_orig_basis);
+
+        DEBUG_INFO(4,
+          {
+            printf("poly_mat_kernel_in_orig_basis (cleared): ");
+            fmpz_mat_print_dimensions(poly_mat_kernel_in_orig_basis);
+            printf("\n");
+          }
+        )
+
+        std::vector<ManinElement> output;
+        for (int col = 0; col < rank; col++) {
+          std::vector<MBEWC> components;
+          for (int row = 0; row < N_basis.size(); row++) {
+            if (!(fmpz_is_zero(fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col)))) {
+              fmpq_t coeff;
+              fmpq_init(coeff);
+              fmpq_set_fmpz(coeff, fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col));
+              components.push_back(MBEWC(row, coeff));
+              fmpq_clear(coeff);
+            }
+          }
+          ManinElement element = ManinElement(N, components);
+          element.mark_as_sorted_unchecked();
+          output.push_back(element);
+        }
+
+        fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
+
+        DEBUG_INFO(3,
+          {
+            printf(" subspace dimension: %d, factor degree: %d\n", rank, degree);
+          }
+        )
+
+        if (degree == rank) {
+          done.push_back(output);
+        } else {
+          remaining.push_back(output);
+        }
+      }
+
+      fmpq_mat_clear(poly_on_f_matrix);
+      fmpz_mat_clear(poly_on_f_matrix_z);
+      fmpz_mat_clear(poly_mat_kernel);
+    }
+
+    fmpz_poly_clear(min_poly_z);
+    fmpz_poly_factor_clear(min_poly_factored);
+
+  }
+
   fmpq_mat_clear(f_matrix);
   fmpz_mat_clear(B_matrix_z);
-  fmpz_poly_factor_clear(min_poly_factored);
 
   return {.done = done, .remaining = remaining};
 }

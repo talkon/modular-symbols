@@ -97,7 +97,7 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
       // XXX: This causes the action of `f` to be recomputed many times.
       for (auto subspace_basis : remaining) {
         // TODO: since all eigenvalues are +1 or -1, we don't need to use the full power of decompose()
-        DecomposeResult dr = decompose(subspace_basis, f);
+        DecomposeResult dr = decompose(subspace_basis, f, true);
         // minpoly factor degree should always be 1, so if anything goes in done, it's actually done
         DEBUG_INFO(2,
           {
@@ -136,7 +136,7 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
     std::vector<std::vector<ManinElement>> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto subspace_basis : remaining) {
-      DecomposeResult dr = decompose(subspace_basis, f);
+      DecomposeResult dr = decompose(subspace_basis, f, false);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace_basis.size());
