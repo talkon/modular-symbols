@@ -12,6 +12,8 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
+#include <queue>
 #include <set>
 #include <cassert>
 
@@ -65,7 +67,9 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   int64_t num_generators = generators.size();
   DEBUG_INFO_PRINT(3, "Finished computing generators, num_generators: %lld\n", num_generators);
 
-  // Modulo out by Eta relations (see Cremona Ch 2.5)
+  // ------------------------------------------------ //
+  // Modulo out by Eta relations (see Cremona Ch 2.5) //
+  // ------------------------------------------------ //
 
   // Potential optimizations
   // [ ] move eta relations to manin_generators()
@@ -119,8 +123,9 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
-
-  // Modulo out by S relations (see Stein Ch 3.3)
+  // -------------------------------------------- //
+  // Modulo out by S relations (see Stein Ch 3.3) //
+  // -------------------------------------------- //
 
   // BUG: contains duplicate rows.
   // [ ] Start with eta_generators instead of generators to avoid redundant relations.
@@ -206,8 +211,9 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
-
-  // Compute T relations (see Stein Ch 3.3)
+  // -------------------------------------------- //
+  // Compute T relation matrix (see Stein Ch 3.3) //
+  // -------------------------------------------- //
 
   // std::vector<ManinGenerator> S_generators = S_generators_pos;
   // S_generators.insert(S_generators.end(), S_generators_neg.begin(), S_generators_neg.end());
@@ -332,7 +338,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   int64_t num_T_rows = T_rows.size();
 
-  // Create T relation matrix
   fmpz_mat_t T_mat;
   fmpz_mat_init(T_mat, num_T_rows, num_S_gens);
 
@@ -352,10 +357,168 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
+#define NEW_RR 1
+#if NEW_RR
+
+  // ------------------------------ //
+  // Row reducing T relation matrix //
+  // ------------------------------ //
+
+  // 0. Preprocess T relation matrix
+  // If we see any +-3, this corresponds to a fixed point of T (i.e. will be zero), so we can replace it by 1
+  // TODO: this is a bit hacky, think about what's actually happening here and make sure we're not missing any other case (like a col with 1 and 2).
+  for (int row = 0; row < num_T_rows; row++) {
+    for (int col = 0; col < num_S_gens; col++) {
+      if (fmpz_equal_si(fmpz_mat_entry(T_mat, row, col), 3)) {
+        fmpz_set_si(fmpz_mat_entry(T_mat, row, col), 1);
+      }
+      if (fmpz_equal_si(fmpz_mat_entry(T_mat, row, col), -3)) {
+        fmpz_set_si(fmpz_mat_entry(T_mat, row, col), 1);
+      }
+    }
+  }
+
+  // 1. Constructing graph G with rows as vertices and columns as edges
+
+  // r_1 -> r_2 -> col
+  std::vector<std::map<int, int>> G(num_T_rows);
+
+  // (col, row) such that row has the only nonzero entry in col
+  std::vector<std::pair<int, int>> single_cols;
+
+  for (int col = 0; col < num_S_gens; col++) {
+    int nonzero_1 = -1;
+    int nonzero_2 = -1;
+    for (int row = 0; row < num_T_rows; row++) {
+      if (!fmpz_is_zero(fmpz_mat_entry(T_mat, row, col))) {
+        if (nonzero_1 == -1) nonzero_1 = row;
+        else nonzero_2 = row;
+      }
+    }
+
+    if (nonzero_1 == -1) continue;
+    else if (nonzero_2 == -1) single_cols.emplace_back(col, nonzero_1);
+    else {
+      G[nonzero_1].insert(std::make_pair(nonzero_2, col));
+      G[nonzero_2].insert(std::make_pair(nonzero_1, col));
+    }
+  }
+
+  // 2. Compute BFS tree
+  assert (single_cols.size() > 0);
+  int start_row = single_cols[0].second;
+  int start_col = single_cols[0].first;
+
+  std::vector<bool> seen(num_T_rows, false);
+  std::queue<int> worklist;
+
+  // stores edges row1 -> row2 in tree as (col, row1, row2)
+  std::vector<std::tuple<int, int, int>> tree;
+
+  worklist.push(start_row);
+  seen[start_row] = true;
+
+  while (worklist.size() > 0) {
+
+    int node = worklist.front();
+    worklist.pop();
+
+    auto adj = G[node];
+    for (auto const& [r, c] : adj) {
+      if (!seen[r]) {
+        tree.emplace_back(c, node, r);
+        worklist.push(r);
+        seen[r] = true;
+      }
+    }
+  }
+
+  // 3. Apply row operations
+  std::vector<bool> is_pivot(num_S_gens, false);
+  is_pivot[start_col] = true;
+
+  assert(tree.size() == num_T_rows - 1);
+  for (auto it = tree.rbegin(); it != tree.rend(); it++) {
+    auto [c, r1, r2] = *it;
+    // printf("%d %d %d\n", c, r1, r2);
+    is_pivot[c] = true;
+
+    // If there are two nonzero elements in a col, then they must be -1 or +1
+    int sub = fmpz_equal(fmpz_mat_entry(T_mat, r1, c), fmpz_mat_entry(T_mat, r2, c));
+
+    if (sub) {
+      // row1 <- row1 - row2
+      for (int col = 0; col < num_S_gens; col++) {
+        fmpz_sub(fmpz_mat_entry(T_mat, r1, col), fmpz_mat_entry(T_mat, r1, col), fmpz_mat_entry(T_mat, r2, col));
+      }
+    } else {
+      // row1 <- row1 + row2
+      for (int col = 0; col < num_S_gens; col++) {
+        fmpz_add(fmpz_mat_entry(T_mat, r1, col), fmpz_mat_entry(T_mat, r1, col), fmpz_mat_entry(T_mat, r2, col));
+      }
+    }
+  }
+
+  DEBUG_INFO(7,
+    {
+      printf("T_mat, after RR: \n");
+      fmpz_mat_print_pretty(T_mat);
+    }
+  )
+
+  // 4. Construct output
+  std::vector<ManinBasisElement> basis;
+  int basis_index = 0;
+  std::map<int, int> col_to_basis_index;
+  std::map<int, ManinElement> generator_to_basis;
+
+  // Make basis (i.e. nonpivots)
+  for (int col = 0; col < num_S_gens; col++) {
+    if (!is_pivot[col]) {
+      ManinGenerator generator = S_generators_pos.at(col);
+      ManinBasisElement mbe(basis_index, generator);
+      basis.push_back(mbe);
+      col_to_basis_index.insert(std::make_pair(col, basis_index));
+      generator_to_basis.insert(std::make_pair(col, mbe.as_element()));
+      basis_index++;
+    }
+  }
+
+  // Make GTB for pivots
+  tree.emplace_back(start_col, -1, start_row);
+  for (auto it = tree.begin(); it != tree.end(); it++) {
+    auto [c, r1, r2] = *it;
+    // Row r2 contains pivot at column c, which is either +1 or -1
+
+    // If pivot is +1, then we have to negate the rest
+    int negate = fmpz_is_one(fmpz_mat_entry(T_mat, r2, c));
+
+    std::vector<MBEWC> components;
+    for (int col = 0; col < num_S_gens; col++) {
+      if (col != c && !(fmpz_is_zero(fmpz_mat_entry(T_mat, r2, col)))) {
+        fmpq_t coeff;
+        fmpq_init(coeff);
+        fmpq_set_fmpz(coeff, fmpz_mat_entry(T_mat, r2, col));
+
+        if (negate) fmpq_neg(coeff, coeff);
+
+        int64_t basis_index = col_to_basis_index[col];
+        components.emplace_back(basis_index, coeff);
+        fmpq_clear(coeff);
+      }
+    }
+
+    ManinElement element = ManinElement(level, components);
+    element.mark_as_sorted_unchecked();
+    generator_to_basis.insert(std::make_pair(c, element));
+  }
+
+// ---- (old code:) ---- //
+#else
 
   fmpz_t den;
   fmpz_init(den);
-  // TODO: Consider writing own rref function that eliminates generators in a better order? See remark in p.17 in (Cremona).
+
   int64_t rank = fmpz_mat_rref_mul(T_mat, den, T_mat);
   int64_t basis_size = fmpz_mat_ncols(T_mat) - rank;
 
@@ -453,9 +616,12 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   }
 
-  fmpz_mat_clear(T_mat);
   fmpz_clear(den);
   fmpz_clear(neg_den);
+
+#endif
+
+  fmpz_mat_clear(T_mat);
 
   std::vector<ManinElement> gtb_vec;
   for (int i = 0; i < num_S_gens; i++) {
@@ -472,12 +638,12 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       }
       printf(".generator_to_basis: %zu\n", generator_to_basis.size());
       for (int i = 0; i < gtb_vec.size(); i++) {
-        generators[i].print();
+        S_generators_pos.at(i).print();
         printf(" = ");
         gtb_vec[i].print();
         printf("\n");
       }
-      printf(".generator_index_to_GTB_index: %zu\n", generator_to_eta_generators.size());
+      printf(".generator_index_to_GTB_index: %zu\n", generator_to_S_generators.size());
       for (auto i: generator_to_S_generators) {
         printf("%lld ", i);
       }
