@@ -51,6 +51,31 @@ MBEWC::MBEWC(const MBEWC& mbewc) : basis_index(mbewc.basis_index) {
   // if (COEFF_IS_MPZ(den)) printf("c <ref 0x%llx> -> <ref 0x%llx>\n", old_den, den);
 }
 
+MBEWC::MBEWC(MBEWC&& mbewc) : basis_index(mbewc.basis_index) {
+  fmpq_init(coeff);
+  fmpq_swap(coeff, mbewc.coeff);
+
+  // printf("MBEWC move!\n");
+}
+
+MBEWC& MBEWC::operator=(const MBEWC& mbewc) {
+  basis_index = mbewc.basis_index;
+  fmpq_init(coeff);
+  fmpq_set(coeff, mbewc.coeff);
+
+  // printf("MBEWC copy assign!\n");
+  return *this;
+}
+
+MBEWC& MBEWC::operator=(MBEWC&& mbewc) {
+  basis_index = mbewc.basis_index;
+  fmpq_init(coeff);
+  fmpq_swap(coeff, mbewc.coeff);
+
+  printf("MBEWC move assign!\n");
+  return *this;
+}
+
 MBEWC::~MBEWC() {
   // uint64_t num = *fmpq_numref(coeff);
   // if (COEFF_IS_MPZ(num)) printf("~ <ref 0x%llx>\n", num);

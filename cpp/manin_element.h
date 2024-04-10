@@ -22,6 +22,9 @@ struct MBEWC {
   MBEWC(int64_t, fmpq_t);
 
   MBEWC(const MBEWC&);
+  MBEWC(MBEWC&&);
+  MBEWC& operator=(const MBEWC&);
+  MBEWC& operator=(MBEWC&&);
 
   ~MBEWC();
 
