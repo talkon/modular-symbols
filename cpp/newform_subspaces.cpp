@@ -85,10 +85,18 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining = { basis };
 
+  n_factor_t factors;
+  n_factor_init(&factors);
+  n_factor(&factors, level, 1);
+
+  // Sturm bound = N * \prod_{p|N} (1 + 1/p) * k / 12, here k = 2
+  int sturm_bound = level;
+  for (int i = 0; i < factors.num; i++) {
+    sturm_bound += sturm_bound / factors.p[i];
+  }
+  sturm_bound /= 6;
+
   if (use_atkin_lehner) {
-    n_factor_t factors;
-    n_factor_init(&factors);
-    n_factor(&factors, level, 1);
     for (int i = 0; i < factors.num && remaining.size() > 0; i++){
       int64_t q = n_pow(factors.p[i], factors.exp[i]);
       DEBUG_INFO_PRINT(2, "Decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
@@ -123,13 +131,17 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
     }
   }
 
-  // n_factor is just a struct, does not need to be cleared
-
   n_primes_t prime_iter;
   n_primes_init(prime_iter);
   while (remaining.size() > 0) {
     int64_t p = n_primes_next(prime_iter);
     if (level % p == 0) continue;
+    if (p > sturm_bound) {
+      // Spaces will not split after Sturm bound
+      done.insert(done.end(), remaining.begin(), remaining.end());
+      remaining.clear();
+      break;
+    }
 
     DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operator for prime %lld\n", p);
     auto f = [p](ManinBasisElement mbe) { return hecke_action(mbe, p); };
