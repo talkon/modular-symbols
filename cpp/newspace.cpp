@@ -50,7 +50,7 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
     int64_t m = level / p;
 
     // Skip values of m with trivial newspaces
-    if (m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 22 || m == 25 || m == 28) {
+    if (m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 25 ) {
       continue;
     }
 
