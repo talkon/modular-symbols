@@ -82,7 +82,7 @@ def load_splits(filename: str) -> dict[int, SplitInfo]:
 
 def run_test(command: list[str], level: int) -> tuple[SplitInfo, list[float]]:
   command = command + ["-n", str(level)]
-  result = subprocess.run(command, timeout=100, capture_output=True)
+  result = subprocess.run(command, timeout=1000, capture_output=True)
   lines = result.stdout.splitlines()
   last_line = lines[-1].decode()
   c_sub_times = [float(l.decode().split()[0][5:-1]) for l in lines[:-1]]
@@ -97,7 +97,7 @@ def primesieve() -> float:
   time_line = primesieve_result.stdout.splitlines()[0].decode()
   return float(time_line.split(' ')[1])
 
-def perft(test_sets: list[int], command: list[str]) -> None:
+def perft(test_sets: dict[str, dict[str, tuple[int]]], command: list[str]) -> None:
   print("[info] Loading reference split_file")
   ref_splits = load_splits(SPLIT_FILE)
 
@@ -107,13 +107,20 @@ def perft(test_sets: list[int], command: list[str]) -> None:
   print(f"[info] Primesieve finished in: {primesieve_time:7.4}s")
   print(f"[info] Machine performance ratio: {ratio:6.4}")
 
-  for i in test_sets:
+  for i, set in test_sets.items():
     print(Fore.YELLOW + f"\n[info] Running test set {i}\n" + Style.RESET_ALL)
 
     category_scores = []
-    for k, v in TESTS[i].items():
+
+    total_adj_t = 0
+    total_ref_t = 0
+
+    for k, v in set.items():
       print(Fore.YELLOW + f"[info] Running tests for category {k}" + Style.RESET_ALL)
       scores = []
+
+      cat_adj_t = 0
+      cat_ref_t = 0
 
       TableLine.pretty_print_header()
 
@@ -125,23 +132,41 @@ def perft(test_sets: list[int], command: list[str]) -> None:
           table_line = TableLine.from_test_result(k, ratio, ref_splits[level], test_split, sub_times)
           table_line.pretty_print()
           scores.append(table_line.speedup)
+          cat_adj_t += table_line.adj_t
+          cat_ref_t += table_line.ref_t
         else:
           print(Fore.RED + f"[result] Output incorrect, aborting perft" + Style.RESET_ALL)
           return
 
       avg_score = geometric_mean(scores)
-      category_scores.append(avg_score)
-      print(Fore.GREEN + f"[result] Finished category {k}, average speedup: {avg_score:6.4f}\n" + Style.RESET_ALL)
 
-    print(Fore.GREEN + "[result] Finished all categories" + Style.RESET_ALL)
+      category_scores.append(avg_score)
+      total_adj_t += cat_adj_t
+      total_ref_t += cat_ref_t
+
+      print(Fore.GREEN + f"[result] Finished category {k}, geomean speedup: {avg_score:6.4f}" + Style.RESET_ALL)
+      print(Fore.GREEN + f"[result] Adjusted total time: {cat_adj_t:.2f}s, ref total time: {cat_ref_t:.2f}s, linear speedup: {(cat_ref_t / cat_adj_t):6.4f}\n" + Style.RESET_ALL)
+
+    print(Fore.GREEN + f"[result] Set {i}: Finished all categories" + Style.RESET_ALL)
 
     avg_cat_score = geometric_mean(category_scores)
-    print(Fore.GREEN + f"[result] Overall speedup for set {i}: {avg_cat_score:6.4f}" + Style.RESET_ALL)
+    print(Fore.GREEN + f"[result] Geomean speedup: {avg_cat_score:6.4f}" + Style.RESET_ALL)
+    print(Fore.GREEN + f"[result] Adjusted total time: {total_adj_t:.2f}s, ref total time: {total_ref_t:.2f}s, linear speedup: {(total_ref_t / total_adj_t):6.4f}" + Style.RESET_ALL)
+
 
 if __name__ == "__main__":
-  test_sets = [int(i) for i in sys.argv[1].split(',')]
-  command = ["./bin/main", "-v", "1"] + sys.argv[2:]
-  perft(test_sets, command)
+  mode = sys.argv[1]
+
+  if mode == "s":
+    test_sets = {i : TESTS[int(i)] for i in sys.argv[2].split(',')}
+    command = ["./bin/main", "-v", "1"] + sys.argv[3:]
+    perft(test_sets, command)
+
+  if mode == "r":
+    test_sets = {"custom_range": {"all" : tuple(range(int(sys.argv[2]), int(sys.argv[3])))}}
+    command = ["./bin/main", "-v", "1"] + sys.argv[4:]
+    perft(test_sets, command)
+
 
 
 
