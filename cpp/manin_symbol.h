@@ -24,7 +24,7 @@ struct ManinSymbol {
 
   // Checks equivalence between two Manin symbols.
   // Note that this is different from equality (==), which is used for caching.
-  bool is_equivalent(const ManinSymbol&);
+  bool is_equivalent(const ManinSymbol&) const;
 
   // Applies the eta relation to this Manin symbol. [Cremona Ch 2.5]
   ManinSymbol apply_eta();
@@ -60,7 +60,7 @@ struct ManinGenerator : ManinSymbol {
 // Computes the Manin generators of a given level.
 // Returns the generators ordered by (c, d mod N/c).
 // Results are cached.
-std::vector<ManinGenerator> manin_generators(const int64_t level);
+std::vector<ManinGenerator>& manin_generators(const int64_t level);
 
 // Finds the Manin generator that is equivalent to the given Manin symbol.
 // Results are cached.

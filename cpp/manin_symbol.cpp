@@ -24,7 +24,7 @@ void ManinSymbol::print() const {
   printf("(%lld, %lld)_%lld", c, d, N);
 }
 
-bool ManinSymbol::is_equivalent(const ManinSymbol& other) {
+bool ManinSymbol::is_equivalent(const ManinSymbol& other) const {
   if (N != other.N)
     return false;
 
@@ -130,7 +130,7 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
   return out;
 }
 
-std::vector<ManinGenerator> manin_generators(const int64_t level) {
+std::vector<ManinGenerator>& manin_generators(const int64_t level) {
   // [ ]: figure out a way to share this variable across translation units?
   static CacheDecorator<std::vector<ManinGenerator>, const int64_t> _cache_manin_generators(_impl_manin_generators);
   return _cache_manin_generators(level);
@@ -138,7 +138,7 @@ std::vector<ManinGenerator> manin_generators(const int64_t level) {
 
 // Base implementation of `find_generator_index()`
 ManinGenerator _impl_find_generator(const ManinSymbol ms) {
-  std::vector<ManinGenerator> generators = manin_generators(ms.N);
+  auto& generators = manin_generators(ms.N);
   auto first = generators.begin();
   auto last = generators.end();
 
