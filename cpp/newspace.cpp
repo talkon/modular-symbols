@@ -43,27 +43,66 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
   n_factor(&factors, level, 1);
 
   // Seems like it suffices to compute the oldspace maps only for M of the form N / p, where p is a prime factor of N.
-  // p is sorted by size, so that m is sorted large to small, so that `current_basis` gets smaller faster.
-  // TODO: confirm this
+
+  // Threshold to decide for each m whether to first compute d = 1 then d = p in two separate passes or compute both
+  // at the same time. It seems like this should just be 0 (i.e. for everything, always compute d = 1 maps before d = p maps).
+  int threshold = 0;
+
+  // In general, p is sorted by size, so that m is sorted large to small, so that `current_basis` gets smaller faster.
+
+  // We first compute all the d = 1 oldspace maps for these M because the d = 1 maps lead to less
+  // blowup in the size of matrix entries
   for (int i = 0; i < factors.num; i++) {
     int64_t p = factors.p[i];
     int64_t m = level / p;
 
-    // Skip values of m with trivial newspaces
-    if (m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 25 ) {
+    if (m < threshold || m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 25 ) {
       continue;
     }
 
-    DEBUG_INFO_PRINT(2, "Computing oldspace maps for M: %lld\n", m);
+    DEBUG_INFO_PRINT(2, "Computing d = 1 oldspace map for M: %lld\n", m);
 
     auto f1 = [m](ManinBasisElement mbe) { return oldspace_map(mbe, 1, m); };
     current_basis = map_kernel(current_basis, f1, m);
     DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.size());
+  }
+
+  // Compute the d = p oldspace maps for large M
+  for (int i = 0; i < factors.num; i++) {
+    int64_t p = factors.p[i];
+    int64_t m = level / p;
+
+    if (m < threshold || m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 25 ) {
+      continue;
+    }
+
+    DEBUG_INFO_PRINT(2, "Computing d = p oldspace map for M: %lld\n", m);
 
     auto fp = [p, m](ManinBasisElement mbe) { return oldspace_map(mbe, p, m); };
     current_basis = map_kernel(current_basis, fp, m);
     DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
   }
+
+  // Compute maps for "small" M, i.e. M < threshold (This does not seem to help)
+  // for (int i = 0; i < factors.num; i++) {
+  //   int64_t p = factors.p[i];
+  //   int64_t m = level / p;
+
+  //   // Skip values of m such that m and all its divisors have trivial newspaces
+  //   if (m > threshold || m < 11 || m == 12 || m == 13 || m == 16 || m == 18 || m == 25 ) {
+  //     continue;
+  //   }
+
+  //   DEBUG_INFO_PRINT(2, "Computing oldspace maps for M: %lld\n", m);
+
+  //   auto f1 = [m](ManinBasisElement mbe) { return oldspace_map(mbe, 1, m); };
+  //   current_basis = map_kernel(current_basis, f1, m);
+  //   DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.size());
+
+  //   auto fp = [p, m](ManinBasisElement mbe) { return oldspace_map(mbe, p, m); };
+  //   current_basis = map_kernel(current_basis, fp, m);
+  //   DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
+  // }
 
   return current_basis;
 }
