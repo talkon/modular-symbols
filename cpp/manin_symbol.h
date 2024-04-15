@@ -26,6 +26,9 @@ struct ManinSymbol {
   // Note that this is different from equality (==), which is used for caching.
   bool is_equivalent(const ManinSymbol&) const;
 
+  // Returns (c mod N, d mod N)
+  ManinSymbol repr();
+
   // Applies the eta relation to this Manin symbol. [Cremona Ch 2.5]
   ManinSymbol apply_eta();
 

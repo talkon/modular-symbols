@@ -31,6 +31,10 @@ bool ManinSymbol::is_equivalent(const ManinSymbol& other) const {
   return ((c * other.d - d * other.c) % N) == 0;
 }
 
+ManinSymbol ManinSymbol::repr() {
+  return {.N = this->N, .c = ((this->c) % N + N) % N, .d = ((this->d) % N + N) % N};
+}
+
 ManinSymbol ManinSymbol::apply_eta() {
   return {.N = this->N, .c = -(this->c), .d = this->d};
 }
@@ -147,7 +151,6 @@ ManinGenerator _impl_find_generator(const ManinSymbol ms) {
   );
 
   assert (mg != last); // Manin symbol should match one of the generators
-
   return *mg;
 }
 
