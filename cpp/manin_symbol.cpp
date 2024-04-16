@@ -60,11 +60,27 @@ ModularSymbol ManinSymbol::as_modular_symbol() {
   return {.a = xgcd.b, .b = -xgcd.a, .c = c, .d = d};
 }
 
+struct GeneratorComputationResult {
+  std::vector<ManinGenerator> generators;
+  std::map<ManinSymbol, int> generator_to_index;
+  std::map<std::pair<int, int>, int> c_and_mod_M_to_d;
+
+  GeneratorComputationResult(
+    std::vector<ManinGenerator> generators,
+    std::map<ManinSymbol, int> generator_to_index,
+    std::map<std::pair<int, int>, int> c_and_mod_M_to_d
+  ) :
+    generators(generators),
+    generator_to_index(generator_to_index),
+    c_and_mod_M_to_d(c_and_mod_M_to_d)
+  {}
+};
+
 // Base implementation of `manin_generators()`
 // XXX: Surely there is a better approach to this caching pattern, but I think this works for now.
 // XXX: It seems like this caching approach works across multiple compilation units,
 // but I'm not sure why.
-std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
+GeneratorComputationResult _impl_compute_manin_generators(const int64_t level) {
   fmpz_t N;
   fmpz_init_set_ui(N, level);
 
@@ -79,6 +95,7 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
   index++;
 
   std::vector<ManinGenerator> out = {first};
+  std::map<std::pair<int, int>, int> c_and_mod_M_to_d;
 
   fmpz_t C, D, G, M, X;
   fmpz_init(C);
@@ -110,6 +127,7 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
           // manin_generator_print(&new_gen);
           // printf("\n");
           out.push_back(new_gen);
+          c_and_mod_M_to_d.insert(std::make_pair(std::make_pair(d, x), c));
           break;
         }
       }
@@ -131,32 +149,79 @@ std::vector<ManinGenerator> _impl_manin_generators(const int64_t level) {
   fmpz_clear(X);
   fmpz_poly_clear(divisors);
 
-  return out;
+  std::map<ManinSymbol, int> generator_to_index;
+  for (auto mg: out) {
+    generator_to_index.insert(std::make_pair((ManinSymbol) mg, mg.index));
+  }
+
+  return GeneratorComputationResult(out, generator_to_index, c_and_mod_M_to_d);
+}
+
+GeneratorComputationResult& compute_manin_generators(const int64_t level) {
+  // [ ]: figure out a way to share this variable across translation units?
+  static CacheDecorator<GeneratorComputationResult, const int64_t> _cache_compute_manin_generators(_impl_compute_manin_generators);
+  return _cache_compute_manin_generators(level);
 }
 
 std::vector<ManinGenerator>& manin_generators(const int64_t level) {
-  // [ ]: figure out a way to share this variable across translation units?
-  static CacheDecorator<std::vector<ManinGenerator>, const int64_t> _cache_manin_generators(_impl_manin_generators);
-  return _cache_manin_generators(level);
+  return compute_manin_generators(level).generators;
 }
 
 // Base implementation of `find_generator_index()`
-ManinGenerator _impl_find_generator(const ManinSymbol ms) {
-  auto& generators = manin_generators(ms.N);
-  auto first = generators.begin();
-  auto last = generators.end();
+// ManinGenerator _impl_find_generator(const ManinSymbol ms) {
+//   auto& generators = manin_generators(ms.N);
+//   auto first = generators.begin();
+//   auto last = generators.end();
 
-  auto mg = std::find_if(first, last,
-    [&](ManinSymbol gen) { return gen.is_equivalent(ms); }
-  );
+//   auto mg = std::find_if(first, last,
+//     [&](ManinSymbol gen) { return gen.is_equivalent(ms); }
+//   );
 
-  assert (mg != last); // Manin symbol should match one of the generators
-  return *mg;
-}
+//   assert (mg != last); // Manin symbol should match one of the generators
+//   return *mg;
+// }
 
 ManinGenerator find_generator(const ManinSymbol ms) {
-  static CacheDecorator<ManinGenerator, const ManinSymbol> _cache_find_generator(_impl_find_generator);
-  return _cache_find_generator(ms);
+  // static CacheDecorator<ManinGenerator, const ManinSymbol> _cache_find_generator(_impl_find_generator);
+  // return _cache_find_generator(ms);
+  auto& res = compute_manin_generators(ms.N);
+
+  if (ms.c % ms.N == 0) return res.generators[0];
+
+  fmpz_t A, B, C, D, M, N, I;
+
+  fmpz_init_set_si(A, ms.c);
+  fmpz_init_set_si(B, ms.d);
+  fmpz_init_set_si(N, ms.N);
+
+  fmpz_init(C);
+  fmpz_init(D);
+  fmpz_init(M);
+  fmpz_init(I);
+
+  fmpz_gcd(C, A, N);
+  fmpz_divexact(A, A, C);
+  fmpz_divexact(M, N, C);
+  fmpz_invmod(I, A, M);
+  fmpz_mul(D, B, I);
+  fmpz_mod(D, D, M);
+
+  int c = fmpz_get_si(C);
+  int d_mod_M = fmpz_get_si(D);
+
+  fmpz_clear(A);
+  fmpz_clear(B);
+  fmpz_clear(C);
+  fmpz_clear(D);
+  fmpz_clear(M);
+  fmpz_clear(N);
+  fmpz_clear(I);
+
+  int d = res.c_and_mod_M_to_d[std::make_pair(c, d_mod_M)];
+  ManinSymbol out_ms = {.N = ms.N, .c = c, .d = d};
+
+  int index = res.generator_to_index[out_ms];
+  return ManinGenerator(index, out_ms);
 }
 
 ManinGenerator ManinSymbol::as_generator() {
