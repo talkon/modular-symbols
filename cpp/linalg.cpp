@@ -126,64 +126,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   int64_t rank = fmpz_mat_nullspace_mul(map_kernel, map_matrix_z);
   // printf("cc %lld\n", rank);
 
-  if (false) {
-    fmpz_t d;
-    fmpz_init(d);
-
-    fmpz_mat_t tmp;
-    fmpz_mat_init(tmp, M_basis.size(), B.size());
-
-    DEBUG_INFO_PRINT(4, "computing tmp\n");
-    fmpz_mat_rref_fflu(tmp, d, map_matrix_z);
-
-    DEBUG_INFO(4,
-      {
-        printf("tmp [fflu]: ");
-        fmpz_mat_print_dimensions(tmp);
-        printf("\n");
-      }
-    )
-
-    fmpz_mat_div_colwise_gcd(tmp);
-
-    DEBUG_INFO(4,
-      {
-        printf("tmp: ");
-        fmpz_mat_print_dimensions(tmp);
-        printf("\n");
-      }
-    )
-
-    fmpz_mat_clear(tmp);
-
-    fmpz_mat_t tmp2;
-    fmpz_mat_init(tmp2, M_basis.size(), B.size());
-
-    DEBUG_INFO_PRINT(4, "computing tmp2\n");
-    fmpz_mat_rref_mul(tmp2, d, map_matrix_z);
-
-    DEBUG_INFO(4,
-      {
-        printf("tmp2 [mul]: ");
-        fmpz_mat_print_dimensions(tmp2);
-        printf("\n");
-      }
-    )
-
-    fmpz_mat_div_colwise_gcd(tmp2);
-
-    DEBUG_INFO(4,
-      {
-        printf("tmp2: ");
-        fmpz_mat_print_dimensions(tmp2);
-        printf("\n");
-      }
-    )
-
-    fmpz_mat_clear(tmp2);
-    fmpz_clear(d);
-  }
-
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
 
   DEBUG_INFO(4,
@@ -197,10 +139,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpz_mat_div_colwise_gcd(map_kernel_window);
 
   fmpz_mat_clear(map_matrix_z);
-
-  // printf("map kernel window:\n");
-  // fmpz_mat_print_pretty(map_kernel_window);
-  // printf("\n");
 
   fmpz_mat_t map_kernel_in_orig_basis;
   fmpz_mat_init(map_kernel_in_orig_basis, N_basis.size(), rank);
@@ -224,8 +162,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
-  // printf("dd %lld\n", rank);
-
   fmpz_mat_clear(B_matrix_z);
 
   fmpz_mat_div_colwise_gcd(map_kernel_in_orig_basis);
@@ -241,16 +177,10 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
-
-  // printf("map kernel in orig basis:\n");
-  // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
-  // printf("\n");
-
   // Convert each column of the kernel to a ManinElement
   std::vector<ManinElement> output;
 
   for (int col = 0; col < rank; col++) {
-    // printf("col %d\n", col);
     std::vector<MBEWC> components;
     for (int row = 0; row < N_basis.size(); row++) {
       if (!(fmpz_is_zero(fmpz_mat_entry(map_kernel_in_orig_basis, row, col)))) {
@@ -266,12 +196,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     element.mark_as_sorted_unchecked();
     output.push_back(element);
   }
-
-  // printf("ff %lld\n", rank);
-
-  // printf("output matrix:\n");
-  // fmpz_mat_print_pretty(map_kernel_in_orig_basis);
-  // printf("\n");
 
   fmpz_mat_clear(map_kernel_in_orig_basis);
 
@@ -357,12 +281,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
     if (current_col == B.size()) break;
   }
-
-  // for (int i = 0; i < B.size(); i++) {
-  //   printf("%d ", pivots[i]);
-  //   fmpz_print(pivot_coeffs + i);
-  //   printf("\n");
-  // }
 
   // Construct matrix of the linear map f acting on B
   fmpq_mat_t f_matrix;
