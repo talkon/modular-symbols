@@ -133,9 +133,12 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
 
   n_primes_t prime_iter;
   n_primes_init(prime_iter);
+  int64_t prev_p = 0;
+
   while (remaining.size() > 0) {
     int64_t p = n_primes_next(prime_iter);
     if (level % p == 0) continue;
+
     if (p > sturm_bound) {
       // Spaces will not split after Sturm bound
       done.insert(done.end(), remaining.begin(), remaining.end());
@@ -143,8 +146,19 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
       break;
     }
 
-    DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operator for prime %lld\n", p);
-    auto f = [p](ManinBasisElement mbe) { return hecke_action(mbe, p); };
+    if (prev_p) {
+      DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld + T_%lld\n", prev_p, p);
+    } else {
+      DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld\n", p);
+    }
+
+    auto f = [prev_p, p](ManinBasisElement mbe) {
+      if (prev_p) {
+        return hecke_action(mbe, p) + hecke_action(mbe, prev_p);
+      } else {
+        return hecke_action(mbe, p);
+      }
+    };
     std::vector<std::vector<ManinElement>> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto subspace_basis : remaining) {
@@ -172,6 +186,8 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
     }
     remaining = new_remaining;
     DEBUG_INFO_PRINT(2, "Completed p = %lld, done = %zu spaces, remaining = %zu spaces\n", p, done.size(), remaining.size());
+
+    prev_p = p;
   }
 
   n_primes_clear(prime_iter);
