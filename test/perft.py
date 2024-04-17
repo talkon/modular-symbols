@@ -154,8 +154,6 @@ def perft(test_sets: Dict[str, Dict[str, Tuple[int]]], command: List[str]) -> No
     print(Fore.GREEN + f"[result] Geomean speedup: {avg_cat_score:6.4f}" + Style.RESET_ALL)
     print(Fore.GREEN + f"[result] Adjusted total time: {total_adj_t:.2f}s, ref total time: {total_ref_t:.2f}s, linear speedup: {(total_ref_t / total_adj_t):6.4f}" + Style.RESET_ALL)
 
-print("hello")
-
 if __name__ == "__main__":
   mode = sys.argv[1]
 
