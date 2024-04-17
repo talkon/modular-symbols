@@ -298,7 +298,8 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       std::get<2>(negated_orbit)
     );
 
-    if (T_orbits.contains(orbit) || T_orbits.contains(negated_orbit)) continue;
+    if (auto search = T_orbits.find(orbit); search != T_orbits.end()) continue;
+    if (auto search = T_orbits.find(negated_orbit); search != T_orbits.end()) continue;
 
     T_orbits.insert(orbit);
 

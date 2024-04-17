@@ -469,6 +469,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
         fmpz_poly_struct *factor = min_poly_factored->p + i;
 
+        // TODO: For deg 1 polynomials, don't use P-S?
         fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
 
         DEBUG_INFO(4,

@@ -61,7 +61,7 @@ void probe_fmpz_freelist(int depth) {
     fmpz_set(vec + i, large);
     uint64_t val = *(vec + i);
     assert(COEFF_IS_MPZ(val));
-    if (map.contains(val)) {
+    if (auto search = map.find(val); search != map.end()) {
       printf(RED "<error>" RESET " key %llx duplicated, first index: %d, second index: %d\n", val, map[val], i);
       throw std::runtime_error("duplicates found");
     }

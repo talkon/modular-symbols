@@ -17,7 +17,8 @@ struct ManinSymbol {
   int64_t d;
   int64_t N;
 
-  friend auto operator<=> (const ManinSymbol&, const ManinSymbol&) = default;
+  // friend auto operator<=> (const ManinSymbol&, const ManinSymbol&) = default;
+  bool operator<(const ManinSymbol&) const;
 
   // Prints this Manin symbol
   void print() const;

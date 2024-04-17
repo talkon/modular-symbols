@@ -19,6 +19,10 @@ utils::XgcdResult Cusp::xgcd() const {
   return utils::xgcd(c, d);
 }
 
+bool Cusp::operator<(const Cusp& other) const {
+  return (std::tuple<int64_t,int64_t,int64_t>) {N, c, d} < (std::tuple<int64_t,int64_t,int64_t>) {other.N, other.c, other.d};
+}
+
 Cusp Cusp::negated() const {
   return {.c = -c, .d = d, .N = N};
 }

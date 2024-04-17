@@ -13,7 +13,8 @@ struct Cusp {
   int64_t d;
   int64_t N;
 
-  friend auto operator<=> (const Cusp&, const Cusp&) = default;
+  // friend auto operator<=> (const Cusp&, const Cusp&) = default;
+  bool operator<(const Cusp&) const;
 
   // Prints this cusp.
   void print();

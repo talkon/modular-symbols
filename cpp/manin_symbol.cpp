@@ -24,6 +24,10 @@ void ManinSymbol::print() const {
   printf("(%lld, %lld)_%lld", c, d, N);
 }
 
+bool ManinSymbol::operator<(const ManinSymbol& other) const {
+  return (std::tuple<int64_t,int64_t,int64_t>) {N, c, d} < (std::tuple<int64_t,int64_t,int64_t>) {other.N, other.c, other.d};
+}
+
 bool ManinSymbol::is_equivalent(const ManinSymbol& other) const {
   if (N != other.N)
     return false;

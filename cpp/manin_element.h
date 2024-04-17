@@ -28,9 +28,9 @@ struct MBEWC {
 
   ~MBEWC();
 
-  friend auto operator<=> (const MBEWC& left, const MBEWC& right) {
-    return left.basis_index <=> right.basis_index;
-  }
+  // friend auto operator<=> (const MBEWC& left, const MBEWC& right) {
+  //   return left.basis_index <=> right.basis_index;
+  // }
 
   // Returns the negation of this MBEWC.
   MBEWC negate() const;
@@ -70,7 +70,7 @@ struct ManinElement {
   // --- Internal representation ---
 
   // Sorts the components of this element.
-  void sort();
+  // void sort();
   // Marks the components of this element as sorted, without checking.
   void mark_as_sorted_unchecked();
 

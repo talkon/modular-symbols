@@ -129,7 +129,7 @@ bool has_duplicate_keys(const std::vector<MBEWC>& components) {
   for (auto it = components.begin(); it != components.end(); it++) {
     uint64_t key = *fmpq_numref(it->coeff);
     if (COEFF_IS_MPZ(key)) {
-      if (map.contains(key)) {
+      if (auto search = map.find(key); search != map.end()) {
         printf(RED "<warning>" RESET " key %llx duplicated, first index: %d, second index: %lld\n", key, map[key], it->basis_index);
         return true;
       }
@@ -161,13 +161,13 @@ ManinElement ManinElement::zero(const int64_t level) {
 }
 
 // FIXME: this causes some ownership issues!
-void ManinElement::sort() {
-  throw std::runtime_error("ManinElement::sort() currently has issues\n");
-  // printf("x\n");
-  std::sort(components.begin(), components.end());
-  // printf("y\n");
-  is_sorted = true;
-}
+// void ManinElement::sort() {
+//   throw std::runtime_error("ManinElement::sort() currently has issues\n");
+//   // printf("x\n");
+//   std::sort(components.begin(), components.end());
+//   // printf("y\n");
+//   is_sorted = true;
+// }
 
 void ManinElement::mark_as_sorted_unchecked() {
   is_sorted = true;
