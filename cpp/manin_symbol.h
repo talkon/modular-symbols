@@ -3,6 +3,7 @@
 
 // This file defines ManinSymbol, ManinGenerator, and related functions
 
+#include <cstdint>
 #include <vector>
 
 // Forward declarations
@@ -13,9 +14,9 @@ struct IntMatrix2x2;
 
 // Represents a Manin symbol. The level N should fit in 32 bits.
 struct ManinSymbol {
+  int64_t N;
   int64_t c;
   int64_t d;
-  int64_t N;
 
   // friend auto operator<=> (const ManinSymbol&, const ManinSymbol&) = default;
   bool operator<(const ManinSymbol&) const;

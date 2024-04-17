@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import subprocess
 import sys
 from dataclasses import dataclass
 from statistics import geometric_mean
 from colorama import Fore, Style
+from typing import List, Tuple, Dict
 
 SPLIT_FILE = "./analysis/split.txt"
 SPLIT_FILE_CALIBRATE = 13.4
@@ -30,7 +31,7 @@ TESTS = [
 @dataclass
 class SplitInfo:
   level: int
-  splits: list[int]
+  splits: List[int]
   time: float
 
   @classmethod
@@ -50,11 +51,11 @@ class TableLine:
   time: float
   adj_t: float
   speedup: float
-  sub_times: tuple[float, float, float]
-  splits: list[int]
+  sub_times: Tuple[float, float, float]
+  splits: List[int]
 
   @classmethod
-  def from_test_result(cls, category: str, ratio: float, ref_split: SplitInfo, test_split: SplitInfo, sub_times: list[float]) -> 'TableLine':
+  def from_test_result(cls, category: str, ratio: float, ref_split: SplitInfo, test_split: SplitInfo, sub_times: List[float]) -> 'TableLine':
     return TableLine(
       category=category,
       level=test_split.level,
@@ -75,12 +76,12 @@ class TableLine:
     adj_ref_t = self.ref_t / self.ratio
     print(f'{self.category[:9]:<9} | {self.level:>5} | {self.ref_t:6.2f} | {self.time:6.2f} {self.adj_t:6.2f} | {self.speedup:8.4f} | {self.sub_times[0]:6.2f} {self.sub_times[1]:6.2f} {self.sub_times[2]:6.2f} | {self.sub_times[0]/adj_ref_t:6.2f} {self.sub_times[1]/adj_ref_t:6.2f} {self.sub_times[2]/adj_ref_t:6.2f} | {self.splits}')
 
-def load_splits(filename: str) -> dict[int, SplitInfo]:
+def load_splits(filename: str) -> Dict[int, SplitInfo]:
   with open(filename, "r") as f:
     split_infos = [SplitInfo.parse_line(line) for line in f.readlines()]
     return {si.level : si for si in split_infos}
 
-def run_test(command: list[str], level: int) -> tuple[SplitInfo, list[float]]:
+def run_test(command: List[str], level: int) -> Tuple[SplitInfo, List[float]]:
   command = command + ["-n", str(level)]
   result = subprocess.run(command, timeout=1000, capture_output=True)
   lines = result.stdout.splitlines()
@@ -97,7 +98,7 @@ def primesieve() -> float:
   time_line = primesieve_result.stdout.splitlines()[0].decode()
   return float(time_line.split(' ')[1])
 
-def perft(test_sets: dict[str, dict[str, tuple[int]]], command: list[str]) -> None:
+def perft(test_sets: Dict[str, Dict[str, Tuple[int]]], command: List[str]) -> None:
   print("[info] Loading reference split_file")
   ref_splits = load_splits(SPLIT_FILE)
 
@@ -153,6 +154,7 @@ def perft(test_sets: dict[str, dict[str, tuple[int]]], command: list[str]) -> No
     print(Fore.GREEN + f"[result] Geomean speedup: {avg_cat_score:6.4f}" + Style.RESET_ALL)
     print(Fore.GREEN + f"[result] Adjusted total time: {total_adj_t:.2f}s, ref total time: {total_ref_t:.2f}s, linear speedup: {(total_ref_t / total_adj_t):6.4f}" + Style.RESET_ALL)
 
+print("hello")
 
 if __name__ == "__main__":
   mode = sys.argv[1]

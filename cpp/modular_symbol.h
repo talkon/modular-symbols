@@ -3,6 +3,7 @@
 
 // This file defines ModularSymbol and related functions.
 
+#include <cstdint>
 #include <vector>
 
 // Forward declaration

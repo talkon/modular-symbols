@@ -691,7 +691,7 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
   if (b == 0) {
     // (1, 0)_N is always the first element in the basis.
     // XXX: actually check this
-    ManinSymbol ms = {.c = 1, .d = 0, .N = level};
+    ManinSymbol ms = {.N = level, .c = 1, .d = 0};
     ManinGenerator mg = find_generator(ms);
     ManinBasisElement mbe(0, mg);
     return mbe.as_element();
