@@ -9,9 +9,6 @@
 struct ManinBasisElement;
 struct ManinElement;
 
-// Computes the Heilbronn matrices for a given prime p.
-std::vector<IntMatrix2x2> heilbronn_matrices(int64_t p);
-
 // Computes the action of the Hecke operator T_p on the given Manin basis element.
 // p must not divide the level N.
 ManinElement hecke_action(ManinBasisElement, int64_t p);
