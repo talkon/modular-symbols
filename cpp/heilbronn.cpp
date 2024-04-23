@@ -1,6 +1,7 @@
 #include "heilbronn.h"
 #include <cmath>
 
+// Algorithm given in Cremona Ch 2.4
 std::vector<IntMatrix2x2> heilbronn_cremona(int64_t p) {
   std::vector<IntMatrix2x2> result;
   result.push_back({.x = 1, .y = 0, .z = 0, .w = p});
@@ -26,6 +27,36 @@ std::vector<IntMatrix2x2> heilbronn_cremona(int64_t p) {
       y1 = y2;
       y2 = y3;
       result.push_back({.x = x1, .y = x2, .z = y1, .w = y2});
+    }
+  }
+
+  return result;
+}
+
+// Merel's set X (see p.87 in Merel)
+// Based on algorithm used in Sage at src/sage/modular/modsym/heilbronn.pyx in the Sage source code.
+std::vector<IntMatrix2x2> heilbronn_merel(int64_t n) {
+  std::vector<IntMatrix2x2> result;
+
+  int a, b, c, d, q;
+  for (a = 1; a <= n; a++) {
+    q = n / a;
+    if (q * a == n) {
+      d = q;
+      for (b = 0; b < a; b++) {
+        result.push_back({.x = a, .y = b, .z = 0, .w = d});
+      }
+      for (c = 1; c < d; c++) {
+        result.push_back({.x = a, .y = 0, .z = c, .w = d});
+      }
+    }
+    for (d = q + 1; d <= n; d++) {
+      int bc = a * d - n;
+      for (c = bc / a + 1; c < d; c++) {
+        if (bc % c == 0) {
+          result.push_back({.x = a, .y = bc/c, .z = c, .w = d});
+        }
+      }
     }
   }
 

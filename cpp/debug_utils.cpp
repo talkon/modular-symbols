@@ -14,7 +14,7 @@
 
 void debug_temp(int d) {
 
-  for (auto& mat : heilbronn_cremona(d)) {
+  for (auto& mat : heilbronn_merel(d)) {
     mat.print();
     printf("\n");
   }
