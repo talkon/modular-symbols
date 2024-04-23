@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
   int verbose = 0;
   bool use_atkin_lehner = false;
 
-  while ((c = getopt (argc, argv, "n:v:hd")) != -1) {
+  while ((c = getopt (argc, argv, "n:v:hd:")) != -1) {
     switch (c) {
       case 'n':
         level = atol(optarg);
@@ -27,13 +27,13 @@ int main(int argc, char** argv) {
         break;
       case 'd':
         set_verbosity(10);
-        debug_temp();
+        debug_temp(atoi(optarg));
         return 0;
       case 'h':
         printf("Usage\
         \n -n N : (required) sets level to N\
         \n -v V : sets verbosity to V\
-        \n -d   : (used for debugging purposes)\
+        \n -d D : (used for debugging purposes)\
         \n -h   : prints this help message and exits\
         \n");
         return 0;

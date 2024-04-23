@@ -51,7 +51,7 @@ inline void set_verbosity(int v) {
 // --- Functions used for debugging ---
 
 // Debugging function that is run when using `./bin/main -d`.
-void debug_temp();
+void debug_temp(int d);
 
 // Attempts a 4x3 matrix nullspace computation.
 // Can detect issues when FLINT is trying to access an mpz that has already been freed.

@@ -1,6 +1,7 @@
 
 #include "debug_utils.h"
 #include "manin_element.h"
+#include "heilbronn.h"
 
 #include <flint/fmpz_mat.h>
 #include <flint/fmpz_vec.h>
@@ -11,43 +12,49 @@
 #include <cassert>
 #include <map>
 
-void debug_temp() {
-  fmpq_t large, to_be_freed;
-  fmpq_init(large);
-  // fmpq_init(to_be_freed);
-  fmpq_set_str(large, "100000000000000000000", 10);
-  std::vector<MBEWC> vec4, vec5;
+void debug_temp(int d) {
 
-  if (true) {
-    std::vector<MBEWC> vec;
-    vec.emplace_back(0, large);
-    vec4.emplace_back(0, large);
-
-    printf("aaa\n");
-
-    std::vector<MBEWC> vec2(vec);
-
-    printf("bbb\n");
-
-    std::vector<MBEWC> vec3 = vec;
-
-    printf("ccc\n");
-    vec4 = vec;
-
-    printf("ddd\n");
-    vec5 = vec;
-
-    printf("internals:\nvec: ");
-    vec.begin()->print_internals();
-    printf("\nvec4: ");
-    vec4.begin()->print_internals();
-    printf("\nvec5: ");
-    vec5.begin()->print_internals();
-
-    printf("\nend scope\n");
+  for (auto& mat : heilbronn_cremona(d)) {
+    mat.print();
+    printf("\n");
   }
 
-  fmpq_clear(large);
+  // fmpq_t large, to_be_freed;
+  // fmpq_init(large);
+  // // fmpq_init(to_be_freed);
+  // fmpq_set_str(large, "100000000000000000000", 10);
+  // std::vector<MBEWC> vec4, vec5;
+
+  // if (true) {
+  //   std::vector<MBEWC> vec;
+  //   vec.emplace_back(0, large);
+  //   vec4.emplace_back(0, large);
+
+  //   printf("aaa\n");
+
+  //   std::vector<MBEWC> vec2(vec);
+
+  //   printf("bbb\n");
+
+  //   std::vector<MBEWC> vec3 = vec;
+
+  //   printf("ccc\n");
+  //   vec4 = vec;
+
+  //   printf("ddd\n");
+  //   vec5 = vec;
+
+  //   printf("internals:\nvec: ");
+  //   vec.begin()->print_internals();
+  //   printf("\nvec4: ");
+  //   vec4.begin()->print_internals();
+  //   printf("\nvec5: ");
+  //   vec5.begin()->print_internals();
+
+  //   printf("\nend scope\n");
+  // }
+
+  // fmpq_clear(large);
 }
 
 void probe_fmpz_freelist(int depth) {
