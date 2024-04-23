@@ -56,66 +56,28 @@ void fmpz_mat_div_colwise_gcd(fmpz_mat_t mat) {
   fmpz_clear(den);
 }
 
-void fmpq_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpq_poly_t f) {
-  fmpq_t coeff;
-  fmpq_init(coeff);
-  int degree = fmpq_poly_degree(f);
-
-  fmpq_mat_zero(dst);
-
-  // XXX: might be faster to just add to diagonal elements directly.
-  fmpq_mat_t one, coeff_times_one;
-  fmpq_mat_init_set(one, dst);
-  fmpq_mat_one(one);
-  fmpq_mat_init_set(coeff_times_one, one);
-
-  for (int i = 0; i <= degree; i++) {
-    fmpq_poly_get_coeff_fmpq(coeff, f, degree - i);
-    fmpq_mat_scalar_mul_fmpq(coeff_times_one, one, coeff);
-    fmpq_mat_add(dst, dst, coeff_times_one);
-    if (i != degree) {
-      fmpq_mat_mul(dst, dst, src);
-    }
-  }
-
-  fmpq_mat_clear(one);
-  fmpq_mat_clear(coeff_times_one);
-  fmpq_clear(coeff);
-}
-
 // Horner's method
 void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+  int degree = fmpz_poly_degree(f);
+  assert(degree >= 1);
+
   fmpz_t coeff;
   fmpz_init(coeff);
-  int degree = fmpz_poly_degree(f);
 
-  DEBUG_INFO(5,
-    {
-      printf("fmpz_poly_apply_fmpq_mat_horner called with f(T) = ");
-      fmpz_poly_print_pretty(f, "T");
-      printf("\n");
-    }
-  )
+  fmpz_poly_get_coeff_fmpz(coeff, f, degree);
+  fmpq_mat_scalar_mul_fmpz(dst, src, coeff);
 
-  fmpq_mat_zero(dst);
-
-  // XXX: might be faster to just add to diagonal elements directly.
-  fmpq_mat_t one, coeff_times_one;
-  fmpq_mat_init_set(one, dst);
-  fmpq_mat_one(one);
-  fmpq_mat_init_set(coeff_times_one, one);
-
-  for (int i = 0; i <= degree; i++) {
+  for (int i = 1; i <= degree; i++) {
     fmpz_poly_get_coeff_fmpz(coeff, f, degree - i);
-    fmpq_mat_scalar_mul_fmpz(coeff_times_one, one, coeff);
-    fmpq_mat_add(dst, dst, coeff_times_one);
-    if (i != degree) {
+    for (int j = 0; j < fmpq_mat_nrows(dst); j++) {
+      fmpq_add_fmpz(fmpq_mat_entry(dst, j, j), fmpq_mat_entry(dst, j, j), coeff);
+    }
+
+    if (i < degree) {
       fmpq_mat_mul(dst, dst, src);
     }
   }
 
-  fmpq_mat_clear(one);
-  fmpq_mat_clear(coeff_times_one);
   fmpz_clear(coeff);
 }
 
@@ -179,6 +141,28 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
     fmpq_mat_clear(pows[i]);
   }
   flint_free(pows);
+}
+
+void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+  int degree = fmpz_poly_degree(f);
+
+  if (degree == 0) {
+    fmpz_t coeff;
+    fmpz_init(coeff);
+    fmpz_poly_get_coeff_fmpz(coeff, f, 0);
+    fmpq_mat_zero(dst);
+    for (int j = 0; j < fmpq_mat_nrows(dst); j++) {
+      fmpq_set_fmpz(fmpq_mat_entry(dst, j, j), coeff);
+    }
+    fmpz_clear(coeff);
+    return;
+  } else if (degree <= 3) {
+    fmpz_poly_apply_fmpq_mat_horner(dst, src, f);
+    return;
+  } else {
+    fmpz_poly_apply_fmpq_mat_ps(dst, src, f);
+    return;
+  }
 }
 
 void fmpz_mat_print_dimensions(const fmpz_mat_t mat) {

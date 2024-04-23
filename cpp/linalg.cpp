@@ -808,8 +808,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
         continue;
       }
 
-      // TODO: For deg 1 polynomials, don't use P-S?
-      fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
+      fmpz_poly_apply_fmpq_mat(poly_on_f_matrix, f_matrix, factor);
 
       DEBUG_INFO(4,
         {
