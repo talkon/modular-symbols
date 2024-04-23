@@ -7,9 +7,14 @@
 #include "utils.h"
 #include "debug_utils.h"
 #include "cache_decorator.h"
+#include "newform_subspaces.h"
 
 #include <flint/ulong_extras.h>
 #include <cmath>
+
+int Subspace::dimension() {
+  return basis.size();
+}
 
 // TODO: consider caching this, or really, just caching its matrix.
 
@@ -18,15 +23,8 @@ ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   ManinElement result = ManinElement::zero(level);
   for (auto mat : heilbronn_cremona(p)) {
     ManinGenerator mg = mbe.right_action_by(mat).as_generator();
-    // printf("mg: "); mg.print();
-    // printf("\n");
-    // auto mbe = level_and_index_to_basis(level, mg.index);
-    // printf("mbe: "); mbe.print_with_generators();
-    // printf("\n");
     result += level_and_index_to_basis(level, mg.index);
   }
-  // printf("result: "); result.print_with_generators();
-  // printf("\n\n");
   return result;
 }
 
@@ -47,17 +45,46 @@ ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use_atkin_lehner) {
+std::vector<Subspace> newform_subspaces(int64_t level) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
   DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
 
-  std::vector<std::vector<ManinElement>> done;
-  std::vector<std::vector<ManinElement>> remaining = { basis };
+  std::vector<Subspace> remaining;
+  remaining.emplace_back(
+    basis, false, level, std::vector<int64_t>(), std::vector<int64_t>(), std::vector<int64_t>()
+  );
 
   n_factor_t factors;
   n_factor_init(&factors);
   n_factor(&factors, level, 1);
+
+  for (int i = 0; i < factors.num; i++) {
+    int64_t q = n_pow(factors.p[i], factors.exp[i]);
+    DEBUG_INFO_PRINT(2, "Decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
+    auto f = [q](ManinBasisElement mbe) { return atkin_lehner_action(mbe, q); };
+    std::vector<Subspace> updated;
+
+    for (auto& subspace : remaining) {
+      auto splitted = split(subspace.basis, f);
+
+      auto added_pos = subspace.atkin_lehner_pos;
+      added_pos.push_back(factors.p[i]);
+
+      auto added_neg = subspace.atkin_lehner_neg;
+      added_neg.push_back(factors.p[i]);
+
+      if (splitted.pos_space.size() > 0) {
+        updated.emplace_back(splitted.pos_space, false, level, added_pos, subspace.atkin_lehner_neg, subspace.trace_form);
+      }
+
+      if (splitted.neg_space.size() > 0) {
+        updated.emplace_back(splitted.neg_space, false, level, subspace.atkin_lehner_pos, added_neg, subspace.trace_form);
+      }
+    }
+
+    remaining = updated;
+  }
 
   // Sturm bound = N * \prod_{p|N} (1 + 1/p) * k / 12, here k = 2
   int sturm_bound = level;
@@ -66,40 +93,7 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
   }
   sturm_bound /= 6;
 
-  if (use_atkin_lehner) {
-    for (int i = 0; i < factors.num && remaining.size() > 0; i++){
-      int64_t q = n_pow(factors.p[i], factors.exp[i]);
-      DEBUG_INFO_PRINT(2, "Decomposing spaces using Atkin-Lehner involution for prime %lld\n", (int64_t) factors.p[i]);
-      auto f = [q](ManinBasisElement mbe) { return atkin_lehner_action(mbe, q); };
-      std::vector<std::vector<ManinElement>> new_remaining;
-      // XXX: This causes the action of `f` to be recomputed many times.
-      for (auto subspace_basis : remaining) {
-        // TODO: since all eigenvalues are +1 or -1, we don't need to use the full power of decompose()
-        DecomposeResult dr = decompose(subspace_basis, f, true);
-        // minpoly factor degree should always be 1, so if anything goes in done, it's actually done
-        DEBUG_INFO(2,
-          {
-            printf("dim %zu -> ", subspace_basis.size());
-            for (auto basis : dr.done) {
-              printf("%zu,", basis.size());
-            }
-            if (dr.remaining.size() > 0) {
-              printf("(");
-              for (auto basis : dr.remaining) {
-                printf("%zu,", basis.size());
-              }
-              printf(")");
-            }
-            printf("\n");
-          }
-        )
-        done.insert(done.end(), dr.done.begin(), dr.done.end());
-        new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
-      }
-      remaining = new_remaining;
-      DEBUG_INFO_PRINT(2, "Completed q = %lld, done = %zu spaces, remaining = %zu spaces\n", q, done.size(), remaining.size());
-    }
-  }
+  std::vector<Subspace> done;
 
   n_primes_t prime_iter;
   n_primes_init(prime_iter);
@@ -107,6 +101,8 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
 
   while (remaining.size() > 0) {
     int64_t p = n_primes_next(prime_iter);
+
+    // TODO:
     if (level % p == 0) continue;
 
     if (p > sturm_bound) {
@@ -129,13 +125,20 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
         return hecke_action(mbe, p);
       }
     };
-    std::vector<std::vector<ManinElement>> new_remaining;
+    std::vector<Subspace> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
-    for (auto subspace_basis : remaining) {
-      DecomposeResult dr = decompose(subspace_basis, f, false);
+    for (auto& subspace : remaining) {
+
+      if (subspace.dimension() == 1) {
+        subspace.is_newform_subspace = true;
+        done.emplace_back(subspace);
+        continue;
+      }
+
+      DecomposeResult dr = decompose(subspace.basis, f);
       DEBUG_INFO(2,
         {
-          printf("dim %zu -> ", subspace_basis.size());
+          printf("dim %zu -> ", subspace.basis.size());
           for (auto basis : dr.done) {
             printf("%zu,", basis.size());
           }
@@ -150,9 +153,13 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
         }
       )
 
-      // DEBUG_INFO_PRINT(2, "Space size: %zu\n", subspace_basis.size());
-      done.insert(done.end(), dr.done.begin(), dr.done.end());
-      new_remaining.insert(new_remaining.end(), dr.remaining.begin(), dr.remaining.end());
+      for (auto& done_basis : dr.done) {
+        done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg, std::vector<int64_t>());
+      }
+
+      for (auto& remaining_basis: dr.remaining) {
+        new_remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg, std::vector<int64_t>());
+      }
     }
     remaining = new_remaining;
     DEBUG_INFO_PRINT(2, "Completed p = %lld, done = %zu spaces, remaining = %zu spaces\n", p, done.size(), remaining.size());
@@ -165,11 +172,11 @@ std::vector<std::vector<ManinElement>> newform_subspaces(int64_t level, bool use
   return done;
 }
 
-std::vector<int> newform_subspace_dimensions(int64_t level, bool use_atkin_lehner) {
-  auto nss = newform_subspaces(level, use_atkin_lehner);
+std::vector<int> newform_subspace_dimensions(int64_t level) {
+  auto nss = newform_subspaces(level);
   std::vector<int> sizes;
   for (auto ns : nss) {
-    sizes.push_back(ns.size());
+    sizes.push_back(ns.dimension());
   }
   std::sort(sizes.begin(), sizes.end());
   return sizes;

@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 void expect_newform_subspace_dimensions(int level, bool use_atkin_lehner, std::vector<int> expected_sizes) {
-  std::vector<int> computed_sizes = newform_subspace_dimensions(level, use_atkin_lehner);
+  std::vector<int> computed_sizes = newform_subspace_dimensions(level);
   EXPECT_EQ(computed_sizes, expected_sizes);
 }
 

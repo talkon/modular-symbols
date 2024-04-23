@@ -17,16 +17,13 @@ int main(int argc, char** argv) {
   int verbose = 0;
   bool use_atkin_lehner = false;
 
-  while ((c = getopt (argc, argv, "n:v:ahd")) != -1) {
+  while ((c = getopt (argc, argv, "n:v:hd")) != -1) {
     switch (c) {
       case 'n':
         level = atol(optarg);
         break;
       case 'v':
         verbose = atoi(optarg);
-        break;
-      case 'a':
-        use_atkin_lehner = true;
         break;
       case 'd':
         set_verbosity(10);
@@ -36,7 +33,6 @@ int main(int argc, char** argv) {
         printf("Usage\
         \n -n N : (required) sets level to N\
         \n -v V : sets verbosity to V\
-        \n -a   : uses Atkin-Lehner involutions\
         \n -d   : (used for debugging purposes)\
         \n -h   : prints this help message and exits\
         \n");
@@ -48,7 +44,7 @@ int main(int argc, char** argv) {
   init_timer();
 
   DEBUG_INFO_PRINT(1, "Started computation for level %lld\n", level);
-  auto dims = newform_subspace_dimensions(level, use_atkin_lehner);
+  auto dims = newform_subspace_dimensions(level);
   DEBUG_INFO_PRINT(1, "Finished computation for level %lld\n", level);
   printf("%lld:[", level);
   for (int i = 0; i < dims.size(); i++) {

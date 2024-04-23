@@ -13,6 +13,16 @@
 // `f` should be a map to Manin symbols of level `M`.
 std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, int64_t M);
 
+struct SplitResult {
+  std::vector<ManinElement> pos_space;
+  std::vector<ManinElement> neg_space;
+
+  static SplitResult empty();
+};
+
+// Splits a space by Atkin-Lehner sign, where `f` is an Atkin-Lehner involution.
+SplitResult split(std::vector<ManinElement>, std::function<ManinElement (ManinBasisElement)> f);
+
 struct DecomposeResult {
   std::vector<std::vector<ManinElement>> done;
   std::vector<std::vector<ManinElement>> remaining;
@@ -22,8 +32,6 @@ struct DecomposeResult {
 
 // Decomposes a subspace with the given basis into simple f-modules,
 // where `f` is a linear map.
-// If is_atkin_lehner, assume that minimal polynomial divides T^2-1.
-DecomposeResult decompose(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, bool is_atkin_lehner);
-
+DecomposeResult decompose(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f);
 
 #endif // LINALG_H
