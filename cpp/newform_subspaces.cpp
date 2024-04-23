@@ -102,7 +102,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only) {
   while (remaining.size() > 0) {
     int64_t p = n_primes_next(prime_iter);
 
-    // TODO:
+    // TODO: consider using Merel's Heilbronn matrices?
     if (level % p == 0) continue;
 
     if (p > sturm_bound) {

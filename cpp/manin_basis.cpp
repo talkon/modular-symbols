@@ -127,10 +127,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   // Modulo out by S relations (see Stein Ch 3.3) //
   // -------------------------------------------- //
 
-  // BUG: contains duplicate rows.
-  // [ ] Start with eta_generators instead of generators to avoid redundant relations.
-  // Also see Cremona Ch 2.5.
-
   bool done_S[num_eta_gens];
   for (int i = 0; i < num_eta_gens; i++) {
     done_S[i] = false;
@@ -681,8 +677,6 @@ std::vector<ManinBasisElement> manin_basis(const int64_t level) {
 }
 
 ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const int64_t level) {
-
-  // printf("fraction_to_manin_element called with (a, b, level) = (%lld, %lld, %lld)\n", a, b, level);
 
   if (a == 0) {
     return ManinElement::zero(level);

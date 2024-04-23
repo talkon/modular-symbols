@@ -160,15 +160,6 @@ ManinElement ManinElement::zero(const int64_t level) {
   return result;
 }
 
-// FIXME: this causes some ownership issues!
-// void ManinElement::sort() {
-//   throw std::runtime_error("ManinElement::sort() currently has issues\n");
-//   // printf("x\n");
-//   std::sort(components.begin(), components.end());
-//   // printf("y\n");
-//   is_sorted = true;
-// }
-
 void ManinElement::mark_as_sorted_unchecked() {
   is_sorted = true;
 }
@@ -221,10 +212,8 @@ ManinElement& ManinElement::operator+= (const ManinElement& other) {
     }
   }
 
-  // Force copying of elements from merged to this.components()
-  // XXX: it seems like `this->components = merged` will call the
-  this->components.clear();
-  this->components.insert(this->components.end(), merged.begin(), merged.end());
+  // This is fine with move semantics
+  this->components = merged;
 
   return *this;
 }
@@ -279,9 +268,9 @@ ManinElement& ManinElement::operator-= (const ManinElement& other) {
     }
   }
 
-  // Force copying of elements from merged to this.components()
-  this->components.clear();
-  this->components.insert(this->components.end(), merged.begin(), merged.end());
+  // This is fine with move semantics
+  this->components = merged;
+
   return *this;
 }
 
