@@ -32,6 +32,7 @@ struct DecomposeResult {
 
 // Decomposes a subspace with the given basis into simple f-modules,
 // where `f` is a linear map.
-DecomposeResult decompose(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f);
+// If `dimension_only` is true, only computes dimension of subspaces.
+DecomposeResult decompose(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, bool dimension_only);
 
 #endif // LINALG_H

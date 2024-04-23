@@ -563,7 +563,7 @@ DecomposeResult DecomposeResult::empty() {
 
 // TODO: should be faster to decompose using a matrix of the action on the newform subspace
 
-DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f) {
+DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f, bool dimension_only) {
   // If the input space is trivial, the result is also trivial.
   if (B.size() == 0) {
     return DecomposeResult::empty();
@@ -734,6 +734,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   fmpq_poly_init(min_poly);
   fmpz_poly_init(min_poly_z);
 
+
   if (fmpq_mat_is_zero(f_matrix)) {
     // XXX: FLINT seems to think that the minimal polynomial of the zero matrix is 1, and not T.
     // Manually set the minimal polynomial to x.
@@ -743,7 +744,18 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     fmpq_poly_get_numerator(min_poly_z, min_poly);
   }
 
-  DEBUG_INFO_PRINT(3, " min_poly_z degree: %ld\n", fmpz_poly_degree(min_poly_z));
+  // Note: computing char_poly seems much slower than min_poly, so we're not using this code:
+  // if (dimension_only) {
+  //   if (fmpq_mat_is_zero(f_matrix)) {
+  //     fmpz_poly_set_coeff_si(min_poly_z, B.size(), 1);
+  //   } else {
+  //     fmpq_mat_charpoly(min_poly, f_matrix);
+  //     fmpq_poly_get_numerator(min_poly_z, min_poly);
+  //   }
+
+  int min_poly_degree = fmpz_poly_degree(min_poly_z);
+
+  DEBUG_INFO_PRINT(3, " min_poly_z degree: %d\n", min_poly_degree);
 
   DEBUG_INFO(5,
     {
@@ -764,7 +776,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     // This should actually be impossible
     assert(false);
   } else if (num_factors == 1) {
-    int deg = fmpz_poly_degree(min_poly_z);
+    int deg = fmpz_poly_degree(min_poly_factored->p);
     if (deg == B.size()) {
       done.push_back(B);
       DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
@@ -781,10 +793,20 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
 
     fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
 
+    int dimension_excess = 0;
+
     // For each factor g of the minpoly, we compute g(T) and take its kernel.
     for (int i = 0; i < num_factors; i++) {
 
       fmpz_poly_struct *factor = min_poly_factored->p + i;
+      int exp = *(min_poly_factored->exp + i);
+      int degree = fmpz_poly_degree(factor);
+
+      if (dimension_only && (min_poly_degree + dimension_excess + degree > B.size())) {
+        DEBUG_INFO_PRINT(3, " factor appears only once, degree: %d\n", degree);
+        done.emplace_back(degree, ManinElement::zero(N));
+        continue;
+      }
 
       // TODO: For deg 1 polynomials, don't use P-S?
       fmpz_poly_apply_fmpq_mat_ps(poly_on_f_matrix, f_matrix, factor);
@@ -796,8 +818,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
           printf("\n");
         }
       )
-
-      int degree = fmpz_poly_degree(factor);
       // NOTE: this needs to be rowwise!
       fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
 
@@ -888,6 +908,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
       if (degree == rank) {
         done.push_back(output);
       } else {
+        dimension_excess += (rank - degree);
         remaining.push_back(output);
       }
     }

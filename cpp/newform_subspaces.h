@@ -47,7 +47,7 @@ ManinElement hecke_action(ManinBasisElement, int64_t p);
 ManinElement atkin_lehner_action(ManinBasisElement, int64_t q);
 
 // Computes the newform subspaces of a given level.
-std::vector<Subspace> newform_subspaces(int64_t level);
+std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only);
 
 // Computes the dimensions of the newform subspaces of a given level.
 std::vector<int> newform_subspace_dimensions(int64_t level);

@@ -45,7 +45,7 @@ ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<Subspace> newform_subspaces(int64_t level) {
+std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
   DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
@@ -135,7 +135,7 @@ std::vector<Subspace> newform_subspaces(int64_t level) {
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace.basis, f);
+      DecomposeResult dr = decompose(subspace.basis, f, dimension_only);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
@@ -173,7 +173,7 @@ std::vector<Subspace> newform_subspaces(int64_t level) {
 }
 
 std::vector<int> newform_subspace_dimensions(int64_t level) {
-  auto nss = newform_subspaces(level);
+  auto nss = newform_subspaces(level, true);
   std::vector<int> sizes;
   for (auto ns : nss) {
     sizes.push_back(ns.dimension());
