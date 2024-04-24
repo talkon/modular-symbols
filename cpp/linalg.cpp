@@ -596,7 +596,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
     }
   }
 
-  // XXX: this feels a bit wasteful
   fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
   fmpq_mat_clear(B_matrix);
 

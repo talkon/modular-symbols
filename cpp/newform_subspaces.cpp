@@ -8,12 +8,42 @@
 #include "debug_utils.h"
 #include "cache_decorator.h"
 #include "newform_subspaces.h"
+#include "fmpz_mat_helpers.h"
+#include "flint_wrappers.h"
 
 #include <flint/ulong_extras.h>
+#include <flint/fmpz_mat.h>
+#include <flint/fmpz_vec.h>
+
+#include <set>
+#include <cassert>
 #include <cmath>
 
-int Subspace::dimension() {
+int Subspace::dimension() const {
   return basis.size();
+}
+
+void Subspace::print() const {
+  printf("%d:", dimension());
+
+  n_factor_t factors;
+  n_factor_init(&factors);
+  n_factor(&factors, level, 1);
+
+  for (int i = 0; i < factors.num; i++) {
+    int64_t p = factors.p[i];
+    if (std::find(atkin_lehner_pos.begin(), atkin_lehner_pos.end(), p) != atkin_lehner_pos.end()) {
+      printf("+%lld", p);
+    } else {
+      printf("-%lld", p);
+    }
+    if (i < factors.num - 1) printf(",");
+  }
+
+  printf(":");
+  for (int i = 1; i <= trace_depth; i++) {
+    printf("%lld,", trace_form.at(i));
+  }
 }
 
 // TODO: consider caching this, or really, just caching its matrix.
@@ -21,9 +51,17 @@ int Subspace::dimension() {
 ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   int64_t level = mbe.N;
   ManinElement result = ManinElement::zero(level);
-  for (auto mat : heilbronn_cremona(p)) {
-    ManinGenerator mg = mbe.right_action_by(mat).as_generator();
-    result += level_and_index_to_basis(level, mg.index);
+  // TODO: it seems like something is wrong with the computation of Merel matrices
+  if (level % p == 0) {
+    for (auto mat : heilbronn_merel(p)) {
+      ManinGenerator mg = mbe.right_action_by(mat).as_generator();
+      result += level_and_index_to_basis(level, mg.index);
+    }
+  } else {
+    for (auto mat : heilbronn_cremona(p)) {
+      ManinGenerator mg = mbe.right_action_by(mat).as_generator();
+      result += level_and_index_to_basis(level, mg.index);
+    }
   }
   return result;
 }
@@ -45,14 +83,14 @@ ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only) {
+std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int trace_depth) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
   DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
 
   std::vector<Subspace> remaining;
   remaining.emplace_back(
-    basis, false, level, std::vector<int64_t>(), std::vector<int64_t>(), std::vector<int64_t>()
+    basis, false, level, std::vector<int64_t>(), std::vector<int64_t>()
   );
 
   n_factor_t factors;
@@ -75,11 +113,11 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only) {
       added_neg.push_back(factors.p[i]);
 
       if (splitted.pos_space.size() > 0) {
-        updated.emplace_back(splitted.pos_space, false, level, added_pos, subspace.atkin_lehner_neg, subspace.trace_form);
+        updated.emplace_back(splitted.pos_space, false, level, added_pos, subspace.atkin_lehner_neg);
       }
 
       if (splitted.neg_space.size() > 0) {
-        updated.emplace_back(splitted.neg_space, false, level, subspace.atkin_lehner_pos, added_neg, subspace.trace_form);
+        updated.emplace_back(splitted.neg_space, false, level, subspace.atkin_lehner_pos, added_neg);
       }
     }
 
@@ -154,11 +192,11 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only) {
       )
 
       for (auto& done_basis : dr.done) {
-        done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg, std::vector<int64_t>());
+        done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
       }
 
       for (auto& remaining_basis: dr.remaining) {
-        new_remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg, std::vector<int64_t>());
+        new_remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
       }
     }
     remaining = new_remaining;
@@ -169,15 +207,287 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only) {
 
   n_primes_clear(prime_iter);
 
-  return done;
+  for (auto& subspace : done) {
+    subspace.compute_next_trace();
+  }
+
+  auto compare = [&done] (int a, int b) {
+    for (int i = 1; i <= done.at(a).trace_depth && i <= done.at(b).trace_depth; i++) {
+      if (done.at(a).trace_form.at(i) == done.at(b).trace_form.at(i)) continue;
+      else return done.at(a).trace_form.at(i) < done.at(b).trace_form.at(i);
+    }
+    return false;
+  };
+
+  int num_subspaces = done.size();
+  std::vector<int> subspace_order(num_subspaces);
+  for (int i = 0; i < num_subspaces; i++) {
+    subspace_order[i] = i;
+  }
+
+  std::sort(subspace_order.begin(), subspace_order.end(), compare);
+
+  DEBUG_INFO_PRINT(1, "Starting computation of trace forms for level %lld\n", level);
+
+  if (!dimension_only) {
+    while (true) {
+      std::set<int> next_trace_needed;
+
+      for (int i = 0; i < num_subspaces - 1; i++) {
+        if (done.at(subspace_order[i]).trace_form == done.at(subspace_order[i+1]).trace_form) {
+          next_trace_needed.insert(i);
+          next_trace_needed.insert(i+1);
+        }
+      }
+
+      if (next_trace_needed.empty()) break;
+
+      for (int i : next_trace_needed) {
+        DEBUG_INFO_PRINT(3,
+          " Subspace %d, dimension %d, depth %d\n",
+          subspace_order[i],
+          done.at(subspace_order[i]).dimension(),
+          done.at(subspace_order[i]).trace_depth + 1
+        );
+        done.at(subspace_order[i]).compute_next_trace();
+      }
+
+      // This is a bit inefficient, but this is not taking up much execution time anyways.
+      std::sort(subspace_order.begin(), subspace_order.end(), compare);
+    }
+
+    for (auto& subspace : done) {
+      subspace.compute_trace_until(trace_depth);
+    }
+  }
+
+  std::vector<Subspace> sorted;
+  for (auto i : subspace_order) {
+    sorted.emplace_back(done.at(i));
+  }
+
+  return sorted;
 }
 
 std::vector<int> newform_subspace_dimensions(int64_t level) {
-  auto nss = newform_subspaces(level, true);
+  auto nss = newform_subspaces(level, false, 10);
   std::vector<int> sizes;
   for (auto ns : nss) {
     sizes.push_back(ns.dimension());
   }
   std::sort(sizes.begin(), sizes.end());
   return sizes;
+}
+
+int Subspace::compute_next_trace() {
+  int n = trace_depth + 1;
+  int dim = dimension();
+  assert(dim > 0);
+  int64_t level = basis[0].N;
+
+  n_factor_t factors;
+  n_factor_init(&factors);
+  n_factor(&factors, n, 1);
+
+  int g = n_gcd(n, level);
+
+  if (g == 1) {
+    fmpq_mat_t f_matrix;
+    fmpq_mat_init(f_matrix, dim, dim);
+
+    if (n == 1) {
+      fmpq_mat_one(f_matrix);
+    }
+    else if (n_is_prime(n)) {
+      int p = n;
+      // XXX: There's a lot of copied code here
+      std::vector<ManinBasisElement> N_basis = manin_basis(level);
+
+      // Construct matrix of B
+      fmpq_mat_t B_matrix;
+      fmpq_mat_init(B_matrix, N_basis.size(), basis.size());
+      fmpq_mat_zero(B_matrix);
+
+      fmpz_mat_t B_matrix_z;
+      fmpz_mat_init(B_matrix_z, N_basis.size(), basis.size());
+      fmpz_mat_zero(B_matrix_z);
+
+      for (int col = 0; col < basis.size(); col++) {
+        ManinElement b = basis[col];
+        // b.print_with_generators();
+        // printf("\n");
+        for (MBEWC component : b.components) {
+          int row = component.basis_index;
+          // printf("%d\n", row);
+          assert(row < N_basis.size());
+          fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
+        }
+      }
+
+      fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
+      fmpq_mat_clear(B_matrix);
+
+      DEBUG_INFO(4,
+        {
+          printf("B_matrix_z: ");
+          fmpz_mat_print_dimensions(B_matrix_z);
+          printf("\n");
+        }
+      )
+
+      // Finds pivot rows of the matrix B.
+      std::vector<int> pivots;
+      fmpz* pivot_coeffs = _fmpz_vec_init(basis.size());
+
+      int current_col = 0;
+      for (int row = 0; row < N_basis.size(); row++) {
+        // printf("%d %d\n", row, current_col);
+        bool is_pivot = true;
+        for (int col = 0; col < basis.size(); col++) {
+          if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
+            is_pivot = false;
+            break;
+          }
+        }
+
+        if (!is_pivot) continue;
+
+        if (fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, current_col))) continue;
+
+        pivots.push_back(row);
+        fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B_matrix_z, row, current_col));
+        current_col++;
+
+        if (current_col == basis.size()) break;
+      }
+
+      // Construct matrix of the linear map f acting on B
+
+      fmpq_mat_t map_of_basis;
+      fmpq_mat_init(map_of_basis, basis.size(), N_basis.size());
+      for (int col = 0; col < N_basis.size(); col++) {
+        ManinElement fb = hecke_action(N_basis[col], p);
+        // if (level % p == 0) {
+        //   fb.print();
+        //   printf("\n");
+        // }
+
+        auto it = fb.components.begin();
+        int pivot_index = 0;
+
+        while (true) {
+          if (it == fb.components.end()) break;
+          if (pivot_index == pivots.size()) break;
+
+          int row = it->basis_index;
+
+          if (row > pivots[pivot_index]) {
+            pivot_index++;
+          } else if (row == pivots[pivot_index]) {
+            fmpq_t coeff;
+            fmpq_init(coeff);
+            fmpq_set(coeff, it->coeff);
+            fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
+            fmpq_set(fmpq_mat_entry(map_of_basis, pivot_index, col), coeff);
+            fmpq_clear(coeff);
+            it++;
+            pivot_index++;
+          } else if (row < pivots[pivot_index]) {
+            it++;
+          }
+        }
+      }
+
+      DEBUG_INFO(4,
+        {
+          printf("map_of_basis: ");
+          fmpq_mat_print_dimensions(map_of_basis);
+          printf("\n");
+        }
+      )
+
+      fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B_matrix_z);
+      fmpq_mat_clear(map_of_basis);
+
+      DEBUG_INFO(4,
+        {
+          printf("f_matrix: ");
+          fmpq_mat_print_dimensions(f_matrix);
+          printf("\n");
+        }
+      )
+
+      // fmpq_mat_print(f_matrix);
+
+      _fmpz_vec_clear(pivot_coeffs, basis.size());
+    }
+    else if (factors.num == 1) {
+      int64_t p = factors.p[0];
+      int exp = factors.exp[0];
+      int n_over_p = n_pow(p, exp - 1);
+      fmpq_mat_mul(f_matrix, hecke_matrices.at(n_over_p).mat, hecke_matrices.at(p).mat);
+      if (level % p != 0) {
+        fmpq_mat_t temp;
+        fmpz_t P;
+        fmpq_mat_init(temp, dim, dim);
+        fmpz_init_set_si(P, p);
+
+        fmpq_mat_scalar_mul_fmpz(temp, hecke_matrices.at(n_over_p / p).mat, P);
+        fmpq_mat_sub(f_matrix, f_matrix, temp);
+
+        fmpq_mat_clear(temp);
+        fmpz_clear(P);
+      }
+    }
+    else {
+      int64_t q = n_pow(factors.p[0], factors.exp[0]);
+      fmpq_mat_mul(f_matrix, hecke_matrices.at(n / q).mat, hecke_matrices.at(q).mat);
+    }
+    fmpq_t trace;
+    fmpq_init(trace);
+    fmpq_mat_trace(trace, f_matrix);
+    assert(fmpz_is_one(fmpq_denref(trace)));
+
+    int trace_int = fmpz_get_si(fmpq_numref(trace));
+    trace_form.insert(std::make_pair(n, trace_int));
+    fmpq_clear(trace);
+
+    FmpqMatrix hecke_matrix;
+    hecke_matrix.set_move(f_matrix);
+    hecke_matrices.insert(std::make_pair(n, hecke_matrix));
+
+    trace_depth++;
+  }
+  else {
+    int64_t x = 1;
+    int sign = 1;
+
+    for (int i = 0; i < factors.num; i++) {
+      int64_t p = factors.p[i];
+      int exp = factors.exp[i];
+
+      if (level % p == 0) {
+        if (level % (p * p) == 0) sign = 0;
+        else if (
+          exp % 2 == 1
+          && std::find(atkin_lehner_pos.begin(), atkin_lehner_pos.end(), p) != atkin_lehner_pos.end()
+        ) {
+          sign = -sign;
+        }
+      }
+      else {
+        x *= n_pow(p, exp);
+      }
+    }
+
+    int trace_int = trace_form.at(x) * sign;
+    trace_form.insert(std::make_pair(n, trace_int));
+    trace_depth++;
+  }
+
+  return trace_depth;
+}
+
+void Subspace::compute_trace_until(int depth) {
+  while (trace_depth < depth) compute_next_trace();
 }

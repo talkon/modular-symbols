@@ -86,7 +86,7 @@ def run_test(command: List[str], level: int) -> Tuple[SplitInfo, List[float]]:
   result = subprocess.run(command, timeout=1000, capture_output=True)
   lines = result.stdout.splitlines()
   last_line = lines[-1].decode()
-  c_sub_times = [float(l.decode().split()[0][5:-1]) for l in lines[:-1]]
+  c_sub_times = [float(l.decode().split()[0][5:-1]) for l in lines[:6]]
   sub_times = [c_sub_times[2], c_sub_times[3] - c_sub_times[2], c_sub_times[4] - c_sub_times[3]]
   return SplitInfo.parse_line(last_line), sub_times
 
