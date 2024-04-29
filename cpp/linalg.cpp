@@ -292,6 +292,8 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     for (int col = 0; col < N_basis.size(); col++) {
       ManinElement fb = f(N_basis[col]);
 
+      // printf("%zu out of %zu\n", fb.components.size(), N_basis.size());
+
       auto it = fb.components.begin();
       int pivot_index = 0;
 
@@ -563,7 +565,7 @@ DecomposeResult DecomposeResult::empty() {
 
 // TODO: should be faster to decompose using a matrix of the action on the newform subspace
 
-DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElement(ManinBasisElement)> f, bool dimension_only) {
+DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis, bool dimension_only) {
   // If the input space is trivial, the result is also trivial.
   if (B.size() == 0) {
     return DecomposeResult::empty();
@@ -637,91 +639,125 @@ DecomposeResult decompose(std::vector<ManinElement> B, std::function<ManinElemen
   fmpq_mat_t f_matrix;
   fmpq_mat_init(f_matrix, B.size(), B.size());
 
-  bool use_map_of_basis = true;
+  fmpq_mat_t pivot_rows;
+  fmpq_mat_init(pivot_rows, B.size(), N_basis.size());
 
-  if (use_map_of_basis) {
-    fmpq_mat_t map_of_basis;
-    fmpq_mat_init(map_of_basis, B.size(), N_basis.size());
+  for (int row = 0; row < B.size(); row++) {
     for (int col = 0; col < N_basis.size(); col++) {
-      ManinElement fb = f(N_basis[col]);
-
-      auto it = fb.components.begin();
-      int pivot_index = 0;
-
-      while (true) {
-        if (it == fb.components.end()) break;
-        if (pivot_index == pivots.size()) break;
-
-        int row = it->basis_index;
-
-        if (row > pivots[pivot_index]) {
-          pivot_index++;
-        } else if (row == pivots[pivot_index]) {
-          fmpq_t coeff;
-          fmpq_init(coeff);
-          fmpq_set(coeff, it->coeff);
-          fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
-          fmpq_set(fmpq_mat_entry(map_of_basis, pivot_index, col), coeff);
-          fmpq_clear(coeff);
-          it++;
-          pivot_index++;
-        } else if (row < pivots[pivot_index]) {
-          it++;
-        }
-      }
-    }
-
-    DEBUG_INFO(4,
-      {
-        printf("map_of_basis: ");
-        fmpq_mat_print_dimensions(map_of_basis);
-        printf("\n");
-      }
-    )
-
-    fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B_matrix_z);
-    fmpq_mat_clear(map_of_basis);
-
-    DEBUG_INFO(4,
-      {
-        printf("f_matrix: ");
-        fmpq_mat_print_dimensions(f_matrix);
-        printf("\n");
-      }
-    )
-
-  } else {
-    for (int col = 0; col < B.size(); col++) {
-      ManinElement fb = B[col].map(f, N);
-
-      // printf("rows: ");
-
-      auto it = fb.components.begin();
-      int pivot_index = 0;
-
-      while (true) {
-        if (it == fb.components.end()) break;
-        if (pivot_index == pivots.size()) break;
-
-        int row = it->basis_index;
-
-        if (row > pivots[pivot_index]) {
-          pivot_index++;
-        } else if (row == pivots[pivot_index]) {
-          fmpq_t coeff;
-          fmpq_init(coeff);
-          fmpq_set(coeff, it->coeff);
-          fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
-          fmpq_set(fmpq_mat_entry(f_matrix, pivot_index, col), coeff);
-          fmpq_clear(coeff);
-          it++;
-          pivot_index++;
-        } else if (row < pivots[pivot_index]) {
-          it++;
-        }
-      }
+      fmpq_div_fmpz(
+        fmpq_mat_entry(pivot_rows, row, col),
+        fmpq_mat_entry(map_of_basis.mat, pivots[row], col),
+        (pivot_coeffs + row)
+      );
     }
   }
+
+  DEBUG_INFO(4,
+    {
+      printf("pivot_rows: ");
+      fmpq_mat_print_dimensions(pivot_rows);
+      printf("\n");
+    }
+  )
+
+  fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B_matrix_z);
+  fmpq_mat_clear(pivot_rows);
+
+  DEBUG_INFO(4,
+    {
+      printf("f_matrix: ");
+      fmpq_mat_print_dimensions(f_matrix);
+      printf("\n");
+    }
+  )
+
+  // bool use_map_of_basis = true;
+
+  // if (use_map_of_basis) {
+  //   fmpq_mat_t map_of_basis;
+  //   fmpq_mat_init(map_of_basis, B.size(), N_basis.size());
+  //   for (int col = 0; col < N_basis.size(); col++) {
+  //     ManinElement fb = f(N_basis[col]);
+
+  //     printf("%zu out of %zu\n", fb.components.size(), N_basis.size());
+
+  //     auto it = fb.components.begin();
+  //     int pivot_index = 0;
+
+  //     while (true) {
+  //       if (it == fb.components.end()) break;
+  //       if (pivot_index == pivots.size()) break;
+
+  //       int row = it->basis_index;
+
+  //       if (row > pivots[pivot_index]) {
+  //         pivot_index++;
+  //       } else if (row == pivots[pivot_index]) {
+  //         fmpq_t coeff;
+  //         fmpq_init(coeff);
+  //         fmpq_set(coeff, it->coeff);
+  //         fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
+  //         fmpq_set(fmpq_mat_entry(map_of_basis, pivot_index, col), coeff);
+  //         fmpq_clear(coeff);
+  //         it++;
+  //         pivot_index++;
+  //       } else if (row < pivots[pivot_index]) {
+  //         it++;
+  //       }
+  //     }
+  //   }
+
+  //   DEBUG_INFO(4,
+  //     {
+  //       printf("map_of_basis: ");
+  //       fmpq_mat_print_dimensions(map_of_basis);
+  //       printf("\n");
+  //     }
+  //   )
+
+  //   fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B_matrix_z);
+  //   fmpq_mat_clear(map_of_basis);
+
+  //   DEBUG_INFO(4,
+  //     {
+  //       printf("f_matrix: ");
+  //       fmpq_mat_print_dimensions(f_matrix);
+  //       printf("\n");
+  //     }
+  //   )
+
+  // } else {
+  //   for (int col = 0; col < B.size(); col++) {
+  //     ManinElement fb = B[col].map(f, N);
+
+  //     // printf("rows: ");
+
+  //     auto it = fb.components.begin();
+  //     int pivot_index = 0;
+
+  //     while (true) {
+  //       if (it == fb.components.end()) break;
+  //       if (pivot_index == pivots.size()) break;
+
+  //       int row = it->basis_index;
+
+  //       if (row > pivots[pivot_index]) {
+  //         pivot_index++;
+  //       } else if (row == pivots[pivot_index]) {
+  //         fmpq_t coeff;
+  //         fmpq_init(coeff);
+  //         fmpq_set(coeff, it->coeff);
+  //         fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
+  //         fmpq_set(fmpq_mat_entry(f_matrix, pivot_index, col), coeff);
+  //         fmpq_clear(coeff);
+  //         it++;
+  //         pivot_index++;
+  //       } else if (row < pivots[pivot_index]) {
+  //         it++;
+  //       }
+  //     }
+  //   }
+  // }
 
   _fmpz_vec_clear(pivot_coeffs, B.size());
 

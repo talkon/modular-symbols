@@ -1,8 +1,10 @@
 #include "heilbronn.h"
+#include "cache_decorator.h"
+
 #include <cmath>
 
 // Algorithm given in Cremona Ch 2.4
-std::vector<IntMatrix2x2> heilbronn_cremona(int64_t p) {
+std::vector<IntMatrix2x2> _impl_heilbronn_cremona(int64_t p) {
   std::vector<IntMatrix2x2> result;
   result.push_back({.x = 1, .y = 0, .z = 0, .w = p});
 
@@ -33,9 +35,14 @@ std::vector<IntMatrix2x2> heilbronn_cremona(int64_t p) {
   return result;
 }
 
+std::vector<IntMatrix2x2>& heilbronn_cremona(int64_t p) {
+  static CacheDecorator<std::vector<IntMatrix2x2>, int64_t> _cache_heilbronn_cremona(_impl_heilbronn_cremona);
+  return _cache_heilbronn_cremona(p);
+}
+
 // Merel's set X (see p.87 in Merel)
 // Based on algorithm used in Sage at src/sage/modular/modsym/heilbronn.pyx in the Sage source code.
-std::vector<IntMatrix2x2> heilbronn_merel(int64_t n) {
+std::vector<IntMatrix2x2> _impl_heilbronn_merel(int64_t n) {
   std::vector<IntMatrix2x2> result;
 
   int a, b, c, d, q;
@@ -61,4 +68,9 @@ std::vector<IntMatrix2x2> heilbronn_merel(int64_t n) {
   }
 
   return result;
+}
+
+std::vector<IntMatrix2x2>& heilbronn_merel(int64_t n) {
+  static CacheDecorator<std::vector<IntMatrix2x2>, int64_t> _cache_heilbronn_merel(_impl_heilbronn_merel);
+  return _cache_heilbronn_merel(n);
 }

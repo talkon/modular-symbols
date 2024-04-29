@@ -5,6 +5,7 @@
 
 #include "manin_basis.h"
 #include "manin_element.h"
+#include "flint_wrappers.h"
 
 #include <vector>
 
@@ -31,8 +32,8 @@ struct DecomposeResult {
 };
 
 // Decomposes a subspace with the given basis into simple f-modules,
-// where `f` is a linear map.
+// where `map_of_basis` is a matrix of the linear map f acting on the standard basis.
 // If `dimension_only` is true, only computes dimension of subspaces.
-DecomposeResult decompose(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, bool dimension_only);
+DecomposeResult decompose(std::vector<ManinElement>, FmpqMatrix& map_of_basis, bool dimension_only);
 
 #endif // LINALG_H

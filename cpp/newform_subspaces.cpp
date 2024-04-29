@@ -55,6 +55,7 @@ ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   if (level % p == 0) {
     for (auto mat : heilbronn_merel(p)) {
       ManinGenerator mg = mbe.right_action_by(mat).as_generator();
+      // TODO: this += is unnecessarily expensive
       result += level_and_index_to_basis(level, mg.index);
     }
   } else {
@@ -66,9 +67,42 @@ ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   return result;
 }
 
-ManinElement hecke_action(ManinBasisElement mbe, int64_t p) {
+ManinElement& hecke_action(ManinBasisElement mbe, int64_t p) {
   static CacheDecorator<ManinElement, ManinBasisElement, int64_t> _cache_hecke_action(_impl_hecke_action);
   return _cache_hecke_action(mbe, p);
+}
+
+FmpqMatrix _impl_hecke_matrix(int64_t level, int64_t p) {
+  assert(level % p != 0);
+  auto basis = manin_basis(level);
+
+  fmpq_mat_t map_of_basis;
+  // I think this inits to zero
+  fmpq_mat_init(map_of_basis, basis.size(), basis.size());
+
+  for (int col = 0; col < basis.size(); col++) {
+    for (auto mat : heilbronn_cremona(p)) {
+      auto mg = basis[col].right_action_by(mat).as_generator();
+      auto me = level_and_index_to_basis(level, mg.index);
+
+      for (auto component : me.components) {
+        fmpq_add(
+          fmpq_mat_entry(map_of_basis, component.basis_index, col),
+          fmpq_mat_entry(map_of_basis, component.basis_index, col),
+          component.coeff
+        );
+      }
+    }
+  }
+
+  FmpqMatrix mat;
+  mat.set_move(map_of_basis);
+  return mat;
+}
+
+FmpqMatrix& hecke_matrix(int64_t level, int64_t p) {
+  static CacheDecorator<FmpqMatrix, int64_t, int64_t> _cache_hecke_matrix(_impl_hecke_matrix);
+  return _cache_hecke_matrix(level, p);
 }
 
 ManinElement _impl_atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
@@ -78,7 +112,7 @@ ManinElement _impl_atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return mbe.as_modular_symbol().left_action_by(matrix).to_manin_element(level);
 }
 
-ManinElement atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
+ManinElement& atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   static CacheDecorator<ManinElement, ManinBasisElement, int64_t> _cache_atkin_lehner_action(_impl_atkin_lehner_action);
   return _cache_atkin_lehner_action(mbe, q);
 }
@@ -150,19 +184,20 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       break;
     }
 
-    if (prev_p) {
-      DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld + T_%lld\n", prev_p, p);
-    } else {
-      DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld\n", p);
-    }
+    // TODO: maybe use old code path for prime-ish numbers?
+    // if (prev_p) {
+    //   DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld + T_%lld\n", prev_p, p);
+    // } else {
+    //   DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld\n", p);
+    // }
 
-    auto f = [prev_p, p](ManinBasisElement mbe) {
-      if (prev_p) {
-        return hecke_action(mbe, p) + hecke_action(mbe, prev_p);
-      } else {
-        return hecke_action(mbe, p);
-      }
-    };
+    // auto f = [prev_p, p](ManinBasisElement mbe) {
+    //   if (prev_p) {
+    //     return hecke_action(mbe, p) + hecke_action(mbe, prev_p);
+    //   } else {
+    //     return hecke_action(mbe, p);
+    //   }
+    // };
     std::vector<Subspace> new_remaining;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto& subspace : remaining) {
@@ -173,7 +208,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace.basis, f, dimension_only);
+      DecomposeResult dr = decompose(subspace.basis, hecke_matrix(level, p), dimension_only);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
@@ -257,6 +292,11 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     }
 
     for (auto& subspace : done) {
+        DEBUG_INFO_PRINT(3,
+          " Subspace dimension %d, until depth %d\n",
+          subspace.dimension(),
+          trace_depth
+        );
       subspace.compute_trace_until(trace_depth);
     }
   }
