@@ -26,6 +26,7 @@ SplitResult split(std::vector<ManinElement>, std::function<ManinElement (ManinBa
 
 struct DecomposeResult {
   std::vector<std::vector<ManinElement>> done;
+  std::vector<std::vector<ManinElement>> special;
   std::vector<std::vector<ManinElement>> remaining;
 
   static DecomposeResult empty();

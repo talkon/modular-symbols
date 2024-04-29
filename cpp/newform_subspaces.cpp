@@ -171,6 +171,14 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
   n_primes_init(prime_iter);
   int64_t prev_p = 0;
 
+  int iter = 0;
+
+  int manin_basis_size = manin_basis(level).size();
+  fmpq_mat_t sum_hecke_mat;
+  fmpq_mat_init(sum_hecke_mat, manin_basis_size, manin_basis_size);
+  FmpqMatrix sum_hecke;
+  sum_hecke.set_move(sum_hecke_mat);
+
   while (remaining.size() > 0) {
     int64_t p = n_primes_next(prime_iter);
 
@@ -188,9 +196,9 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     // if (prev_p) {
     //   DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld + T_%lld\n", prev_p, p);
     // } else {
-    //   DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld\n", p);
-    // }
+    DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operator T_%lld\n", p);
 
+    // }
     // auto f = [prev_p, p](ManinBasisElement mbe) {
     //   if (prev_p) {
     //     return hecke_action(mbe, p) + hecke_action(mbe, prev_p);
@@ -198,7 +206,12 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     //     return hecke_action(mbe, p);
     //   }
     // };
+
+    FmpqMatrix& hecke_mat = hecke_matrix(level, p);
+    fmpq_mat_add(sum_hecke.mat, sum_hecke.mat, hecke_mat.mat);
+
     std::vector<Subspace> new_remaining;
+    std::vector<Subspace> special;
     // XXX: This causes the action of `f` to be recomputed many times.
     for (auto& subspace : remaining) {
 
@@ -208,12 +221,19 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace.basis, hecke_matrix(level, p), dimension_only);
+      DecomposeResult dr = decompose(subspace.basis, hecke_mat, dimension_only);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
           for (auto basis : dr.done) {
             printf("%zu,", basis.size());
+          }
+          if (dr.special.size() > 0) {
+            printf("[");
+            for (auto basis : dr.special) {
+              printf("%zu,", basis.size());
+            }
+            printf("]");
           }
           if (dr.remaining.size() > 0) {
             printf("(");
@@ -230,14 +250,63 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
       }
 
+      for (auto& special_basis : dr.special) {
+        if (iter > 0) special.emplace_back(special_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        else new_remaining.emplace_back(special_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+      }
+
       for (auto& remaining_basis: dr.remaining) {
         new_remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
       }
     }
     remaining = new_remaining;
-    DEBUG_INFO_PRINT(2, "Completed p = %lld, done = %zu spaces, remaining = %zu spaces\n", p, done.size(), remaining.size());
+    DEBUG_INFO_PRINT(2, "Completed p = %lld, done = %zu spaces, special = %zu spaces, remaining = %zu spaces\n", p, done.size(), special.size(), remaining.size());
+
+    if (special.size() > 0 && iter > 0) {
+      std::vector<Subspace> special_remaining;
+      for (auto& subspace : special ) {
+        DecomposeResult dr = decompose(subspace.basis, sum_hecke, dimension_only);
+        DEBUG_INFO(2,
+          {
+            printf("dim %zu -> ", subspace.basis.size());
+            for (auto basis : dr.done) {
+              printf("%zu,", basis.size());
+            }
+            if (dr.special.size() > 0) {
+              printf("[");
+              for (auto basis : dr.special) {
+                printf("%zu,", basis.size());
+              }
+              printf("]");
+            }
+            if (dr.remaining.size() > 0) {
+              printf("(");
+              for (auto basis : dr.remaining) {
+                printf("%zu,", basis.size());
+              }
+              printf(")");
+            }
+            printf("\n");
+          }
+        )
+
+        for (auto& done_basis : dr.done) {
+          done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        }
+
+        for (auto& special_basis : dr.special) {
+          remaining.emplace_back(special_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        }
+
+        for (auto& remaining_basis: dr.remaining) {
+          remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        }
+      }
+      DEBUG_INFO_PRINT(2, "Completed p = %lld (special), done = %zu spaces, remaining = %zu spaces\n", p, done.size(), remaining.size());
+    }
 
     prev_p = p;
+    iter++;
   }
 
   n_primes_clear(prime_iter);

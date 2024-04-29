@@ -551,7 +551,7 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
   fmpz_mat_clear(kernel);
   fmpz_mat_clear(kernel_in_orig_basis);
 
-  DEBUG_INFO_PRINT(3, "dim %zu -> +: %zu, -: %zu\n", B.size(), pos_space.size(), neg_space.size());
+  DEBUG_INFO_PRINT(2, "dim %zu -> +: %zu, -: %zu\n", B.size(), pos_space.size(), neg_space.size());
 
   return {.pos_space = pos_space, .neg_space = neg_space};
 }
@@ -559,6 +559,7 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 DecomposeResult DecomposeResult::empty() {
   return {
     .done = std::vector<std::vector<ManinElement>>(),
+    .special = std::vector<std::vector<ManinElement>>(),
     .remaining = std::vector<std::vector<ManinElement>>()
   };
 }
@@ -762,6 +763,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   _fmpz_vec_clear(pivot_coeffs, B.size());
 
   std::vector<std::vector<ManinElement>> done;
+  std::vector<std::vector<ManinElement>> special;
   std::vector<std::vector<ManinElement>> remaining;
 
   fmpq_poly_t min_poly;
@@ -816,7 +818,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
       done.push_back(B);
       DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
     } else {
-      remaining.push_back(B);
+      special.push_back(B);
       DEBUG_INFO_PRINT(3, " minimal polynomial irreducible but space dimension %zu is not equal to degree %d\n", B.size(), deg);
     }
   } else {
@@ -958,5 +960,5 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   fmpq_mat_clear(f_matrix);
   fmpz_mat_clear(B_matrix_z);
 
-  return {.done = done, .remaining = remaining};
+  return {.done = done, .special = special, .remaining = remaining};
 }
