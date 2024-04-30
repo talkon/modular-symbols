@@ -46,8 +46,6 @@ void Subspace::print() const {
   }
 }
 
-// TODO: consider caching this, or really, just caching its matrix.
-
 ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   int64_t level = mbe.N;
   ManinElement result = ManinElement::zero(level);
@@ -55,7 +53,7 @@ ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   if (level % p == 0) {
     for (auto mat : heilbronn_merel(p)) {
       ManinGenerator mg = mbe.right_action_by(mat).as_generator();
-      // TODO: this += is unnecessarily expensive
+      // XXX: this += is unnecessarily expensive, so we're using hecke_matrix (below) instead
       result += level_and_index_to_basis(level, mg.index);
     }
   } else {
@@ -212,7 +210,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
     std::vector<Subspace> new_remaining;
     std::vector<Subspace> special;
-    // XXX: This causes the action of `f` to be recomputed many times.
+
     for (auto& subspace : remaining) {
 
       if (subspace.dimension() == 1) {
@@ -221,7 +219,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace.basis, hecke_mat, dimension_only);
+      DecomposeResult dr = decompose(subspace.basis, sum_hecke, dimension_only);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
@@ -311,6 +309,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
   n_primes_clear(prime_iter);
 
+  // This will set the first coefficient of trace form for each subspace to the dimension.
   for (auto& subspace : done) {
     subspace.compute_next_trace();
   }
@@ -334,7 +333,9 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
   DEBUG_INFO_PRINT(1, "Starting computation of trace forms for level %lld\n", level);
 
   if (!dimension_only) {
+    int next_depth = 1;
     while (true) {
+      next_depth++;
       std::set<int> next_trace_needed;
 
       for (int i = 0; i < num_subspaces - 1; i++) {
@@ -346,8 +347,14 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
       if (next_trace_needed.empty()) break;
 
+      DEBUG_INFO_PRINT(2,
+        "Trace depth: %d, subspaces remaining: %zu\n",
+        next_depth,
+        next_trace_needed.size()
+      )
+
       for (int i : next_trace_needed) {
-        DEBUG_INFO_PRINT(3,
+        DEBUG_INFO_PRINT(5,
           " Subspace %d, dimension %d, depth %d\n",
           subspace_order[i],
           done.at(subspace_order[i]).dimension(),
@@ -360,8 +367,10 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       std::sort(subspace_order.begin(), subspace_order.end(), compare);
     }
 
+    DEBUG_INFO_PRINT(2, "Computing remaining traces up to depth %d\n", trace_depth);
+
     for (auto& subspace : done) {
-        DEBUG_INFO_PRINT(3,
+        DEBUG_INFO_PRINT(5,
           " Subspace dimension %d, until depth %d\n",
           subspace.dimension(),
           trace_depth
@@ -472,51 +481,31 @@ int Subspace::compute_next_trace() {
 
       // Construct matrix of the linear map f acting on B
 
-      fmpq_mat_t map_of_basis;
-      fmpq_mat_init(map_of_basis, basis.size(), N_basis.size());
-      for (int col = 0; col < N_basis.size(); col++) {
-        ManinElement fb = hecke_action(N_basis[col], p);
-        // if (level % p == 0) {
-        //   fb.print();
-        //   printf("\n");
-        // }
+      FmpqMatrix& hecke_mat = hecke_matrix(level, p);
 
-        auto it = fb.components.begin();
-        int pivot_index = 0;
+      fmpq_mat_t pivot_rows;
+      fmpq_mat_init(pivot_rows, basis.size(), N_basis.size());
 
-        while (true) {
-          if (it == fb.components.end()) break;
-          if (pivot_index == pivots.size()) break;
-
-          int row = it->basis_index;
-
-          if (row > pivots[pivot_index]) {
-            pivot_index++;
-          } else if (row == pivots[pivot_index]) {
-            fmpq_t coeff;
-            fmpq_init(coeff);
-            fmpq_set(coeff, it->coeff);
-            fmpq_div_fmpz(coeff, coeff, (pivot_coeffs + pivot_index));
-            fmpq_set(fmpq_mat_entry(map_of_basis, pivot_index, col), coeff);
-            fmpq_clear(coeff);
-            it++;
-            pivot_index++;
-          } else if (row < pivots[pivot_index]) {
-            it++;
-          }
+      for (int row = 0; row < basis.size(); row++) {
+        for (int col = 0; col < N_basis.size(); col++) {
+          fmpq_div_fmpz(
+            fmpq_mat_entry(pivot_rows, row, col),
+            fmpq_mat_entry(hecke_mat.mat, pivots[row], col),
+            (pivot_coeffs + row)
+          );
         }
       }
 
       DEBUG_INFO(4,
         {
-          printf("map_of_basis: ");
-          fmpq_mat_print_dimensions(map_of_basis);
+          printf("pivot_rows: ");
+          fmpq_mat_print_dimensions(pivot_rows);
           printf("\n");
         }
       )
 
-      fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B_matrix_z);
-      fmpq_mat_clear(map_of_basis);
+      fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B_matrix_z);
+      fmpq_mat_clear(pivot_rows);
 
       DEBUG_INFO(4,
         {
@@ -525,8 +514,6 @@ int Subspace::compute_next_trace() {
           printf("\n");
         }
       )
-
-      // fmpq_mat_print(f_matrix);
 
       _fmpz_vec_clear(pivot_coeffs, basis.size());
     }

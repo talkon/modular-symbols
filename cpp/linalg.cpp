@@ -771,7 +771,6 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   fmpq_poly_init(min_poly);
   fmpz_poly_init(min_poly_z);
 
-
   if (fmpq_mat_is_zero(f_matrix)) {
     // XXX: FLINT seems to think that the minimal polynomial of the zero matrix is 1, and not T.
     // Manually set the minimal polynomial to x.

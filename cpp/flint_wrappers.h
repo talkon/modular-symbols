@@ -4,7 +4,7 @@
 #include <flint/fmpq_mat.h>
 #include <flint/fmpz_poly.h>
 
-// C++ wrappers for flint datatypes
+// C++ wrappers for FLINT datatypes, so that we can easily pass around FLINT matrices and put them in C++ vectors, etc.
 
 struct FmpqMatrix {
   fmpq_mat_t mat;
