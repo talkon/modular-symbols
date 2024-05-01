@@ -310,10 +310,8 @@ ManinElement ManinElement::map(std::function<ManinElement(ManinBasisElement)> f,
   int64_t out_level = M ? M : N;
   ManinElement result = ManinElement::zero(out_level);
 
-  // FIXME: this causes basis to be copied many times.
-  std::vector<ManinBasisElement> full_basis = manin_basis(N);
+  auto& full_basis = manin_basis(N);
   for (MBEWC component: components) {
-    // [ ] cache result of f?
     auto mbe = full_basis[component.basis_index];
     auto fmbe = f(mbe);
     result += fmbe.scale(component.coeff);

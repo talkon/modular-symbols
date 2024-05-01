@@ -68,9 +68,6 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
 
   // given a cusp, returns an index of its representative in representatives
   auto find_representative_index = [&](Cusp& cusp) {
-    // printf("find_representative_index cusp: ");
-    // cusp.print();
-    // printf("\n");
 
     // In cache
     if (auto it = result_cache.find(cusp); it != result_cache.end())

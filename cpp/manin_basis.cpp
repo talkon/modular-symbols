@@ -211,38 +211,16 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   // Compute T relation matrix (see Stein Ch 3.3) //
   // -------------------------------------------- //
 
-  // std::vector<ManinGenerator> S_generators = S_generators_pos;
-  // S_generators.insert(S_generators.end(), S_generators_neg.begin(), S_generators_neg.end());
-
-  // bool done_T_pos[num_S_gens];
-  // bool done_T_neg[num_S_gens];
-  // for (int i = 0; i < num_S_gens; i++) {
-  //   done_T_pos[i] = false;
-  //   done_T_neg[i] = false;
-  // }
-
-  bool done_T[num_eta_gens];
-  for (int i = 0; i < num_eta_gens; i++) {
-    done_T[i] = false;
-  }
+  // TODO: it's possible to speed this up by keeping track of which _original generator_ we have seen,
+  // though this code is not taking up much of the execution time anyways.
 
   std::set<std::tuple<int64_t, int64_t, int64_t>> T_orbits;
   std::vector<std::vector<int64_t>> T_rows;
 
-  // XXX: think about this more and figure out what the math actually is.
   for (ManinGenerator generator : generators) {
 
     int index = generator_to_S_generators[generator.index];
     int eta_index = generator_to_eta_generators[generator.index];
-
-    // if (index == 0) {
-    //   throw std::runtime_error("S_generators should not contain zero elements");
-    // }
-
-    // bool done = done_T[eta_index];
-    // // bool done = false;
-
-    // if (!done) {
 
     ManinGenerator generator_T = generator.apply_T().as_generator();
     ManinGenerator generator_T_2 = generator.apply_T_2().as_generator();
@@ -301,22 +279,14 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
     std::vector<int64_t> row (num_S_gens, 0);
 
-    // bool mark_as_done = !(index == 0 || index_T == 0 || index_T_2 == 0);
-
-    // done_T[generator_to_eta_generators[generator.index]] |= mark_as_done;
-    // done_T[generator_to_eta_generators[generator_T.index]] |= mark_as_done;
-    // done_T[generator_to_eta_generators[generator_T_2.index]] |= mark_as_done;
-
     for (int idx : {index, index_T, index_T_2}) {
 
       if (idx > 0) {
         row[idx - 1]++;
-        // done_T_pos[idx - 1] |= mark_as_done;
       }
 
       if (idx < 0) {
         row[-idx - 1]--;
-        // done_T_neg[-idx - 1] |= mark_as_done;
       }
 
     }
@@ -353,9 +323,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
       fmpz_mat_print_pretty(T_mat);
     }
   )
-
-#define NEW_RR 1
-#if NEW_RR
 
   // ------------------------------ //
   // Row reducing T relation matrix //
@@ -510,114 +477,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     generator_to_basis.insert(std::make_pair(c, element));
   }
 
-// ---- (old code:) ---- //
-#else
-
-  fmpz_t den;
-  fmpz_init(den);
-
-  int64_t rank = fmpz_mat_rref_mul(T_mat, den, T_mat);
-  int64_t basis_size = fmpz_mat_ncols(T_mat) - rank;
-
-  DEBUG_INFO(3,
-    {
-      printf("Finished computing rref\n");
-      printf("rref denom: ");
-      fmpz_print(den);
-      printf("\nrank: %lld, basis_size: %lld\n", rank, basis_size);
-    }
-  )
-
-  DEBUG_INFO(7,
-    {
-      printf("rref: \n");
-      fmpz_mat_print_pretty(T_mat);
-      printf("\n");
-    }
-  )
-
-  // Extract information from the RREF form
-  fmpz_t neg_den;
-  fmpz_init(neg_den);
-  fmpz_neg(neg_den, den);
-
-  std::vector<ManinBasisElement> basis;
-  std::map<int, int> col_to_basis_index;
-  std::map<int, ManinElement> generator_to_basis;
-
-  int basis_index = 0;
-
-  // Find nonpivots
-  int previous_pivot = -1;
-  for (int row = 0; row < rank + 1; row++) {
-    for (int col = previous_pivot + 1; col < num_S_gens; col++) {
-      // If nonzero element in row, this is the next pivot.
-      if (row < rank && !(fmpz_is_zero(fmpz_mat_entry(T_mat, row, col)))) {
-        previous_pivot = col;
-        break;
-      }
-
-      // Everything else is a nonpivot (and thus in the basis)
-      // printf("(%d, %d)\n", row, col);
-      ManinGenerator generator = S_generators_pos.at(col);
-
-      // generator.print();
-      // printf("\n");
-
-      ManinBasisElement mbe(basis_index, generator);
-      basis.push_back(mbe);
-      col_to_basis_index.insert(std::make_pair(col, basis_index));
-      generator_to_basis.insert(std::make_pair(col, mbe.as_element()));
-
-      // printf("nonpivot %d -> ", col);
-      // mbe.as_element().print();
-      // printf("\n");
-
-      basis_index++;
-    }
-  }
-
-  // Fix: order of things added to generator_to_basis;
-  // Deals with pivots
-  previous_pivot = -1;
-  for (int row = 0; row < rank; row++) {
-    int pivot_index;
-    for (int col = previous_pivot + 1; col < num_S_gens; col++) {
-      // If nonzero element in row, this is the next pivot.
-      if (!(fmpz_is_zero(fmpz_mat_entry(T_mat, row, col)))) {
-        pivot_index = col;
-        break;
-      }
-      // Everything else is a nonpivot (and thus in the basis)
-    }
-    // We found a pivot, so now we construct the ManinElement corresponding to that pivot.
-    previous_pivot = pivot_index;
-    std::vector<MBEWC> components;
-    for (int col = pivot_index + 1; col < num_S_gens; col++) {
-      if (!(fmpz_is_zero(fmpz_mat_entry(T_mat, row, col)))) {
-        fmpq_t coeff;
-        fmpq_init(coeff);
-        fmpq_set_fmpz_frac(coeff, fmpz_mat_entry(T_mat, row, col), neg_den);
-        int64_t basis_index = col_to_basis_index[col];
-        components.emplace_back(basis_index, coeff);
-        fmpq_clear(coeff);
-      }
-    }
-    ManinElement element = ManinElement(level, components);
-    element.mark_as_sorted_unchecked();
-    generator_to_basis.insert(std::make_pair(pivot_index, element));
-
-    // printf("pivot %d -> ", pivot_index);
-    // element.print();
-    // printf("\n");
-
-  }
-
-  fmpz_clear(den);
-  fmpz_clear(neg_den);
-
-#endif
-
   fmpz_mat_clear(T_mat);
 
   std::vector<ManinElement> gtb_vec;
@@ -653,7 +512,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   return BasisComputationResult(basis, gtb_vec, generator_to_S_generators);
 }
 
-// FIXME: figure out a way to return cached things as references instead of values in order to avoid unnecessary copying.
 BasisComputationResult& compute_manin_basis(const int64_t level) {
   static CacheDecorator<BasisComputationResult, const int64_t> _cache_compute_manin_basis(_impl_compute_manin_basis);
   return _cache_compute_manin_basis(level);
@@ -671,9 +529,8 @@ ManinElement level_and_index_to_basis(const int64_t level, const int64_t index) 
   }
 }
 
-std::vector<ManinBasisElement> manin_basis(const int64_t level) {
-  const BasisComputationResult& result = compute_manin_basis(level);
-  return result.basis;
+std::vector<ManinBasisElement>& manin_basis(const int64_t level) {
+  return compute_manin_basis(level).basis;
 }
 
 ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const int64_t level) {
@@ -684,7 +541,6 @@ ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const i
 
   if (b == 0) {
     // (1, 0)_N is always the first element in the basis.
-    // XXX: actually check this
     ManinSymbol ms = {.N = level, .c = 1, .d = 0};
     ManinGenerator mg = find_generator(ms);
     ManinBasisElement mbe(0, mg);

@@ -162,7 +162,6 @@ GeneratorComputationResult _impl_compute_manin_generators(const int64_t level) {
 }
 
 GeneratorComputationResult& compute_manin_generators(const int64_t level) {
-  // [ ]: figure out a way to share this variable across translation units?
   static CacheDecorator<GeneratorComputationResult, const int64_t> _cache_compute_manin_generators(_impl_compute_manin_generators);
   return _cache_compute_manin_generators(level);
 }
@@ -171,23 +170,8 @@ std::vector<ManinGenerator>& manin_generators(const int64_t level) {
   return compute_manin_generators(level).generators;
 }
 
-// Base implementation of `find_generator_index()`
-// ManinGenerator _impl_find_generator(const ManinSymbol ms) {
-//   auto& generators = manin_generators(ms.N);
-//   auto first = generators.begin();
-//   auto last = generators.end();
-
-//   auto mg = std::find_if(first, last,
-//     [&](ManinSymbol gen) { return gen.is_equivalent(ms); }
-//   );
-
-//   assert (mg != last); // Manin symbol should match one of the generators
-//   return *mg;
-// }
-
+// Note: it's empirically faster to do this than to iterate over the generators to find a matching one.
 ManinGenerator find_generator(const ManinSymbol ms) {
-  // static CacheDecorator<ManinGenerator, const ManinSymbol> _cache_find_generator(_impl_find_generator);
-  // return _cache_find_generator(ms);
   auto& res = compute_manin_generators(ms.N);
 
   if (ms.c % ms.N == 0) return res.generators[0];

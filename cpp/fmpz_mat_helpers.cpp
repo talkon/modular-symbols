@@ -417,7 +417,6 @@ void fmpz_poly_apply_fmpq_mat_ps_recur(fmpq_mat_t dst, const fmpq_mat_t src, con
 
   ulong l = fmpz_poly_degree(f);
 
-  // TODO: decide values of k, m
   ulong k = n_sqrt(2 * l);
   ulong m = n_flog(l / k, 2);
 

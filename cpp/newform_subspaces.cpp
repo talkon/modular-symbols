@@ -49,7 +49,7 @@ void Subspace::print() const {
 ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   int64_t level = mbe.N;
   ManinElement result = ManinElement::zero(level);
-  // TODO: it seems like something is wrong with the computation of Merel matrices
+  // FIXME: it seems like something is wrong with the computation of Merel matrices
   if (level % p == 0) {
     for (auto mat : heilbronn_merel(p)) {
       ManinGenerator mg = mbe.right_action_by(mat).as_generator();
@@ -180,7 +180,6 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
   while (remaining.size() > 0) {
     int64_t p = n_primes_next(prime_iter);
 
-    // TODO: consider using Merel's Heilbronn matrices?
     if (level % p == 0) continue;
 
     if (p > sturm_bound) {
@@ -190,20 +189,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       break;
     }
 
-    // TODO: maybe use old code path for prime-ish numbers?
-    // if (prev_p) {
-    //   DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operators T_%lld + T_%lld\n", prev_p, p);
-    // } else {
     DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operator T_%lld\n", p);
-
-    // }
-    // auto f = [prev_p, p](ManinBasisElement mbe) {
-    //   if (prev_p) {
-    //     return hecke_action(mbe, p) + hecke_action(mbe, prev_p);
-    //   } else {
-    //     return hecke_action(mbe, p);
-    //   }
-    // };
 
     FmpqMatrix& hecke_mat = hecke_matrix(level, p);
     fmpq_mat_add(sum_hecke.mat, sum_hecke.mat, hecke_mat.mat);
@@ -418,7 +404,7 @@ int Subspace::compute_next_trace() {
     }
     else if (n_is_prime(n)) {
       int p = n;
-      // XXX: There's a lot of copied code here
+      // TODO: There's a lot of copied code here -- might be possible to refactor
       std::vector<ManinBasisElement> N_basis = manin_basis(level);
 
       // Construct matrix of B
@@ -432,11 +418,8 @@ int Subspace::compute_next_trace() {
 
       for (int col = 0; col < basis.size(); col++) {
         ManinElement b = basis[col];
-        // b.print_with_generators();
-        // printf("\n");
         for (MBEWC component : b.components) {
           int row = component.basis_index;
-          // printf("%d\n", row);
           assert(row < N_basis.size());
           fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
         }
@@ -459,7 +442,6 @@ int Subspace::compute_next_trace() {
 
       int current_col = 0;
       for (int row = 0; row < N_basis.size(); row++) {
-        // printf("%d %d\n", row, current_col);
         bool is_pivot = true;
         for (int col = 0; col < basis.size(); col++) {
           if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {

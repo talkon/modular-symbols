@@ -28,7 +28,7 @@ ManinElement level_and_index_to_basis(const int64_t level, const int64_t index);
 
 // Computes the basis of the space of Manin symbols of level N.
 // Results are cached.
-std::vector<ManinBasisElement> manin_basis(const int64_t level);
+std::vector<ManinBasisElement>& manin_basis(const int64_t level);
 
 // Converts a modular symbol {a/b} to a ManinElement with the given level.
 ManinElement fraction_to_manin_element(const int64_t a, const int64_t b, const int64_t level);
