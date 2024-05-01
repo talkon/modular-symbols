@@ -99,7 +99,7 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
   ulong d = fmpq_mat_nrows(src);
   assert(d == fmpq_mat_ncols(src));
 
-  // Compute T, T^2, .., T^k
+  // Compute 1, T, T^2, .., T^k
   fmpq_mat_t* pows = (fmpq_mat_t*) flint_malloc((k + 1) * sizeof(fmpq_mat_t));
   fmpq_mat_t tmp;
 
@@ -143,6 +143,329 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
   flint_free(pows);
 }
 
+void _fmpq_poly_apply_fmpq_mat_base(
+  fmpq_mat_t dst,
+  const fmpq_mat_t src,
+  const fmpq_poly_t f,
+  const fmpq_mat_t* pows,
+  ulong k
+) {
+
+  DEBUG_INFO(5,
+    {
+      printf("_fmpq_poly_apply_fmpq_mat_base called with f(T) = ");
+      fmpq_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  assert(fmpq_poly_is_canonical(f));
+  ulong l = fmpq_poly_degree(f);
+  assert(l <= k);
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  fmpq_mat_t temp;
+  fmpq_mat_init(temp, d, d);
+
+  fmpq_t coeff;
+  fmpq_init(coeff);
+
+  fmpq_mat_zero(dst);
+
+  for (int i = 0; i <= l; i++) {
+    fmpq_poly_get_coeff_fmpq(coeff, f, i);
+    fmpq_mat_scalar_mul_fmpq(temp, *(pows + i), coeff);
+    fmpq_mat_add(dst, dst, temp);
+  }
+
+  fmpq_mat_clear(temp);
+  fmpq_clear(coeff);
+}
+
+void _fmpq_poly_apply_fmpq_mat_ps_recur_helper(
+  fmpq_mat_t dst,
+  const fmpq_mat_t src,
+  const fmpq_poly_t f,
+  const fmpq_mat_t* pows,
+  ulong k,
+  const fmpq_mat_t* pows_exp,
+  ulong m,
+  ulong t
+) {
+
+  DEBUG_INFO(5,
+    {
+      printf("_fmpq_poly_apply_fmpq_mat_ps_recur_helper called with f(T) = ");
+      fmpq_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  assert(fmpq_poly_is_canonical(f));
+  assert(t >= 1);
+
+  ulong l = fmpq_poly_degree(f);
+  ulong p = 1 << (t - 1);
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  assert(t <= m);
+  assert(l == k * (2 * p - 1));
+
+  fmpq_t leading_coeff;
+  fmpq_init(leading_coeff);
+  fmpq_poly_get_coeff_fmpq(leading_coeff, f, l);
+  assert(fmpq_is_one(leading_coeff));
+  fmpq_clear(leading_coeff);
+
+  if (t == 1) {
+    _fmpq_poly_apply_fmpq_mat_base(dst, src, f, pows, k);
+    return;
+  }
+
+  fmpq_poly_t q, r;
+  fmpq_poly_init(q);
+  fmpq_poly_init(r);
+
+  fmpq_poly_set_trunc(r, f, k * p);
+  fmpq_poly_get_slice(q, f, k * p, k * (2 * p - 1));
+  fmpq_poly_shift_right(q, q, k * p);
+
+  fmpq_poly_canonicalise(r);
+  fmpq_poly_canonicalise(q);
+
+  fmpq_t temp;
+  fmpq_init(temp);
+  fmpq_poly_get_coeff_fmpq(temp, r, k * (p - 1));
+  fmpq_sub_si(temp, temp, 1);
+  fmpq_poly_set_coeff_fmpq(r, k * (p - 1), temp);
+
+  fmpq_poly_t c, s;
+  fmpq_poly_init(c);
+  fmpq_poly_init(s);
+
+  fmpq_poly_divrem(c, s, r, q);
+
+  fmpq_poly_set_coeff_si(s, k * (p - 1), 1);
+
+  fmpq_mat_t q_mat;
+  fmpq_mat_init(q_mat, d, d);
+
+  _fmpq_poly_apply_fmpq_mat_ps_recur_helper(q_mat, src, q, pows, k, pows_exp, m, t - 1);
+
+  _fmpq_poly_apply_fmpq_mat_base(dst, src, c, pows, k);
+  fmpq_mat_add(dst, dst, *(pows_exp + t));
+  fmpq_mat_mul(dst, dst, q_mat);
+
+  fmpq_mat_clear(q_mat);
+
+  fmpq_mat_t s_mat;
+  fmpq_mat_init(s_mat, d, d);
+
+  _fmpq_poly_apply_fmpq_mat_ps_recur_helper(s_mat, src, s, pows, k, pows_exp, m, t - 1);
+  fmpq_mat_add(dst, dst, s_mat);
+
+  fmpq_mat_clear(s_mat);
+
+  fmpq_poly_clear(q);
+  fmpq_poly_clear(r);
+
+  fmpq_clear(temp);
+
+  fmpq_poly_clear(c);
+  fmpq_poly_clear(s);
+}
+
+void _fmpq_poly_apply_fmpq_mat_ps_recur(
+  fmpq_mat_t dst,
+  const fmpq_mat_t src,
+  const fmpq_poly_t f,
+  const fmpq_mat_t* pows,
+  ulong k,
+  const fmpq_mat_t* pows_exp,
+  ulong m
+) {
+
+  DEBUG_INFO(5,
+    {
+      printf("_fmpq_poly_apply_fmpq_mat_ps_recur called with f(T) = ");
+      fmpq_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  if (fmpq_poly_is_zero(f)) {
+    fmpq_mat_zero(dst);
+    return;
+  }
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  ulong l = fmpq_poly_degree(f);
+  if (l <= k) {
+    _fmpq_poly_apply_fmpq_mat_base(dst, src, f, pows, k);
+    return;
+  } else if (l <= 2 * k) {
+    fmpq_poly_t hi, base;
+    fmpq_poly_init(hi);
+    fmpq_poly_init(base);
+
+    fmpq_poly_set_trunc(base, f, k);
+    fmpq_poly_get_slice(hi, f, k, l + 1);
+    fmpq_poly_shift_right(hi, hi, k);
+
+    fmpq_mat_t base_mat;
+    fmpq_mat_init(base_mat, d, d);
+    _fmpq_poly_apply_fmpq_mat_base(base_mat, src, base, pows, k);
+
+    _fmpq_poly_apply_fmpq_mat_base(dst, src, hi, pows, k);
+    fmpq_mat_mul(dst, dst, *(pows + k));
+    fmpq_mat_add(dst, dst, base_mat);
+
+    fmpq_poly_clear(hi);
+    fmpq_poly_clear(base);
+    fmpq_mat_clear(base_mat);
+    return;
+  }
+
+  ulong t = n_flog(l / k, 2);
+  assert(t <= m);
+  assert(t >= 1);
+
+  DEBUG_INFO(5,
+    {
+      printf("k: %ld, m: %ld, l: %ld, t: %ld\n", k, m, l, t);
+    }
+  )
+
+
+  // if (l == k * (1 << t)) {
+
+  // }
+
+  // fmpq_t leading_coeff;
+  // fmpq_init(leading_coeff);
+  // fmpq_poly_get_coeff_fmpq(leading_coeff, f, l);
+
+  // fmpq_poly_t f_monic;
+  // fmpq_poly_init(f_monic);
+  // fmpq_poly_scalar_div_fmpq(f_monic, f, leading_coeff);
+
+  // if (!fmpq_is_one(leading_coeff)) {
+  //   fmpq_mat_scalar_mul_fmpq(dst, dst, leading_coeff);
+  // }
+
+  // fmpq_poly_clear(f_monic);
+  // fmpq_clear(leading_coeff);
+
+  fmpq_poly_t hi, lo, base;
+  fmpq_poly_init(hi);
+  fmpq_poly_init(lo);
+  fmpq_poly_init(base);
+
+  fmpq_poly_set_trunc(base, f, k);
+
+  fmpq_poly_get_slice(lo, f, k, k * (1 << t));
+  fmpq_poly_set_coeff_si(lo, k * (1 << t), 1);
+  fmpq_poly_shift_right(lo, lo, k);
+
+  fmpq_poly_get_slice(hi, f, k * (1 << t), l + 1);
+  fmpq_poly_shift_right(hi, hi, k * (1 << t));
+  fmpq_poly_sub_si(hi, hi, 1);
+
+  fmpq_poly_canonicalise(base);
+  fmpq_poly_canonicalise(lo);
+  fmpq_poly_canonicalise(hi);
+
+  fmpq_mat_t base_mat;
+  fmpq_mat_t lo_mat;
+  fmpq_mat_init(base_mat, d, d);
+  fmpq_mat_init(lo_mat, d, d);
+
+  _fmpq_poly_apply_fmpq_mat_base(base_mat, src, base, pows, k);
+  _fmpq_poly_apply_fmpq_mat_ps_recur_helper(lo_mat, src, lo, pows, k, pows_exp, m, t);
+
+  fmpq_mat_mul(lo_mat, lo_mat, *(pows_exp));
+  fmpq_mat_add(lo_mat, lo_mat, base_mat);
+  fmpq_mat_clear(base_mat);
+
+  _fmpq_poly_apply_fmpq_mat_ps_recur(dst, src, hi, pows, k, pows_exp, m);
+
+  fmpq_mat_mul(dst, dst, *(pows_exp + t));
+  fmpq_mat_add(dst, dst, lo_mat);
+  fmpq_mat_clear(lo_mat);
+
+  fmpq_poly_clear(hi);
+  fmpq_poly_clear(lo);
+  fmpq_poly_clear(base);
+}
+
+// BUG: using this function seems to give wrong results in some cases, and is also just very slow!
+void fmpz_poly_apply_fmpq_mat_ps_recur(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+
+  DEBUG_INFO(5,
+    {
+      printf("fmpz_poly_apply_fmpq_mat_ps_recur called with f(T) = ");
+      fmpz_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  ulong l = fmpz_poly_degree(f);
+
+  // TODO: decide values of k, m
+  ulong k = n_sqrt(2 * l);
+  ulong m = n_flog(l / k, 2);
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  // Compute 1, T, T^2, .., T^k, T^{2k}, ..., T^{k2^m}
+
+  // For 0 <= i <= k, pows[i] = T^i
+  fmpq_mat_t* pows = (fmpq_mat_t*) flint_malloc((k + m + 1) * sizeof(fmpq_mat_t));
+
+  // For 0 <= i <= m, pows_exp[i] = T^{2^m k}
+  fmpq_mat_t* pows_exp = pows + k;
+
+  fmpq_mat_t tmp;
+
+  fmpq_mat_init(pows[0], d, d);
+  fmpq_mat_one(pows[0]);
+
+  fmpq_mat_init_set(tmp, src);
+  for (int i = 1; i < k; i++) {
+    fmpq_mat_init_set(pows[i], tmp);
+    fmpq_mat_mul(tmp, tmp, src);
+  }
+
+  fmpq_mat_init_set(pows[k], tmp);
+
+  for (int i = 1; i <= m; i++) {
+    fmpq_mat_mul(tmp, tmp, tmp);
+    fmpq_mat_init_set(pows_exp[i], tmp);
+  }
+
+  fmpq_poly_t f_fmpq;
+  fmpq_poly_init(f_fmpq);
+  fmpq_poly_set_fmpz_poly(f_fmpq, f);
+
+  _fmpq_poly_apply_fmpq_mat_ps_recur(dst, src, f_fmpq, pows, k, pows_exp, m);
+
+  // fmpq_mat_print(dst);
+  // printf("\n");
+
+  for (int i = 0; i <= k + m; i++) {
+    fmpq_mat_clear(pows[i]);
+  }
+  flint_free(pows);
+
+}
+
 void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
   int degree = fmpz_poly_degree(f);
 
@@ -163,6 +486,10 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
     fmpz_poly_apply_fmpq_mat_ps(dst, src, f);
     return;
   }
+  // else {
+  //   fmpz_poly_apply_fmpq_mat_ps_recur(dst, src, f);
+  //   return;
+  // }
 }
 
 void fmpz_mat_print_dimensions(const fmpz_mat_t mat) {
