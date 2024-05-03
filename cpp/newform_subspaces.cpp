@@ -356,7 +356,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     DEBUG_INFO_PRINT(2, "Computing remaining traces up to depth %d\n", trace_depth);
 
     for (auto& subspace : done) {
-        DEBUG_INFO_PRINT(5,
+        DEBUG_INFO_PRINT(3,
           " Subspace dimension %d, until depth %d\n",
           subspace.dimension(),
           trace_depth
@@ -428,7 +428,7 @@ int Subspace::compute_next_trace() {
       fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
       fmpq_mat_clear(B_matrix);
 
-      DEBUG_INFO(4,
+      DEBUG_INFO(6,
         {
           printf("B_matrix_z: ");
           fmpz_mat_print_dimensions(B_matrix_z);
@@ -478,7 +478,7 @@ int Subspace::compute_next_trace() {
         }
       }
 
-      DEBUG_INFO(4,
+      DEBUG_INFO(6,
         {
           printf("pivot_rows: ");
           fmpq_mat_print_dimensions(pivot_rows);
@@ -489,7 +489,7 @@ int Subspace::compute_next_trace() {
       fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B_matrix_z);
       fmpq_mat_clear(pivot_rows);
 
-      DEBUG_INFO(4,
+      DEBUG_INFO(6,
         {
           printf("f_matrix: ");
           fmpq_mat_print_dimensions(f_matrix);
