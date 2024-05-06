@@ -14,7 +14,7 @@ void print_help() {
           \n -n N : (required) sets level to N\
           \n -t T : sets trace depth to T (default 10)\
           \n -s   : compute only subspace dimensions (overrides -t)\
-          \n -p   : use new optimization (under testing)\
+          \n -p   : disable newest optimization (for testing only)\
           \n -v V : sets verbosity to V\
           \n -d D : (used for debugging purposes)\
           \n -h   : prints this help message and exits\
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
   int verbose = 0;
   int trace_depth = 10;
   bool dimension_only = false;
-  bool prime_opt = false;
+  bool prime_opt = true;
 
   if (argc == 1) {
     print_help();
@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
         debug_temp(atoi(optarg));
         return 0;
       case 'p':
-        prime_opt = true;
+        prime_opt = false;
         break;
       case 'h':
         print_help();
