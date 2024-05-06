@@ -12,7 +12,7 @@ def process_line(line: str) -> str:
   time = float(time)
   return f'{n},{tau},{omega},{num_spaces},{time},"{split}"\n'
 
-with open("split.txt", "r") as i:
+with open("split_new.txt", "r") as i:
   out_lines = [header_line()] + [process_line(line) for line in i.readlines()]
-  with open("split.csv", "w") as o:
+  with open("split_new.csv", "w") as o:
     o.writelines(out_lines)
