@@ -10,6 +10,10 @@
 #include <flint/fmpz_vec.h>
 #include <flint/fmpz_poly.h>
 #include <flint/fmpz_poly_factor.h>
+#include <flint/nmod_mat.h>
+#include <flint/nmod_poly.h>
+#include <flint/nmod_poly_factor.h>
+#include <flint/ulong_extras.h>
 
 #include <vector>
 #include <cassert>
@@ -499,7 +503,7 @@ DecomposeResult DecomposeResult::empty() {
 
 // TODO: should be faster to decompose using a matrix of the action on the newform subspace
 
-DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis, bool dimension_only) {
+DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt) {
   // If the input space is trivial, the result is also trivial.
   if (B.size() == 0) {
     return DecomposeResult::empty();
@@ -508,6 +512,10 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   // Otherwise, we find the level from the first element.
   int64_t N = B[0].N;
   std::vector<ManinBasisElement> N_basis = manin_basis(N);
+
+  // ---------------------------------------- //
+  // Setup: constructing matrices for B and f //
+  // ---------------------------------------- //
 
   // Construct matrix of B
   fmpq_mat_t B_matrix;
@@ -606,6 +614,150 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   std::vector<std::vector<ManinElement>> special;
   std::vector<std::vector<ManinElement>> remaining;
 
+  // --------------------------------------------------------- //
+  // Checks if space doesn't split mod some word-length primes //
+  // --------------------------------------------------------- //
+
+  if (B.size() > 10 && prime_opt) {
+    fmpz_mat_t f_matrix_z;
+    fmpz_mat_init(f_matrix_z, B.size(), B.size());
+
+    fmpz_t temp_den;
+    fmpz_init(temp_den);
+    fmpq_mat_get_fmpz_mat_matwise(f_matrix_z, temp_den, f_matrix);
+    fmpz_clear(temp_den);
+
+    DEBUG_INFO(5,
+      {
+        printf("f_matrix_z: ");
+        fmpz_mat_print_dimensions(f_matrix_z);
+        printf("\n");
+      }
+    )
+
+    // printf("a\n");
+
+    ulong p = 32;
+    std::vector<bool> possible_factor_degs(B.size() + 1);
+    for (int i = 0; i <= B.size(); i++)
+      possible_factor_degs[i] = true;
+
+    // printf("b\n");
+
+    for (int iter = 0; iter < 10; iter++) {
+      p = n_nextprime(p, 1);
+
+      nmod_mat_t f_matrix_mod_p;
+      nmod_mat_init(f_matrix_mod_p, B.size(), B.size(), p);
+
+      // printf("aaa\n");
+
+      nmod_poly_t min_poly_mod_p;
+      nmod_poly_init(min_poly_mod_p, p);
+
+      fmpz_mat_get_nmod_mat(f_matrix_mod_p, f_matrix_z);
+
+      DEBUG_INFO_PRINT(5, "f_matrix_mod_p\n");
+
+      nmod_mat_minpoly(min_poly_mod_p, f_matrix_mod_p);
+
+      DEBUG_INFO_PRINT(5, "min_poly_mod_p deg: %d\n", min_poly_mod_p->length - 1);
+
+      if (min_poly_mod_p->length == B.size() + 1) {
+        // if (nmod_poly_is_irreducible(min_poly_mod_p)) {
+        //   done.push_back(B);
+        //   DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu in mod %ld\n", B.size(), p);
+
+        //   nmod_mat_clear(f_matrix_mod_p);
+        //   nmod_poly_clear(min_poly_mod_p);
+
+        //   fmpq_mat_clear(f_matrix);
+        //   fmpz_mat_clear(B_matrix_z);
+        //   return {.done = done, .special = special, .remaining = remaining};
+        // } else {
+        nmod_poly_factor_t facs;
+        nmod_poly_factor_init(facs);
+        nmod_poly_factor(facs, min_poly_mod_p);
+
+        // printf("bbb\n");
+
+        DEBUG_INFO(4,
+          {
+            printf("p = %ld, deg = %ld, facs = ", p, min_poly_mod_p->length - 1);
+            for (int i = 0; i < facs->num; i++) {
+              printf("%ld,", (facs->p + i)->length - 1);
+            }
+            printf("\n");
+          }
+        )
+
+        std::vector<bool> p_factor_degs(B.size() + 1);
+        p_factor_degs[0] = true;
+        for (int i = 1; i <= B.size(); i++)
+          p_factor_degs[i] = false;
+
+        // printf("ccc\n");
+
+        int sum = 0;
+        for (int i = 1; i <= facs->num; i++) {
+          int factor_deg = (facs->p + (i % facs->num))->length - 1;
+          sum += factor_deg;
+          for (int j = sum; j >= factor_deg; j--) {
+            p_factor_degs[j] = p_factor_degs[j] || p_factor_degs[j - factor_deg];
+          }
+          // for (int j = 0; j <= B.size(); j++) {
+          //   printf("%d", p_factor_degs[j] ? 1 : 0);
+          // }
+          // printf("\n");
+        }
+
+        // printf("ddd\n");
+
+        bool irred = true;
+        for (int j = 1; j < B.size(); j++) {
+          possible_factor_degs[j] = possible_factor_degs[j] && p_factor_degs[j];
+          irred = irred && !(possible_factor_degs[j]);
+        }
+
+        // for (int j = 0; j <= B.size(); j++) {
+        //   printf("%d", possible_factor_degs[j] ? 1 : 0);
+        // }
+        // printf("\n");
+
+        nmod_poly_factor_clear(facs);
+
+        // printf("eee\n");
+
+        if (irred) {
+          done.push_back(B);
+
+          // printf("fff\n");
+          DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu, found at iteration %ld\n", B.size(), iter);
+
+          nmod_mat_clear(f_matrix_mod_p);
+          nmod_poly_clear(min_poly_mod_p);
+
+          fmpq_mat_clear(f_matrix);
+          fmpz_mat_clear(B_matrix_z);
+          return {.done = done, .special = special, .remaining = remaining};
+        }
+      }
+      else {
+        DEBUG_INFO_PRINT(4, "p = %ld, deg = %ld\n", p, min_poly_mod_p->length - 1);
+      }
+
+
+      nmod_mat_clear(f_matrix_mod_p);
+      nmod_poly_clear(min_poly_mod_p);
+    }
+
+    fmpz_mat_clear(f_matrix_z);
+  }
+
+  // --------------------- //
+  // Computes minpoly of f //
+  // --------------------- //
+
   // Note: computing char_poly seems much slower than min_poly.
   fmpq_poly_t min_poly;
   fmpz_poly_t min_poly_z;
@@ -634,6 +786,10 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   )
 
   fmpq_poly_clear(min_poly);
+
+  // ---------------------------- //
+  // Computes space decomposition //
+  // ---------------------------- //
 
   fmpz_poly_factor_t min_poly_factored;
   fmpz_poly_factor_init(min_poly_factored);
@@ -793,3 +949,4 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
 
   return {.done = done, .special = special, .remaining = remaining};
 }
+

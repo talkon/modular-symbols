@@ -115,7 +115,7 @@ ManinElement& atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int trace_depth) {
+std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int trace_depth, bool prime_opt) {
   std::vector<ManinElement> basis = newspace_basis(level);
 
   DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
@@ -194,6 +194,8 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     FmpqMatrix& hecke_mat = hecke_matrix(level, p);
     fmpq_mat_add(sum_hecke.mat, sum_hecke.mat, hecke_mat.mat);
 
+    // if (p < 20) continue;
+
     std::vector<Subspace> new_remaining;
     std::vector<Subspace> special;
 
@@ -205,7 +207,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace.basis, sum_hecke, dimension_only);
+      DecomposeResult dr = decompose(subspace.basis, hecke_mat, dimension_only, prime_opt);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
@@ -249,7 +251,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     if (special.size() > 0 && iter > 0) {
       std::vector<Subspace> special_remaining;
       for (auto& subspace : special ) {
-        DecomposeResult dr = decompose(subspace.basis, sum_hecke, dimension_only);
+        DecomposeResult dr = decompose(subspace.basis, sum_hecke, dimension_only, prime_opt);
         DEBUG_INFO(2,
           {
             printf("dim %zu -> ", subspace.basis.size());
@@ -374,7 +376,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 }
 
 std::vector<int> newform_subspace_dimensions(int64_t level) {
-  auto nss = newform_subspaces(level, false, 10);
+  auto nss = newform_subspaces(level, true, 0, true);
   std::vector<int> sizes;
   for (auto ns : nss) {
     sizes.push_back(ns.dimension());
@@ -537,6 +539,10 @@ int Subspace::compute_next_trace() {
     trace_depth++;
   }
   else {
+    // For primes p | N:
+    // - if p^2 | N, then the action of the Hecke operator T_p is zero, and
+    // - if p^2 \nmid N, then the action of the Hecke operator T_p is -W_p, where W_p is the Atkin-Lehner involution.
+    // See Prop 13.3.4 in (Cohen, Stromberg)
     int64_t x = 1;
     int sign = 1;
 

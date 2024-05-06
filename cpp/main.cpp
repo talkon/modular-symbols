@@ -9,6 +9,18 @@
 
 #include <unistd.h>
 
+void print_help() {
+  printf("Usage\
+          \n -n N : (required) sets level to N\
+          \n -t T : sets trace depth to T (default 10)\
+          \n -s   : compute only subspace dimensions (overrides -t)\
+          \n -p   : use new optimization (under testing)\
+          \n -v V : sets verbosity to V\
+          \n -d D : (used for debugging purposes)\
+          \n -h   : prints this help message and exits\
+          \n");
+}
+
 int main(int argc, char** argv) {
 
   char c;
@@ -17,8 +29,14 @@ int main(int argc, char** argv) {
   int verbose = 0;
   int trace_depth = 10;
   bool dimension_only = false;
+  bool prime_opt = false;
 
-  while ((c = getopt (argc, argv, "n:v:d:t:hs")) != -1) {
+  if (argc == 1) {
+    print_help();
+    return 0;
+  }
+
+  while ((c = getopt (argc, argv, "n:v:d:t:hsp")) != -1) {
     switch (c) {
       case 'n':
         level = atol(optarg);
@@ -36,15 +54,11 @@ int main(int argc, char** argv) {
         set_verbosity(10);
         debug_temp(atoi(optarg));
         return 0;
+      case 'p':
+        prime_opt = true;
+        break;
       case 'h':
-        printf("Usage\
-        \n -n N : (required) sets level to N\
-        \n -t T : sets trace depth to T (default 10)\
-        \n -s   : compute only subspace dimensions (overrides -t)\
-        \n -v V : sets verbosity to V\
-        \n -d D : (used for debugging purposes)\
-        \n -h   : prints this help message and exits\
-        \n");
+        print_help();
         return 0;
     }
   }
@@ -55,7 +69,7 @@ int main(int argc, char** argv) {
   init_timer();
 
   DEBUG_INFO_PRINT(1, "Started computation for level %lld\n", level);
-  auto subspaces = newform_subspaces(level, dimension_only, trace_depth);
+  auto subspaces = newform_subspaces(level, dimension_only, trace_depth, prime_opt);
   DEBUG_INFO_PRINT(1, "Finished computation for level %lld\n", level);
 
   for (auto& subspace : subspaces) {
