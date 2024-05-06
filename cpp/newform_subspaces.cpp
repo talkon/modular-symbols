@@ -116,6 +116,9 @@ ManinElement& atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
 }
 
 std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int trace_depth, bool prime_opt) {
+
+  if (level <= 10) return std::vector<Subspace>();
+
   std::vector<ManinElement> basis = newspace_basis(level);
 
   DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
