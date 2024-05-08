@@ -7,6 +7,7 @@
 #include <flint/ulong_extras.h>
 #include <flint/fmpz_mat.h>
 #include <flint/fmpz_vec.h>
+#include <flint/fmpz_poly.h>
 
 #include <cassert>
 
@@ -16,7 +17,8 @@ int Subspace::dimension() const {
 
 void Subspace::print() const {
   // Dimension
-  printf("%d:", dimension());
+  int dim = dimension();
+  printf("%d:", dim);
 
   // Atkin-Lehner signs
   n_factor_t factors;
@@ -41,8 +43,14 @@ void Subspace::print() const {
 
   // Hecke field polynomial
   printf(":");
-  if (hecke_field_poly.has_value() && dimension() <= 20) {
-    fmpz_poly_print(hecke_field_poly.value().poly);
+  if (hecke_field_poly.has_value() && dim <= 20) {
+    auto& poly = hecke_field_poly.value().poly;
+    for (int i = dim; i >= 0; i--) {
+      fmpz_print(fmpz_poly_get_coeff_ptr(poly, i));
+      printf(",");
+    }
+  } else if (dim == 1) {
+    printf("1,0,");
   }
 }
 
