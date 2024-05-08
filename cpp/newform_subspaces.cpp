@@ -24,8 +24,10 @@ int Subspace::dimension() const {
 }
 
 void Subspace::print() const {
+  // Dimension
   printf("%d:", dimension());
 
+  // Atkin-Lehner signs
   n_factor_t factors;
   n_factor_init(&factors);
   n_factor(&factors, level, 1);
@@ -40,9 +42,16 @@ void Subspace::print() const {
     if (i < factors.num - 1) printf(",");
   }
 
+  // Trace form
   printf(":");
   for (int i = 1; i <= trace_depth; i++) {
     printf("%lld,", trace_form.at(i));
+  }
+
+  // Hecke field polynomial
+  printf(":");
+  if (hecke_field_poly.has_value() && dimension() <= 20) {
+    fmpz_poly_print(hecke_field_poly.value().poly);
   }
 }
 
@@ -210,24 +219,24 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace.basis, hecke_mat, dimension_only, prime_opt);
+      DecomposeResult dr = decompose(subspace, hecke_mat, dimension_only, prime_opt);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
-          for (auto basis : dr.done) {
-            printf("%zu,", basis.size());
+          for (auto& space : dr.done) {
+            printf("%zu,", space.basis.size());
           }
           if (dr.special.size() > 0) {
             printf("[");
-            for (auto basis : dr.special) {
-              printf("%zu,", basis.size());
+            for (auto& space : dr.special) {
+              printf("%zu,", space.basis.size());
             }
             printf("]");
           }
           if (dr.remaining.size() > 0) {
             printf("(");
-            for (auto basis : dr.remaining) {
-              printf("%zu,", basis.size());
+            for (auto& space : dr.remaining) {
+              printf("%zu,", space.basis.size());
             }
             printf(")");
           }
@@ -235,17 +244,17 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         }
       )
 
-      for (auto& done_basis : dr.done) {
-        done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+      for (auto& space : dr.done) {
+        done.emplace_back(space);
       }
 
-      for (auto& special_basis : dr.special) {
-        if (iter > 0) special.emplace_back(special_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
-        else new_remaining.emplace_back(special_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+      for (auto& space : dr.special) {
+        if (iter > 0) special.emplace_back(space);
+        else new_remaining.emplace_back(space);
       }
 
-      for (auto& remaining_basis: dr.remaining) {
-        new_remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+      for (auto& space: dr.remaining) {
+        new_remaining.emplace_back(space);
       }
     }
     remaining = new_remaining;
@@ -254,24 +263,24 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     if (special.size() > 0 && iter > 0) {
       std::vector<Subspace> special_remaining;
       for (auto& subspace : special ) {
-        DecomposeResult dr = decompose(subspace.basis, sum_hecke, dimension_only, prime_opt);
+        DecomposeResult dr = decompose(subspace, sum_hecke, dimension_only, prime_opt);
         DEBUG_INFO(2,
           {
             printf("dim %zu -> ", subspace.basis.size());
-            for (auto basis : dr.done) {
-              printf("%zu,", basis.size());
+            for (auto& space : dr.done) {
+              printf("%zu,", space.basis.size());
             }
             if (dr.special.size() > 0) {
               printf("[");
-              for (auto basis : dr.special) {
-                printf("%zu,", basis.size());
+              for (auto& space : dr.special) {
+                printf("%zu,", space.basis.size());
               }
               printf("]");
             }
             if (dr.remaining.size() > 0) {
               printf("(");
-              for (auto basis : dr.remaining) {
-                printf("%zu,", basis.size());
+              for (auto& space : dr.remaining) {
+                printf("%zu,", space.basis.size());
               }
               printf(")");
             }
@@ -279,16 +288,16 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
           }
         )
 
-        for (auto& done_basis : dr.done) {
-          done.emplace_back(done_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        for (auto& space : dr.done) {
+          done.emplace_back(space);
         }
 
-        for (auto& special_basis : dr.special) {
-          remaining.emplace_back(special_basis, true, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        for (auto& space : dr.special) {
+          remaining.emplace_back(space);
         }
 
-        for (auto& remaining_basis: dr.remaining) {
-          remaining.emplace_back(remaining_basis, false, level, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        for (auto& space: dr.remaining) {
+          remaining.emplace_back(space);
         }
       }
       DEBUG_INFO_PRINT(2, "Completed p = %lld (special), done = %zu spaces, remaining = %zu spaces\n", p, done.size(), remaining.size());

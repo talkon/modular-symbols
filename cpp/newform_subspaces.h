@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <map>
+#include <optional>
 
 // Forward declarations
 struct ManinBasisElement;
@@ -19,6 +20,8 @@ struct Subspace {
   std::vector<int64_t> atkin_lehner_pos;
   std::vector<int64_t> atkin_lehner_neg;
   int trace_depth = 0;
+
+  std::optional<FmpzPoly> hecke_field_poly;
 
   // NOTE: Making an assumption here that trace form coeffs fit in 64 bits
   std::map<int64_t, int64_t> trace_form;

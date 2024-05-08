@@ -2,6 +2,7 @@
 #include "manin_basis.h"
 #include "manin_element.h"
 #include "debug_utils.h"
+#include "newform_subspaces.h"
 #include "fmpz_mat_helpers.h"
 
 #include <flint/fmpq_mat.h>
@@ -495,15 +496,18 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
 DecomposeResult DecomposeResult::empty() {
   return {
-    .done = std::vector<std::vector<ManinElement>>(),
-    .special = std::vector<std::vector<ManinElement>>(),
-    .remaining = std::vector<std::vector<ManinElement>>()
+    .done = std::vector<Subspace>(),
+    .special = std::vector<Subspace>(),
+    .remaining = std::vector<Subspace>()
   };
 }
 
 // TODO: should be faster to decompose using a matrix of the action on the newform subspace
 
-DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt) {
+DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt) {
+
+  auto& B = subspace.basis;
+
   // If the input space is trivial, the result is also trivial.
   if (B.size() == 0) {
     return DecomposeResult::empty();
@@ -610,15 +614,21 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
 
   _fmpz_vec_clear(pivot_coeffs, B.size());
 
-  std::vector<std::vector<ManinElement>> done;
-  std::vector<std::vector<ManinElement>> special;
-  std::vector<std::vector<ManinElement>> remaining;
+  std::vector<Subspace> done;
+  std::vector<Subspace> special;
+  std::vector<Subspace> remaining;
 
-  // --------------------------------------------------------- //
-  // Checks if space doesn't split mod some word-length primes //
-  // --------------------------------------------------------- //
+  // --------------------------------------------------- //
+  // Checks if space doesn't split mod some small primes //
+  // --------------------------------------------------- //
 
-  if (B.size() > 10 && prime_opt) {
+  // For spaces of size <= 20, we output the minimal polynomial, so we need to compute it anyways.
+
+  // For spaces of size > 20, we check the factorization of the minimal polynomial mod p, for some
+  // small primes p. Any possible factor of the minimal polynomial has degree equal to the sum of
+  // the degrees of some factors mod p, so by checking various p we can potentially deduce that
+  // the minimal polynomial is irreducible.
+  if (B.size() > 20 && prime_opt) {
     fmpz_mat_t f_matrix_z;
     fmpz_mat_init(f_matrix_z, B.size(), B.size());
 
@@ -729,7 +739,7 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
         // printf("eee\n");
 
         if (irred) {
-          done.push_back(B);
+          done.push_back(subspace);
 
           // printf("fff\n");
           DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu, found at iteration %ld\n", B.size(), iter);
@@ -802,10 +812,14 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
   } else if (num_factors == 1) {
     int deg = fmpz_poly_degree(min_poly_factored->p);
     if (deg == B.size()) {
-      done.push_back(B);
+      Subspace out = subspace;
+      FmpzPoly out_poly;
+      out_poly.set_copy(min_poly_z);
+      out.hecke_field_poly = out_poly;
+      done.emplace_back(out);
       DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
     } else {
-      special.push_back(B);
+      special.push_back(subspace);
       DEBUG_INFO_PRINT(3, " minimal polynomial irreducible but space dimension %zu is not equal to degree %d\n", B.size(), deg);
     }
   } else {
@@ -828,7 +842,8 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
 
       if (dimension_only && (min_poly_degree + dimension_excess + degree > B.size())) {
         DEBUG_INFO_PRINT(3, " factor appears only once, degree: %d\n", degree);
-        done.emplace_back(degree, ManinElement::zero(N));
+        std::vector<ManinElement> output(degree, ManinElement::zero(N));
+        done.emplace_back(output, true, N, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
         continue;
       }
 
@@ -929,10 +944,15 @@ DecomposeResult decompose(std::vector<ManinElement> B, FmpqMatrix& map_of_basis,
       )
 
       if (degree == rank) {
-        done.push_back(output);
+        Subspace out(output, true, N, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        FmpzPoly out_poly;
+        out_poly.set_copy(factor);
+        out.hecke_field_poly = out_poly;
+        done.emplace_back(out);
       } else {
         dimension_excess += (rank - degree);
-        remaining.push_back(output);
+        Subspace out(output, false, N, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
+        remaining.emplace_back(out);
       }
     }
 
