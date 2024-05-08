@@ -330,7 +330,7 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
 
   // 0. Preprocess T relation matrix
   // If we see any +-3, this corresponds to a fixed point of T (i.e. will be zero), so we can replace it by 1
-  // TODO: this is a bit hacky, think about what's actually happening here and make sure we're not missing any other case (like a col with 1 and 2).
+  // XXX: this is a bit hacky, think about what's actually happening here and make sure we're not missing any other case (like a col with 1 and 2).
   for (int row = 0; row < num_T_rows; row++) {
     for (int col = 0; col < num_S_gens; col++) {
       if (fmpz_equal_si(fmpz_mat_entry(T_mat, row, col), 3)) {

@@ -18,52 +18,22 @@
 MBEWC::MBEWC(int64_t bi, fmpq_t c) : basis_index(bi) {
   fmpq_init(coeff);
   fmpq_set(coeff, c);
-
-  // uint64_t num = *fmpq_numref(coeff);
-  // if (COEFF_IS_MPZ(num)) printf("+ <ref 0x%llx>\n", num);
-
-  // uint64_t den = *fmpq_denref(coeff);
-  // if (COEFF_IS_MPZ(den)) printf("+ <ref 0x%llx>\n", den);
 }
 
 MBEWC::MBEWC(const MBEWC& mbewc) : basis_index(mbewc.basis_index) {
   fmpq_init(coeff);
   fmpq_set(coeff, mbewc.coeff);
-
-  // printf("MBEWC copy!\n");
-
-  // uint64_t old_num = *fmpq_numref(mbewc.coeff);
-  // uint64_t num = *fmpq_numref(coeff);
-  // if (COEFF_IS_MPZ(num)) {
-  //   printf("c <ref 0x%llx> -> <ref 0x%llx>\n", old_num, num);
-  //   if (old_num == num) {
-  //     printf(RED "<error>" RESET " attempted move to same address");
-  //     throw std::runtime_error("alkjsdfhah;a");
-  //   }
-  //   // fmpq_print(mbewc.coeff);
-  //   // printf(" -> ");
-  //   // fmpq_print(coeff);
-  //   // printf("\n");
-  // }
-
-  // uint64_t old_den = *fmpq_denref(mbewc.coeff);
-  // uint64_t den = *fmpq_denref(coeff);
-  // if (COEFF_IS_MPZ(den)) printf("c <ref 0x%llx> -> <ref 0x%llx>\n", old_den, den);
 }
 
 MBEWC::MBEWC(MBEWC&& mbewc) : basis_index(mbewc.basis_index) {
   fmpq_init(coeff);
   fmpq_swap(coeff, mbewc.coeff);
-
-  // printf("MBEWC move!\n");
 }
 
 MBEWC& MBEWC::operator=(const MBEWC& mbewc) {
   basis_index = mbewc.basis_index;
   fmpq_init(coeff);
   fmpq_set(coeff, mbewc.coeff);
-
-  // printf("MBEWC copy assign!\n");
   return *this;
 }
 
@@ -71,18 +41,10 @@ MBEWC& MBEWC::operator=(MBEWC&& mbewc) {
   basis_index = mbewc.basis_index;
   fmpq_init(coeff);
   fmpq_swap(coeff, mbewc.coeff);
-
-  printf("MBEWC move assign!\n");
   return *this;
 }
 
 MBEWC::~MBEWC() {
-  // uint64_t num = *fmpq_numref(coeff);
-  // if (COEFF_IS_MPZ(num)) printf("~ <ref 0x%llx>\n", num);
-
-  // uint64_t den = *fmpq_denref(coeff);
-  // if (COEFF_IS_MPZ(den)) printf("~ <ref 0x%llx>\n", den);
-
   fmpq_clear(coeff);
 }
 

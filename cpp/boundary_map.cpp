@@ -6,6 +6,7 @@
 #include "debug_utils.h"
 #include "cache_decorator.h"
 
+#include <flint/ulong_extras.h>
 #include <flint/fmpz_mat.h>
 
 #include <vector>
@@ -38,7 +39,7 @@ bool Cusp::is_equivalent(const Cusp& other) {
   assert (this_result.gcd == 1);
   assert (other_result.gcd == 1);
 
-  int64_t g = utils::gcd(this->d * other.d, N);
+  int64_t g = n_gcd(this->d * other.d, N);
 
   return (
     (this_result.a * other.d - this->d * other_result.a) % g == 0

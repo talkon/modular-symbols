@@ -27,12 +27,12 @@ ManinElement _impl_hecke_action(ManinBasisElement mbe, int64_t p) {
   if (level % p == 0) {
     for (auto mat : heilbronn_merel(p)) {
       ManinGenerator mg = mbe.right_action_by(mat).as_generator();
-      // XXX: this += is unnecessarily expensive, so we're using hecke_matrix (below) instead
       result += level_and_index_to_basis(level, mg.index);
     }
   } else {
     for (auto mat : heilbronn_cremona(p)) {
       ManinGenerator mg = mbe.right_action_by(mat).as_generator();
+      // XXX: this += is unnecessarily expensive, so we're using hecke_matrix (below) instead
       result += level_and_index_to_basis(level, mg.index);
     }
   }

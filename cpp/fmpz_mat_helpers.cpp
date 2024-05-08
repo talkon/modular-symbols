@@ -143,6 +143,104 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
   flint_free(pows);
 }
 
+void fmpz_poly_apply_fmpz_mat_ps(fmpz_mat_t dst, const fmpz_mat_t src, const fmpz_poly_t f) {
+
+  DEBUG_INFO(5,
+    {
+      printf("fmpz_poly_apply_fmpq_mat_ps called with f(T) = ");
+      fmpz_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  ulong l = fmpz_poly_degree(f);
+  ulong k = n_sqrt(l);
+
+  ulong d = fmpz_mat_nrows(src);
+  assert(d == fmpz_mat_ncols(src));
+
+  // Compute 1, T, T^2, .., T^k
+  fmpz_mat_t* pows = (fmpz_mat_t*) flint_malloc((k + 1) * sizeof(fmpz_mat_t));
+  fmpz_mat_t tmp;
+
+  fmpz_mat_init(pows[0], d, d);
+  fmpz_mat_one(pows[0]);
+
+  fmpz_mat_init_set(tmp, src);
+  for (int i = 1; i < k; i++) {
+    fmpz_mat_init_set(pows[i], tmp);
+    fmpz_mat_mul(tmp, tmp, src);
+  }
+
+  fmpz_mat_init_set(pows[k], tmp);
+
+  fmpz_mat_init(dst, d, d);
+  fmpz_mat_zero(dst);
+
+  fmpz_t a;
+
+  fmpz_init(a);
+  for (int j = l / k; j >= 0; j--) {
+
+    for (int i = 0; i < k; i++) {
+      fmpz_poly_get_coeff_fmpz(a, f, j * k + i);
+      if (!fmpz_is_zero(a)) {
+        fmpz_mat_scalar_mul_fmpz(tmp, pows[i], a);
+        fmpz_mat_add(dst, dst, tmp);
+      }
+    }
+
+    if (j > 0) {
+      fmpz_mat_mul(dst, dst, pows[k]);
+    }
+  }
+
+  fmpz_clear(a);
+  fmpz_mat_clear(tmp);
+  for (int i = 0; i <= k; i++) {
+    fmpz_mat_clear(pows[i]);
+  }
+  flint_free(pows);
+}
+
+// Algorithm B, but clearing denominators first and applying the algorithm to a fmpz_mat_t.
+// This is slower in practice.
+void fmpz_poly_apply_fmpq_mat_ps_clear_denom(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  fmpz_mat_t src_z, dst_z;
+  fmpz_t den;
+  fmpz_mat_init(src_z, d, d);
+  fmpz_mat_init(dst_z, d, d);
+  fmpz_init(den);
+
+  fmpq_mat_get_fmpz_mat_matwise(src_z, den, src);
+
+  fmpz_poly_t f_adj;
+  fmpz_poly_init(f_adj);
+  fmpz_poly_set(f_adj, f);
+
+  int deg = f->length - 1;
+  fmpz_t den_pow;
+  fmpz_init_set(den_pow, den);
+
+  for (int i = deg - 1; i >= 0; i--) {
+    fmpz_mul(fmpz_poly_get_coeff_ptr(f_adj, i), fmpz_poly_get_coeff_ptr(f_adj, i), den_pow);
+    if (i > 0) fmpz_mul(den_pow, den_pow, den);
+  }
+
+  fmpz_poly_apply_fmpz_mat_ps(dst_z, src_z, f_adj);
+  fmpq_mat_set_fmpz_mat_div_fmpz(dst, dst_z, den_pow);
+
+  fmpz_poly_clear(f_adj);
+  fmpz_clear(den);
+  fmpz_clear(den_pow);
+  fmpz_mat_clear(src_z);
+  fmpz_mat_clear(dst_z);
+}
+
 void _fmpq_poly_apply_fmpq_mat_base(
   fmpq_mat_t dst,
   const fmpq_mat_t src,

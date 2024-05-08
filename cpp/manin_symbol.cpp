@@ -81,7 +81,6 @@ struct GeneratorComputationResult {
 };
 
 // Base implementation of `manin_generators()`
-// XXX: Surely there is a better approach to this caching pattern, but I think this works for now.
 // XXX: It seems like this caching approach works across multiple compilation units,
 // but I'm not sure why.
 GeneratorComputationResult _impl_compute_manin_generators(const int64_t level) {

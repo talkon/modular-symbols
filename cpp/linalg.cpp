@@ -87,7 +87,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   fmpq_mat_mul_fmpz_mat(map_matrix, map_of_basis, B_matrix_z);
   fmpq_mat_clear(map_of_basis);
 
-  // XXX: this feels a bit wasteful
+  // XXX: the conversions between fmpz and fmpq matrices might use too much memory?
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
   fmpq_mat_clear(map_matrix);
 
@@ -102,9 +102,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
-  // TODO: consider forcing this to use rref_mul instead of rref_fflu
   int64_t rank = fmpz_mat_nullspace_mul(map_kernel, map_matrix_z);
-  // printf("cc %lld\n", rank);
 
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
 
@@ -235,7 +233,6 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
   int current_col = 0;
   for (int row = 0; row < N_basis.size(); row++) {
-    // printf("%d %d\n", row, current_col);
     bool is_pivot = true;
     for (int col = 0; col < B.size(); col++) {
       if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
@@ -324,8 +321,9 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
   fmpq_mat_t neg_one;
   fmpq_mat_init(neg_one, B.size(), B.size());
-  fmpq_mat_one(neg_one);
-  fmpq_mat_neg(neg_one, neg_one);
+  for (int i = 0; i < B.size(); i++) {
+    fmpq_set_si(fmpq_mat_entry(neg_one, i, i), -1, 1);
+  }
 
   // Case 2: Space doesn't split: only -1 space
   if (fmpq_mat_equal(f_matrix, neg_one)) {
@@ -344,8 +342,9 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
   fmpz_mat_init(kernel, B.size(), B.size());
 
   // Set f_matrix to T-1, i.e. positive space
-  // XXX: should be faster to just add to the diagonal elements
-  fmpq_mat_add(f_matrix, f_matrix, neg_one);
+  for (int i = 0; i < B.size(); i++) {
+    fmpq_sub_si(fmpq_mat_entry(f_matrix, i, i), fmpq_mat_entry(f_matrix, i, i), 1);
+  }
   fmpq_mat_get_fmpz_mat_rowwise(f_matrix_z, NULL, f_matrix);
 
   int rank = fmpz_mat_nullspace_mul(kernel, f_matrix_z);
@@ -411,10 +410,11 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
   DEBUG_INFO_PRINT(3, " pos_space dimension: %d\n", rank);
 
-  // Set f_matrix from T-1 to T+1, i.e. positive space
-  // XXX: should be faster to just add to the diagonal elements
-  fmpq_mat_sub(f_matrix, f_matrix, neg_one);
-  fmpq_mat_sub(f_matrix, f_matrix, neg_one);
+  // Set f_matrix from T-1 to T+1, i.e. negative space
+  for (int i = 0; i < B.size(); i++) {
+    fmpq_add_si(fmpq_mat_entry(f_matrix, i, i), fmpq_mat_entry(f_matrix, i, i), 2);
+  }
+
   fmpq_mat_get_fmpz_mat_rowwise(f_matrix_z, NULL, f_matrix);
 
   rank = fmpz_mat_nullspace_mul(kernel, f_matrix_z);
@@ -556,7 +556,6 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
 
   int current_col = 0;
   for (int row = 0; row < N_basis.size(); row++) {
-    // printf("%d %d\n", row, current_col);
     bool is_pivot = true;
     for (int col = 0; col < B.size(); col++) {
       if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
@@ -645,22 +644,16 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
       }
     )
 
-    // printf("a\n");
-
     ulong p = 32;
     std::vector<bool> possible_factor_degs(B.size() + 1);
     for (int i = 0; i <= B.size(); i++)
       possible_factor_degs[i] = true;
-
-    // printf("b\n");
 
     for (int iter = 0; iter < 10; iter++) {
       p = n_nextprime(p, 1);
 
       nmod_mat_t f_matrix_mod_p;
       nmod_mat_init(f_matrix_mod_p, B.size(), B.size(), p);
-
-      // printf("aaa\n");
 
       nmod_poly_t min_poly_mod_p;
       nmod_poly_init(min_poly_mod_p, p);
@@ -674,6 +667,8 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
       DEBUG_INFO_PRINT(5, "min_poly_mod_p deg: %d\n", min_poly_mod_p->length - 1);
 
       if (min_poly_mod_p->length == B.size() + 1) {
+        // XXX: Minimal polynomial is rarely irreducible, so we don't save time by checking irreducibility first.
+        //
         // if (nmod_poly_is_irreducible(min_poly_mod_p)) {
         //   done.push_back(B);
         //   DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu in mod %ld\n", B.size(), p);
@@ -688,8 +683,6 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         nmod_poly_factor_t facs;
         nmod_poly_factor_init(facs);
         nmod_poly_factor(facs, min_poly_mod_p);
-
-        // printf("bbb\n");
 
         DEBUG_INFO(4,
           {
@@ -706,8 +699,6 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         for (int i = 1; i <= B.size(); i++)
           p_factor_degs[i] = false;
 
-        // printf("ccc\n");
-
         int sum = 0;
         for (int i = 1; i <= facs->num; i++) {
           int factor_deg = (facs->p + (i % facs->num))->length - 1;
@@ -715,13 +706,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
           for (int j = sum; j >= factor_deg; j--) {
             p_factor_degs[j] = p_factor_degs[j] || p_factor_degs[j - factor_deg];
           }
-          // for (int j = 0; j <= B.size(); j++) {
-          //   printf("%d", p_factor_degs[j] ? 1 : 0);
-          // }
-          // printf("\n");
         }
-
-        // printf("ddd\n");
 
         bool irred = true;
         for (int j = 1; j < B.size(); j++) {
@@ -729,19 +714,11 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
           irred = irred && !(possible_factor_degs[j]);
         }
 
-        // for (int j = 0; j <= B.size(); j++) {
-        //   printf("%d", possible_factor_degs[j] ? 1 : 0);
-        // }
-        // printf("\n");
-
         nmod_poly_factor_clear(facs);
-
-        // printf("eee\n");
 
         if (irred) {
           done.push_back(subspace);
 
-          // printf("fff\n");
           DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu, found at iteration %ld\n", B.size(), iter);
 
           nmod_mat_clear(f_matrix_mod_p);
