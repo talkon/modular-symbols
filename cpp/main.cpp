@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  while ((c = getopt (argc, argv, "n:v:d:t:hsp")) != -1) {
+  while ((c = getopt (argc, argv, "n:v:d:t:T:M:hsp")) != -1) {
     switch (c) {
       case 'n':
         level = atol(optarg);

@@ -91,6 +91,7 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
       printf("fmpz_poly_apply_fmpq_mat_ps called with f(T) = ");
       fmpz_poly_print_pretty(f, "T");
       printf("\n");
+      printf("mem_threshold = %ld\n", mem_threshold);
     }
   )
 
