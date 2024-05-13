@@ -360,6 +360,11 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
             next_depth
           );
           done.at(subspace_order[i]).next_trace(next_depth, hecke_mat, min_trace_depth);
+          if (next_depth == min_trace_depth) {
+            done.at(subspace_order[i]).clear_hecke_matrices();
+          }
+        } else {
+          done.at(subspace_order[i]).clear_hecke_matrices();
         }
       }
       // This is a bit inefficient, but this is not taking up much execution time anyways.
