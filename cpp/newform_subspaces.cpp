@@ -89,7 +89,7 @@ ManinElement& atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int trace_depth, bool prime_opt) {
+std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int min_trace_depth, int max_trace_depth, bool prime_opt) {
 
   if (level <= 10) return std::vector<Subspace>();
 
@@ -298,67 +298,74 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
   DEBUG_INFO_PRINT(1, "Starting computation of trace forms for level %lld\n", level);
 
   if (!dimension_only) {
-    int next_depth = 1;
-    while (true) {
-      next_depth++;
-      if (next_depth <= trace_depth) {
+    int next_depth = 2;
 
+    while (max_trace_depth == -1 || next_depth <= max_trace_depth) {
+
+      std::vector<bool> next_trace_needed(num_subspaces);
+      for (int i = 0; i < num_subspaces; i++) {
+        next_trace_needed[i] = false;
+      }
+
+      bool hecke_mat_needed = next_depth <= min_trace_depth;
+
+      for (int i = 0; i < num_subspaces - 1; i++) {
+        if (done.at(subspace_order[i]).trace_form == done.at(subspace_order[i+1]).trace_form) {
+          next_trace_needed[i] = true;
+          next_trace_needed[i+1] = true;
+          hecke_mat_needed = true;
+        }
+      }
+
+      if (!hecke_mat_needed) break;
+
+      int count = 0;
+      for (int i = 0; i < num_subspaces; i++) {
+        if(next_trace_needed[i]) count++;
+      }
+
+      if (next_depth <= min_trace_depth) {
         DEBUG_INFO_PRINT(2,
           "Trace depth: %d, for all subspaces (%zu subspaces)\n",
           next_depth,
-          done.size()
+          num_subspaces
         )
-
-        FmpqMatrix hecke_mat;
-        if (n_is_prime(next_depth)) {
-          hecke_mat = hecke_matrix(level, next_depth);
-        }
-
-        for (int i = 0; i < done.size(); i++) {
-          DEBUG_INFO_PRINT(5,
-            " Subspace %d, dimension %d, depth %d\n",
-            i,
-            done.at(i).dimension(),
-            done.at(i).trace_depth + 1
-          );
-          done.at(i).next_trace(next_depth, hecke_mat);
-        }
       } else {
-        std::set<int> next_trace_needed;
-
-        for (int i = 0; i < num_subspaces - 1; i++) {
-          if (done.at(subspace_order[i]).trace_form == done.at(subspace_order[i+1]).trace_form) {
-            next_trace_needed.insert(i);
-            next_trace_needed.insert(i+1);
-          }
-        }
-
-        if (next_trace_needed.empty()) break;
-
         DEBUG_INFO_PRINT(2,
           "Trace depth: %d, subspaces remaining: %zu\n",
           next_depth,
-          next_trace_needed.size()
+          count
         )
+      }
 
-        FmpqMatrix hecke_mat;
-        if (n_is_prime(next_depth)) {
-          hecke_mat = hecke_matrix(level, next_depth);
-        }
+      FmpqMatrix hecke_mat;
+      if (n_is_prime(next_depth)) {
+        hecke_mat = hecke_matrix(level, next_depth);
+      }
 
-        for (int i : next_trace_needed) {
+      for (int i = 0; i < num_subspaces; i++) {
+        if (next_trace_needed[i]) {
           DEBUG_INFO_PRINT(5,
             " Subspace %d, dimension %d, depth %d\n",
             subspace_order[i],
             done.at(subspace_order[i]).dimension(),
-            done.at(subspace_order[i]).trace_depth + 1
+            next_depth
           );
-          done.at(subspace_order[i]).next_trace(trace_depth, hecke_mat);
+          done.at(subspace_order[i]).next_trace(next_depth, hecke_mat, max_trace_depth);
+        } else if (next_depth <= min_trace_depth) {
+          DEBUG_INFO_PRINT(5,
+            " Subspace %d, dimension %d, depth %d\n",
+            subspace_order[i],
+            done.at(subspace_order[i]).dimension(),
+            next_depth
+          );
+          done.at(subspace_order[i]).next_trace(next_depth, hecke_mat, min_trace_depth);
         }
       }
-
       // This is a bit inefficient, but this is not taking up much execution time anyways.
       std::sort(subspace_order.begin(), subspace_order.end(), compare);
+
+      next_depth++;
     }
   }
 
@@ -371,7 +378,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 }
 
 std::vector<int> newform_subspace_dimensions(int64_t level) {
-  auto nss = newform_subspaces(level, true, 0, true);
+  auto nss = newform_subspaces(level, true, 0, 0, true);
   std::vector<int> sizes;
   for (auto ns : nss) {
     sizes.push_back(ns.dimension());

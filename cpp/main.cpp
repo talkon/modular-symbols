@@ -12,13 +12,17 @@
 
 void print_help() {
   printf("Usage\
-          \n -n N : (required) sets level to N\
-          \n -t T : sets trace depth to T (default 10)\
-          \n -s   : compute only subspace dimensions (overrides -t)\
-          \n -p   : disable newest optimization (for testing only)\
-          \n -v V : sets verbosity to V\
-          \n -d D : (used for debugging purposes)\
-          \n -h   : prints this help message and exits\
+          \n -n <level>           : (required) sets level to <level>\
+          \n -t <min_trace_depth> : sets minimum trace depth (default 0), i.e. \
+          \n                      : will always compute the trace form to at least this depth\
+          \n -T <max_trace_depth> : sets maximum trace depth (default unbounded), i.e.\
+          \n                        will not compute beyond this depth even if some subspaces\
+          \n                        still have the same trace form up to <max_trace_depth>\
+          \n -s                   : compute only subspace dimensions (overrides -t and -T)\
+          \n -p                   : disable newest optimization (for testing only)\
+          \n -v <verbosity>       : sets verbosity to V\
+          \n -d <debug_arg>       : (used for debugging purposes)\
+          \n -h                   : prints this help message and exits\
           \n");
 }
 
@@ -28,7 +32,8 @@ int main(int argc, char** argv) {
 
   int64_t level = 0;
   int verbose = 0;
-  int trace_depth = 10;
+  int min_trace_depth = 0;
+  int max_trace_depth = -1;
   bool dimension_only = false;
   bool prime_opt = true;
 
@@ -46,7 +51,10 @@ int main(int argc, char** argv) {
         verbose = atoi(optarg);
         break;
       case 't':
-        trace_depth = atoi(optarg);
+        min_trace_depth = atoi(optarg);
+        break;
+      case 'T':
+        max_trace_depth = atoi(optarg);
         break;
       case 's':
         dimension_only = true;
@@ -64,13 +72,16 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (dimension_only) trace_depth = 0;
+  if (dimension_only) {
+    min_trace_depth = 0;
+    max_trace_depth = 0;
+  }
 
   set_verbosity(verbose);
   init_timer();
 
   DEBUG_INFO_PRINT(1, "Started computation for level %lld\n", level);
-  auto subspaces = newform_subspaces(level, dimension_only, trace_depth, prime_opt);
+  auto subspaces = newform_subspaces(level, dimension_only, min_trace_depth, max_trace_depth, prime_opt);
   DEBUG_INFO_PRINT(1, "Finished computation for level %lld\n", level);
 
   for (auto& subspace : subspaces) {

@@ -43,7 +43,9 @@ struct Subspace {
   void set_first_trace();
 
   // Computes the next coefficient of the trace form, and return trace_depth.
-  int next_trace(int next_depth, FmpqMatrix& hecke_mat);
+  int next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_depth);
+
+  void clear_hecke_matrices();
 
   // Prints information about this subspace
   void print() const;

@@ -56,10 +56,10 @@ void Subspace::print() const {
 
 void Subspace::set_first_trace() {
   FmpqMatrix unused;
-  next_trace(1, unused);
+  next_trace(1, unused, -1);
 }
 
-int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat) {
+int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_depth) {
   int n = trace_depth + 1;
   assert(n == next_depth);
   int dim = dimension();
@@ -194,7 +194,11 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat) {
     }
     else {
       int64_t q = n_pow(factors.p[0], factors.exp[0]);
-      fmpq_mat_mul(f_matrix, hecke_matrices.at(n / q).mat, hecke_matrices.at(q).mat);
+      fmpq_mat_set(f_matrix, hecke_matrices.at(q).mat);
+      for (int i = 1; i < factors.num; i++) {
+        q = n_pow(factors.p[i], factors.exp[i]);
+        fmpq_mat_mul(f_matrix, f_matrix, hecke_matrices.at(q).mat);
+      }
     }
     fmpq_t trace;
     fmpq_init(trace);
@@ -205,9 +209,13 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat) {
     trace_form.insert(std::make_pair(n, trace_int));
     fmpq_clear(trace);
 
-    FmpqMatrix hecke_matrix;
-    hecke_matrix.set_move(f_matrix);
-    hecke_matrices.insert(std::make_pair(n, hecke_matrix));
+    if (factors.num <= 1 && (max_trace_depth == -1 || 2 * n < max_trace_depth)) {
+      FmpqMatrix hecke_matrix;
+      hecke_matrix.set_move(f_matrix);
+      hecke_matrices.insert(std::make_pair(n, hecke_matrix));
+    } else {
+      fmpq_mat_clear(f_matrix);
+    }
 
     trace_depth++;
   }
@@ -243,4 +251,8 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat) {
   }
 
   return trace_depth;
+}
+
+void Subspace::clear_hecke_matrices() {
+  hecke_matrices.clear();
 }
