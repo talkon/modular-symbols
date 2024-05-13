@@ -7,6 +7,7 @@
 #include "newform_subspaces.h"
 #include "debug_utils.h"
 
+#include <flint/flint.h>
 #include <unistd.h>
 
 void print_help() {
@@ -83,5 +84,6 @@ int main(int argc, char** argv) {
     if (i != subspaces.size() - 1) printf(",");
   }
   printf("]:%.4lf\n", get_elapsed_time());
+  flint_cleanup_master();
   return 0;
 }

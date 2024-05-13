@@ -370,6 +370,7 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
   fmpz_mat_init(kernel_in_orig_basis, N_basis.size(), rank);
   fmpz_mat_mul(kernel_in_orig_basis, B_matrix_z, kernel_window);
+  fmpz_mat_window_clear(kernel_window);
 
   DEBUG_INFO(4,
     {
@@ -408,6 +409,8 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     pos_space.push_back(element);
   }
 
+  fmpz_mat_clear(kernel_in_orig_basis);
+
   DEBUG_INFO_PRINT(3, " pos_space dimension: %d\n", rank);
 
   // Set f_matrix from T-1 to T+1, i.e. negative space
@@ -440,6 +443,8 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
   fmpz_mat_init(kernel_in_orig_basis, N_basis.size(), rank);
   fmpz_mat_mul(kernel_in_orig_basis, B_matrix_z, kernel_window);
+  fmpz_mat_clear(B_matrix_z);
+  fmpz_mat_window_clear(kernel_window);
 
   DEBUG_INFO(4,
     {
@@ -479,8 +484,6 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
   }
 
   DEBUG_INFO_PRINT(3, " neg_space dimension: %d\n", rank);
-
-  fmpz_mat_window_clear(kernel_window);
 
   fmpq_mat_clear(neg_one);
   fmpq_mat_clear(f_matrix);
@@ -726,6 +729,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
 
           fmpq_mat_clear(f_matrix);
           fmpz_mat_clear(B_matrix_z);
+          fmpz_mat_clear(f_matrix_z);
           return {.done = done, .special = special, .remaining = remaining};
         }
       }

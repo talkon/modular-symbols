@@ -114,7 +114,6 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
 
   fmpq_mat_init_set(pows[k], tmp);
 
-  fmpq_mat_init(dst, d, d);
   fmpq_mat_zero(dst);
 
   fmpz_t a;

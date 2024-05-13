@@ -159,6 +159,7 @@ int Subspace::compute_next_trace() {
 
       fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B_matrix_z);
       fmpq_mat_clear(pivot_rows);
+      fmpz_mat_clear(B_matrix_z);
 
       DEBUG_INFO(6,
         {
