@@ -89,7 +89,7 @@ ManinElement& atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   return _cache_atkin_lehner_action(mbe, q);
 }
 
-std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int min_trace_depth, int max_trace_depth, bool prime_opt) {
+std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int min_trace_depth, int max_trace_depth, bool prime_opt, slong mem_limit) {
 
   if (level <= 10) return std::vector<Subspace>();
 
@@ -184,7 +184,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         continue;
       }
 
-      DecomposeResult dr = decompose(subspace, hecke_mat, dimension_only, prime_opt);
+      DecomposeResult dr = decompose(subspace, hecke_mat, dimension_only, prime_opt, mem_limit);
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.basis.size());
@@ -228,7 +228,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     if (special.size() > 0 && iter > 0) {
       std::vector<Subspace> special_remaining;
       for (auto& subspace : special ) {
-        DecomposeResult dr = decompose(subspace, sum_hecke, dimension_only, prime_opt);
+        DecomposeResult dr = decompose(subspace, sum_hecke, dimension_only, prime_opt, mem_limit);
         DEBUG_INFO(2,
           {
             printf("dim %zu -> ", subspace.basis.size());
@@ -383,7 +383,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 }
 
 std::vector<int> newform_subspace_dimensions(int64_t level) {
-  auto nss = newform_subspaces(level, true, 0, 0, true);
+  auto nss = newform_subspaces(level, true, 0, 0, true, 0);
   std::vector<int> sizes;
   for (auto ns : nss) {
     sizes.push_back(ns.dimension());

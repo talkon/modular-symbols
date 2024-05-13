@@ -38,6 +38,6 @@ struct DecomposeResult {
 // Decomposes a subspace with the given basis into simple f-modules,
 // where `map_of_basis` is a matrix of the linear map f acting on the standard basis.
 // If `dimension_only` is true, only computes dimension of subspaces.
-DecomposeResult decompose(Subspace, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt);
+DecomposeResult decompose(Subspace, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt, const slong mem_threshold);
 
 #endif // LINALG_H

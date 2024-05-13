@@ -18,10 +18,13 @@ void print_help() {
           \n -T <max_trace_depth> : sets maximum trace depth (default unbounded), i.e.\
           \n                        will not compute beyond this depth even if some subspaces\
           \n                        still have the same trace form up to <max_trace_depth>\
+          \n -M <mem_threshold>   : (experimental) sets memory threshold in matrix polynomial\
+          \n                        evaluation, in MB. Empirically, use value of x to keep overall\
+          \n                        memory usage below 2x _if_ this step is the bottleneck\
           \n -s                   : compute only subspace dimensions (overrides -t and -T)\
-          \n -p                   : disable newest optimization (for testing only)\
           \n -v <verbosity>       : sets verbosity to V\
-          \n -d <debug_arg>       : (used for debugging purposes)\
+          \n -p                   : disable newest optimization (used for debugging)\
+          \n -d <debug_arg>       : (used for debugging)\
           \n -h                   : prints this help message and exits\
           \n");
 }
@@ -34,6 +37,7 @@ int main(int argc, char** argv) {
   int verbose = 0;
   int min_trace_depth = 0;
   int max_trace_depth = -1;
+  slong mem_threshold = 0;
   bool dimension_only = false;
   bool prime_opt = true;
 
@@ -55,6 +59,9 @@ int main(int argc, char** argv) {
         break;
       case 'T':
         max_trace_depth = atoi(optarg);
+        break;
+      case 'M':
+        mem_threshold = atol(optarg) << 10L;
         break;
       case 's':
         dimension_only = true;
@@ -81,7 +88,7 @@ int main(int argc, char** argv) {
   init_timer();
 
   DEBUG_INFO_PRINT(1, "Started computation for level %lld\n", level);
-  auto subspaces = newform_subspaces(level, dimension_only, min_trace_depth, max_trace_depth, prime_opt);
+  auto subspaces = newform_subspaces(level, dimension_only, min_trace_depth, max_trace_depth, prime_opt, mem_threshold);
   DEBUG_INFO_PRINT(1, "Finished computation for level %lld\n", level);
 
   for (auto& subspace : subspaces) {

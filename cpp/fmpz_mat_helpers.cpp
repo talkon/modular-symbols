@@ -10,6 +10,7 @@
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
 #include <flint/ulong_extras.h>
+#include <flint/profiler.h>
 
 #include <array>
 #include <cassert>
@@ -83,7 +84,7 @@ void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const
 
 // Algorithm B in Paterson-Stockmeyer: 2 * sqrt(deg(P)) matrix multiplications
 // TODO: consider scaling up everything and work on integer matrices
-void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f, const slong mem_threshold) {
 
   DEBUG_INFO(5,
     {
@@ -107,36 +108,58 @@ void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmp
   fmpq_mat_one(pows[0]);
 
   fmpq_mat_init_set(tmp, src);
-  for (int i = 1; i < k; i++) {
-    fmpq_mat_init_set(pows[i], tmp);
-    fmpq_mat_mul(tmp, tmp, src);
+  int m = 1;
+  while (m < k) {
+
+    slong mem_usage = -2;
+    if (mem_threshold > 0) {
+      meminfo_t meminfo;
+      get_memory_usage(meminfo);
+      mem_usage = meminfo->rss;
+      DEBUG_INFO_PRINT(5, "fmpz_poly_apply_fmpq_mat_ps: m = %d, mem usage = %d\n", m, (int) meminfo->rss);
+    }
+
+    if (m <= 10 || mem_usage < mem_threshold) {
+      fmpq_mat_init_set(pows[m], tmp);
+      fmpq_mat_mul(tmp, tmp, src);
+      m++;
+    } else {
+      DEBUG_INFO_PRINT(3, "fmpz_poly_apply_fmpq_mat_ps: stopped early at m = %d due to memory usage limit\n", m);
+      break;
+    }
   }
 
-  fmpq_mat_init_set(pows[k], tmp);
+  fmpq_mat_init_set(pows[m], tmp);
 
   fmpq_mat_zero(dst);
 
   fmpz_t a;
 
   fmpz_init(a);
-  for (int j = l / k; j >= 0; j--) {
+  for (int j = l / m; j >= 0; j--) {
 
-    for (int i = 0; i < k; i++) {
-      fmpz_poly_get_coeff_fmpz(a, f, j * k + i);
+    for (int i = 0; i < m; i++) {
+      fmpz_poly_get_coeff_fmpz(a, f, j * m + i);
       if (!fmpz_is_zero(a)) {
         fmpq_mat_scalar_mul_fmpz(tmp, pows[i], a);
         fmpq_mat_add(dst, dst, tmp);
       }
     }
 
+    if (mem_threshold > 0) {
+      meminfo_t meminfo;
+      get_memory_usage(meminfo);
+      DEBUG_INFO_PRINT(5, "fmpz_poly_apply_fmpq_mat_ps: j = %d, mem usage = %d\n", j, (int) meminfo->rss);
+    }
+
     if (j > 0) {
-      fmpq_mat_mul(dst, dst, pows[k]);
+      fmpq_mat_mul(dst, dst, pows[m]);
     }
   }
 
   fmpz_clear(a);
   fmpq_mat_clear(tmp);
-  for (int i = 0; i <= k; i++) {
+  for (int i = 0; i <= m; i++) {
     fmpq_mat_clear(pows[i]);
   }
   flint_free(pows);
@@ -173,7 +196,6 @@ void fmpz_poly_apply_fmpz_mat_ps(fmpz_mat_t dst, const fmpz_mat_t src, const fmp
 
   fmpz_mat_init_set(pows[k], tmp);
 
-  fmpz_mat_init(dst, d, d);
   fmpz_mat_zero(dst);
 
   fmpz_t a;
@@ -562,7 +584,7 @@ void fmpz_poly_apply_fmpq_mat_ps_recur(fmpq_mat_t dst, const fmpq_mat_t src, con
 
 }
 
-void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f, const slong mem_threshold) {
   int degree = fmpz_poly_degree(f);
 
   if (degree == 0) {
@@ -579,7 +601,7 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
     fmpz_poly_apply_fmpq_mat_horner(dst, src, f);
     return;
   } else {
-    fmpz_poly_apply_fmpq_mat_ps(dst, src, f);
+    fmpz_poly_apply_fmpq_mat_ps(dst, src, f, mem_threshold);
     return;
   }
   // else {

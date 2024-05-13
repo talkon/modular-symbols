@@ -507,7 +507,7 @@ DecomposeResult DecomposeResult::empty() {
 
 // TODO: should be faster to decompose using a matrix of the action on the newform subspace
 
-DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt) {
+DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dimension_only, bool prime_opt, const slong mem_threshold) {
 
   auto& B = subspace.basis;
 
@@ -828,7 +828,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         continue;
       }
 
-      fmpz_poly_apply_fmpq_mat(poly_on_f_matrix, f_matrix, factor);
+      fmpz_poly_apply_fmpq_mat(poly_on_f_matrix, f_matrix, factor, mem_threshold);
 
       DEBUG_INFO(4,
         {
