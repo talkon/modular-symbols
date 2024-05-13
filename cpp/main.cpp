@@ -18,9 +18,9 @@ void print_help() {
           \n -T <max_trace_depth> : sets maximum trace depth (default unbounded), i.e.\
           \n                        will not compute beyond this depth even if some subspaces\
           \n                        still have the same trace form up to <max_trace_depth>\
-          \n -M <mem_threshold>   : (experimental) sets memory threshold in matrix polynomial\
-          \n                        evaluation, in MB. Empirically, use value of x to keep overall\
-          \n                        memory usage below 2x _if_ this step is the bottleneck\
+          \n -M <mem_threshold>   : (experimental, only on Linux) sets memory threshold in matrix\
+          \n                        polynomial evaluation, in MB. Empirically, use value of m to keep\
+          \n                        overall memory usage below 2.5m _if_ this step is the bottleneck\
           \n -s                   : compute only subspace dimensions (overrides -t and -T)\
           \n -v <verbosity>       : sets verbosity to V\
           \n -p                   : disable newest optimization (used for debugging)\
