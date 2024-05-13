@@ -8,6 +8,7 @@
 
 struct FmpqMatrix {
   fmpq_mat_t mat;
+  bool initialized = false;
 
   FmpqMatrix() {};
   void set_copy(const fmpq_mat_t);
@@ -24,6 +25,7 @@ struct FmpqMatrix {
 
 struct FmpzPoly {
   fmpz_poly_t poly;
+  bool initialized = false;
 
   FmpzPoly() {};
   void set_copy(const fmpz_poly_t);

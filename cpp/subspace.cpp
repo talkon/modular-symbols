@@ -54,8 +54,14 @@ void Subspace::print() const {
   }
 }
 
-int Subspace::compute_next_trace() {
+void Subspace::set_first_trace() {
+  FmpqMatrix unused;
+  next_trace(1, unused);
+}
+
+int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat) {
   int n = trace_depth + 1;
+  assert(n == next_depth);
   int dim = dimension();
   assert(dim > 0);
   int64_t level = basis[0].N;
@@ -133,9 +139,6 @@ int Subspace::compute_next_trace() {
       }
 
       // Construct matrix of the linear map f acting on B
-
-      FmpqMatrix& hecke_mat = hecke_matrix(level, p);
-
       fmpq_mat_t pivot_rows;
       fmpq_mat_init(pivot_rows, basis.size(), N_basis.size());
 
@@ -240,8 +243,4 @@ int Subspace::compute_next_trace() {
   }
 
   return trace_depth;
-}
-
-void Subspace::compute_trace_until(int depth) {
-  while (trace_depth < depth) compute_next_trace();
 }

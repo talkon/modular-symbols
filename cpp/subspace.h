@@ -40,10 +40,10 @@ struct Subspace {
 
   int dimension() const;
 
-  // Computes the next coefficient of the trace form, and return trace_depth.
-  int compute_next_trace();
+  void set_first_trace();
 
-  void compute_trace_until(int depth);
+  // Computes the next coefficient of the trace form, and return trace_depth.
+  int next_trace(int next_depth, FmpqMatrix& hecke_mat);
 
   // Prints information about this subspace
   void print() const;

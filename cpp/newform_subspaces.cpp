@@ -44,7 +44,7 @@ ManinElement& hecke_action(ManinBasisElement mbe, int64_t p) {
   return _cache_hecke_action(mbe, p);
 }
 
-FmpqMatrix _impl_hecke_matrix(int64_t level, int64_t p) {
+FmpqMatrix hecke_matrix(int64_t level, int64_t p) {
   assert(level % p != 0);
   auto basis = manin_basis(level);
 
@@ -72,10 +72,10 @@ FmpqMatrix _impl_hecke_matrix(int64_t level, int64_t p) {
   return mat;
 }
 
-FmpqMatrix& hecke_matrix(int64_t level, int64_t p) {
-  static CacheDecorator<FmpqMatrix, int64_t, int64_t> _cache_hecke_matrix(_impl_hecke_matrix);
-  return _cache_hecke_matrix(level, p);
-}
+// FmpqMatrix& hecke_matrix(int64_t level, int64_t p) {
+//   static CacheDecorator<FmpqMatrix, int64_t, int64_t> _cache_hecke_matrix(_impl_hecke_matrix);
+//   return _cache_hecke_matrix(level, p);
+// }
 
 ManinElement _impl_atkin_lehner_action(ManinBasisElement mbe, int64_t q) {
   int64_t level = mbe.N;
@@ -168,7 +168,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
     DEBUG_INFO_PRINT(2, "Decomposing spaces using Hecke operator T_%lld\n", p);
 
-    FmpqMatrix& hecke_mat = hecke_matrix(level, p);
+    FmpqMatrix hecke_mat = hecke_matrix(level, p);
     fmpq_mat_add(sum_hecke.mat, sum_hecke.mat, hecke_mat.mat);
 
     // if (p < 20) continue;
@@ -276,7 +276,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
   // This will set the first coefficient of trace form for each subspace to the dimension.
   for (auto& subspace : done) {
-    subspace.compute_next_trace();
+    subspace.set_first_trace();
   }
 
   auto compare = [&done] (int a, int b) {
@@ -301,46 +301,64 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     int next_depth = 1;
     while (true) {
       next_depth++;
-      std::set<int> next_trace_needed;
+      if (next_depth <= trace_depth) {
 
-      for (int i = 0; i < num_subspaces - 1; i++) {
-        if (done.at(subspace_order[i]).trace_form == done.at(subspace_order[i+1]).trace_form) {
-          next_trace_needed.insert(i);
-          next_trace_needed.insert(i+1);
+        DEBUG_INFO_PRINT(2,
+          "Trace depth: %d, for all subspaces (%zu subspaces)\n",
+          next_depth,
+          done.size()
+        )
+
+        FmpqMatrix hecke_mat;
+        if (n_is_prime(next_depth)) {
+          hecke_mat = hecke_matrix(level, next_depth);
         }
-      }
 
-      if (next_trace_needed.empty()) break;
+        for (int i = 0; i < done.size(); i++) {
+          DEBUG_INFO_PRINT(5,
+            " Subspace %d, dimension %d, depth %d\n",
+            i,
+            done.at(i).dimension(),
+            done.at(i).trace_depth + 1
+          );
+          done.at(i).next_trace(next_depth, hecke_mat);
+        }
+      } else {
+        std::set<int> next_trace_needed;
 
-      DEBUG_INFO_PRINT(2,
-        "Trace depth: %d, subspaces remaining: %zu\n",
-        next_depth,
-        next_trace_needed.size()
-      )
+        for (int i = 0; i < num_subspaces - 1; i++) {
+          if (done.at(subspace_order[i]).trace_form == done.at(subspace_order[i+1]).trace_form) {
+            next_trace_needed.insert(i);
+            next_trace_needed.insert(i+1);
+          }
+        }
 
-      for (int i : next_trace_needed) {
-        DEBUG_INFO_PRINT(5,
-          " Subspace %d, dimension %d, depth %d\n",
-          subspace_order[i],
-          done.at(subspace_order[i]).dimension(),
-          done.at(subspace_order[i]).trace_depth + 1
-        );
-        done.at(subspace_order[i]).compute_next_trace();
+        if (next_trace_needed.empty()) break;
+
+        DEBUG_INFO_PRINT(2,
+          "Trace depth: %d, subspaces remaining: %zu\n",
+          next_depth,
+          next_trace_needed.size()
+        )
+
+        FmpqMatrix hecke_mat;
+        if (n_is_prime(next_depth)) {
+          hecke_mat = hecke_matrix(level, next_depth);
+        }
+
+        for (int i : next_trace_needed) {
+          DEBUG_INFO_PRINT(5,
+            " Subspace %d, dimension %d, depth %d\n",
+            subspace_order[i],
+            done.at(subspace_order[i]).dimension(),
+            done.at(subspace_order[i]).trace_depth + 1
+          );
+          done.at(subspace_order[i]).next_trace(trace_depth, hecke_mat);
+        }
       }
 
       // This is a bit inefficient, but this is not taking up much execution time anyways.
       std::sort(subspace_order.begin(), subspace_order.end(), compare);
-    }
-
-    DEBUG_INFO_PRINT(2, "Computing remaining traces up to depth %d\n", trace_depth);
-
-    for (auto& subspace : done) {
-        DEBUG_INFO_PRINT(3,
-          " Subspace dimension %d, until depth %d\n",
-          subspace.dimension(),
-          trace_depth
-        );
-      subspace.compute_trace_until(trace_depth);
     }
   }
 

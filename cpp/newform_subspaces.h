@@ -17,7 +17,7 @@ ManinElement& hecke_action(ManinBasisElement, int64_t p);
 
 // Computes the matrix of the action of the Hecke operator T_p.
 // p must not divide the level.
-FmpqMatrix& hecke_matrix(int64_t level, int64_t p);
+FmpqMatrix hecke_matrix(int64_t level, int64_t p);
 
 // Computes the action of the Atkin-Lehner involution w_q on the given Manin basis element.
 // q must be a prime power such that q || N.
