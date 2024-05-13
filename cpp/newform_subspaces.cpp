@@ -339,7 +339,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       }
 
       FmpqMatrix hecke_mat;
-      if (n_is_prime(next_depth)) {
+      if (n_is_prime(next_depth) && n_gcd(level, next_depth) == 1) {
         hecke_mat = hecke_matrix(level, next_depth);
       }
 
