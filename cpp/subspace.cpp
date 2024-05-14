@@ -209,7 +209,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
     trace_form.insert(std::make_pair(n, trace_int));
     fmpq_clear(trace);
 
-    if (factors.num <= 1 && (max_trace_depth == -1 || 2 * n < max_trace_depth)) {
+    if (factors.num <= 1 && (max_trace_depth == -1 || 2 * n <= max_trace_depth)) {
       FmpqMatrix hecke_matrix;
       hecke_matrix.set_move(f_matrix);
       hecke_matrices.insert(std::make_pair(n, hecke_matrix));
