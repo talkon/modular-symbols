@@ -16,6 +16,9 @@ int Subspace::dimension() const {
 }
 
 void Subspace::print() const {
+  // Level
+  printf("%d:", level);
+
   // Dimension
   int dim = dimension();
   printf("%d:", dim);
