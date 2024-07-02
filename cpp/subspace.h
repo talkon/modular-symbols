@@ -48,7 +48,8 @@ struct Subspace {
   void clear_hecke_matrices();
 
   // Prints information about this subspace
-  void print() const;
+  // `index` is used to compute the LMFDB label of the subspace
+  void print(int index) const;
 };
 
 #endif // SUBSPACE_H

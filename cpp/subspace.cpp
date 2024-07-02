@@ -15,9 +15,22 @@ int Subspace::dimension() const {
   return basis.size();
 }
 
-void Subspace::print() const {
-  // Level
-  printf("%d:", level);
+void Subspace::print(int index) const {
+  // Label
+  const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
+  char newform_label[11];
+  newform_label[10] = '\0';
+  int p = 9;
+  if (index == 0) {
+    newform_label[p] = alphabet[0];
+    p--;
+  }
+  for (; index > 0 && p >= 0; p--) {
+    newform_label[p] = alphabet[index % 26];
+    index /= 26;
+  }
+  if (p < 0) assert(false);
+  printf("%d.2.a.%s:", level, newform_label + p + 1);
 
   // Dimension
   int dim = dimension();

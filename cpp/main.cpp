@@ -91,9 +91,11 @@ int main(int argc, char** argv) {
   auto subspaces = newform_subspaces(level, dimension_only, min_trace_depth, max_trace_depth, prime_opt, mem_threshold);
   DEBUG_INFO_PRINT(1, "Finished computation for level %lld\n", level);
 
+  int si = 0;
   for (auto& subspace : subspaces) {
-    subspace.print();
+    subspace.print(si);
     printf("\n");
+    si++;
   }
 
   printf("%lld:[", level);
