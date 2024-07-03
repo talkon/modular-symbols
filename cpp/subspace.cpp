@@ -5,6 +5,7 @@
 #include "debug_utils.h"
 
 #include <flint/ulong_extras.h>
+#include <flint/fmpq_poly.h>
 #include <flint/fmpz_mat.h>
 #include <flint/fmpz_vec.h>
 #include <flint/fmpz_poly.h>
@@ -68,6 +69,22 @@ void Subspace::print(int index) const {
   } else if (dim == 1) {
     printf("1,0,");
   }
+
+  // Hecke minimal polynomials
+  printf(":");
+  for (auto const& [p, mp] : hecke_min_polys) {
+    printf("(");
+    auto& poly = mp.poly;
+    int deg = fmpz_poly_degree(poly);
+    printf("%lld;%lld;", p, deg);
+    for (int i = deg; i >= 0; i--) {
+      fmpz_print(fmpz_poly_get_coeff_ptr(poly, i));
+      printf(",");
+    }
+    printf(")");
+  }
+
+
 }
 
 void Subspace::set_first_trace() {
@@ -87,6 +104,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
   n_factor(&factors, n, 1);
 
   int g = n_gcd(n, level);
+  int is_prime = n_is_prime(n);
 
   if (g == 1) {
     fmpq_mat_t f_matrix;
@@ -95,7 +113,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
     if (n == 1) {
       fmpq_mat_one(f_matrix);
     }
-    else if (n_is_prime(n)) {
+    else if (is_prime) {
       int p = n;
       // TODO: There's a lot of copied code here -- might be possible to refactor
       std::vector<ManinBasisElement> N_basis = manin_basis(level);
@@ -225,6 +243,26 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
     trace_form.insert(std::make_pair(n, trace_int));
     fmpq_clear(trace);
 
+    if (is_prime && dimension() <= 20) {
+      fmpq_poly_t min_poly;
+      fmpz_poly_t min_poly_z;
+      fmpq_poly_init(min_poly);
+      fmpz_poly_init(min_poly_z);
+      if (fmpq_mat_is_zero(f_matrix)) {
+        // Manually set the minimal polynomial to x.
+        fmpz_poly_set_coeff_si(min_poly_z, 1, 1);
+      } else {
+        fmpq_mat_minpoly(min_poly, f_matrix);
+        fmpq_poly_get_numerator(min_poly_z, min_poly);
+      }
+
+      fmpq_poly_clear(min_poly);
+
+      FmpzPoly poly;
+      poly.set_move(min_poly_z);
+      hecke_min_polys.insert(std::make_pair(n, poly));
+    }
+
     if (factors.num <= 1 && (max_trace_depth == -1 || 2 * n <= max_trace_depth)) {
       FmpqMatrix hecke_matrix;
       hecke_matrix.set_move(f_matrix);
@@ -264,6 +302,27 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
     int trace_int = trace_form.at(x) * sign;
     trace_form.insert(std::make_pair(n, trace_int));
     trace_depth++;
+
+    if (is_prime && dimension() < 20) {
+      if (level % (n * n) == 0) {
+        sign = 0;
+      } else if (
+        std::find(atkin_lehner_pos.begin(), atkin_lehner_pos.end(), n) != atkin_lehner_pos.end()
+      ) {
+        sign = -1;
+      } else {
+        sign = 1;
+      }
+      fmpz_poly_t min_poly;
+      fmpz_poly_init(min_poly);
+      fmpz_poly_set_coeff_si(min_poly, 1, 1);
+      fmpz_poly_set_coeff_si(min_poly, 0, -sign);
+
+      FmpzPoly poly;
+      poly.set_move(min_poly);
+      hecke_min_polys.insert(std::make_pair(n, poly));
+    }
+
   }
 
   return trace_depth;

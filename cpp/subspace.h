@@ -22,7 +22,7 @@ struct Subspace {
   // NOTE: Making an assumption here that trace form coeffs fit in 64 bits
   std::map<int64_t, int64_t> trace_form;
   std::map<int64_t, FmpqMatrix> hecke_matrices;
-  // std::map<int64_t, FmpzPoly> hecke_minpolys;
+  std::map<int64_t, FmpzPoly> hecke_min_polys;
 
   Subspace(
     std::vector<ManinElement> basis,
