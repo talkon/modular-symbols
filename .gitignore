@@ -22,4 +22,7 @@ _deps
 # c artifacts
 *.o
 *.d
+
+# macOS signing
 entitlement.xml
+sign.sh
