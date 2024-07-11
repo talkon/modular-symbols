@@ -2,6 +2,7 @@
 #include "debug_utils.h"
 #include "manin_element.h"
 #include "heilbronn.h"
+#include "fmpz_mat_helpers.h"
 
 #include <flint/fmpz_mat.h>
 #include <flint/fmpz_vec.h>
@@ -14,10 +15,16 @@
 
 void debug_temp(int d) {
 
-  for (auto& mat : heilbronn_merel(d)) {
-    mat.print();
-    printf("\n");
-  }
+  fmpz_t large;
+  fmpz_init_set_si(large, 1);
+  fmpz_mul_2exp(large, large, d);
+  printf("%lu\n", fmpz_total_size(large));
+  fmpz_clear(large);
+
+  // for (auto& mat : heilbronn_merel(d)) {
+  //   mat.print();
+  //   printf("\n");
+  // }
 
   // fmpq_t large, to_be_freed;
   // fmpq_init(large);

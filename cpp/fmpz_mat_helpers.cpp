@@ -611,13 +611,6 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
   // }
 }
 
-void fmpz_mat_print_dimensions(const fmpz_mat_t mat) {
-  int r = fmpz_mat_nrows(mat);
-  int c = fmpz_mat_ncols(mat);
-  int max = fmpz_mat_max_bits(mat);
-
-  printf("(%d x %d, %d)", r, c, max);
-}
 
 // Code taken from fmpz_mat/nullspace.c in FLINT, modified to use fmpz_mat_rref_mul
 slong fmpz_mat_nullspace_mul(fmpz_mat_t res, const fmpz_mat_t mat) {
@@ -677,6 +670,44 @@ slong fmpz_mat_nullspace_mul(fmpz_mat_t res, const fmpz_mat_t mat) {
   return nullity;
 }
 
+ulong fmpz_total_size(const fmpz_t num) {
+  if (COEFF_IS_MPZ(*num)) {
+    __mpz_struct *z = COEFF_TO_PTR(*num);
+    return sizeof(__mpz_struct) + z->_mp_alloc * 8;
+  }
+  else return 8;
+}
+
+ulong fmpz_mat_total_size(const fmpz_mat_t mat) {
+  ulong size = 0;
+  for (slong i = 0; i < mat->r; i++) {
+    for (slong j = 0; j < mat->c; j++) {
+      size += fmpz_total_size(((fmpz*) mat->rows[i]) + j);
+    }
+  }
+  return size + sizeof(fmpz_mat_struct);
+}
+
+ulong fmpq_mat_total_size(const fmpq_mat_t mat) {
+  ulong size = 0;
+  for (slong i = 0; i < mat->r; i++) {
+    for (slong j = 0; j < 2 * mat->c; j++) {
+      size += fmpz_total_size(((fmpz*) mat->rows[i]) + j);
+    }
+  }
+  return size + sizeof(fmpq_mat_struct);
+}
+
+
+void fmpz_mat_print_dimensions(const fmpz_mat_t mat) {
+  int r = fmpz_mat_nrows(mat);
+  int c = fmpz_mat_ncols(mat);
+  int max = fmpz_mat_max_bits(mat);
+  ulong size = fmpz_mat_total_size(mat);
+
+  printf("(%d x %d, %d, %lu)", r, c, max, size);
+}
+
 // Code modified from fmpz_mat/max_bits.c in FLINT
 slong fmpq_mat_max_bits(const fmpq_mat_t mat) {
   slong i;
@@ -706,8 +737,9 @@ void fmpq_mat_print_dimensions(const fmpq_mat_t mat) {
   int r = fmpq_mat_nrows(mat);
   int c = fmpq_mat_ncols(mat);
   int max = fmpq_mat_max_bits(mat);
+  ulong size = fmpq_mat_total_size(mat);
 
-  printf("(%d x %d, %d)_Q ", r, c, max);
+  printf("(%d x %d, %d, %lu)_Q ", r, c, max, size);
 }
 
 

@@ -31,4 +31,7 @@ void fmpz_mat_print_dimensions(const fmpz_mat_t mat);
 // Prints (row x col, max_bits) of a matrix.
 void fmpq_mat_print_dimensions(const fmpq_mat_t mat);
 
+// Returns the total amount of memory used by `num` in bytes
+ulong fmpz_total_size(const fmpz_t num);
+
 #endif

@@ -149,6 +149,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
   int iter = 0;
 
   int manin_basis_size = manin_basis(level).size();
+  // TODO: make this fmpz_mat instead to reduce size??
   fmpq_mat_t sum_hecke_mat;
   fmpq_mat_init(sum_hecke_mat, manin_basis_size, manin_basis_size);
   FmpqMatrix sum_hecke;

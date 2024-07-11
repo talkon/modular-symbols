@@ -4,6 +4,7 @@
 
 #include "debug_utils.h"
 #include "cache_decorator.h"
+#include "fmpz_mat_helpers.h"
 
 #include <flint/flint.h>
 #include <flint/fmpq.h>
@@ -314,7 +315,15 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   }
 
-  DEBUG_INFO_PRINT(4, "Finished computing relations\nnrows: %ld\nncols: %ld\n", fmpz_mat_nrows(T_mat), fmpz_mat_ncols(T_mat));
+  DEBUG_INFO_PRINT(3, "Finished computing relations\n");
+
+  DEBUG_INFO(4,
+    {
+      printf("relation matrix: ");
+      fmpz_mat_print_dimensions(T_mat);
+      printf("\n");
+    }
+  )
 
 
   DEBUG_INFO(7,
