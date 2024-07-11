@@ -65,6 +65,7 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
     auto f1 = [m](ManinBasisElement mbe) { return oldspace_map(mbe, 1, m); };
     current_basis = map_kernel(current_basis, f1, m);
     DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.size());
+    DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
   }
 
   // Compute the d = p oldspace maps for large M
@@ -81,6 +82,7 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
     auto fp = [p, m](ManinBasisElement mbe) { return oldspace_map(mbe, p, m); };
     current_basis = map_kernel(current_basis, fp, m);
     DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
+    DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
   }
 
   // Compute maps for "small" M, i.e. M < threshold (This does not seem to help)

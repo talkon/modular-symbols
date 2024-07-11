@@ -516,7 +516,13 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     }
   )
 
+
   DEBUG_INFO_PRINT(3, "Finished computation of Manin basis for level %lld\n", level);
+
+  DEBUG_INFO_PRINT(4, "gtb_vec size: %zu, alloc_size: %lu bytes\n",
+    gtb_vec.size(),
+    ManinElement::vector_alloc_size(gtb_vec)
+  );
 
   return BasisComputationResult(basis, gtb_vec, generator_to_S_generators);
 }

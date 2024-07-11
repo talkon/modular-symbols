@@ -18,7 +18,7 @@ void debug_temp(int d) {
   fmpz_t large;
   fmpz_init_set_si(large, 1);
   fmpz_mul_2exp(large, large, d);
-  printf("%lu\n", fmpz_total_size(large));
+  printf("%lu\n", fmpz_alloc_size(large));
   fmpz_clear(large);
 
   // for (auto& mat : heilbronn_merel(d)) {

@@ -84,6 +84,14 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   }
 
+  DEBUG_INFO(4,
+    {
+      printf("map_of_basis: ");
+      fmpq_mat_print_dimensions(map_of_basis);
+      printf("\n");
+    }
+  )
+
   fmpq_mat_mul_fmpz_mat(map_matrix, map_of_basis, B_matrix_z);
   fmpq_mat_clear(map_of_basis);
 

@@ -670,7 +670,7 @@ slong fmpz_mat_nullspace_mul(fmpz_mat_t res, const fmpz_mat_t mat) {
   return nullity;
 }
 
-ulong fmpz_total_size(const fmpz_t num) {
+ulong fmpz_alloc_size(const fmpz_t num) {
   if (COEFF_IS_MPZ(*num)) {
     __mpz_struct *z = COEFF_TO_PTR(*num);
     return sizeof(__mpz_struct) + z->_mp_alloc * 8;
@@ -682,7 +682,7 @@ ulong fmpz_mat_total_size(const fmpz_mat_t mat) {
   ulong size = 0;
   for (slong i = 0; i < mat->r; i++) {
     for (slong j = 0; j < mat->c; j++) {
-      size += fmpz_total_size(((fmpz*) mat->rows[i]) + j);
+      size += fmpz_alloc_size(((fmpz*) mat->rows[i]) + j);
     }
   }
   return size + sizeof(fmpz_mat_struct);
@@ -692,7 +692,7 @@ ulong fmpq_mat_total_size(const fmpq_mat_t mat) {
   ulong size = 0;
   for (slong i = 0; i < mat->r; i++) {
     for (slong j = 0; j < 2 * mat->c; j++) {
-      size += fmpz_total_size(((fmpz*) mat->rows[i]) + j);
+      size += fmpz_alloc_size(((fmpz*) mat->rows[i]) + j);
     }
   }
   return size + sizeof(fmpq_mat_struct);

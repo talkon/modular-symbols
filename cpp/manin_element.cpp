@@ -2,6 +2,7 @@
 #include "manin_element.h"
 #include "manin_basis.h"
 #include "debug_utils.h"
+#include "fmpz_mat_helpers.h"
 
 #include <flint/fmpq_mat.h>
 #include <flint/fmpz_mat.h>
@@ -82,6 +83,10 @@ void MBEWC::print_internals() const {
   else printf("%lld", den);
 
   printf(") * [%lld]", basis_index);
+}
+
+ulong MBEWC::alloc_size() const {
+  return sizeof(int64_t) + fmpz_alloc_size(&coeff->den) + fmpz_alloc_size(&coeff->num);
 }
 
 // --- ManinElement functions ---
@@ -306,4 +311,23 @@ void ManinElement::print_with_internals() const {
     it->print_internals();
     printf("\n");
   }
+}
+
+ulong ManinElement::alloc_size() const {
+  ulong size = sizeof(ManinElement);
+  for (auto& component: components) {
+    size += component.alloc_size();
+  }
+  // printf("%zu ", components.size());
+  size += sizeof(MBEWC) * (components.capacity() - components.size());
+  return size;
+}
+
+ulong ManinElement::vector_alloc_size(const std::vector<ManinElement>& vec) {
+  ulong size = sizeof(vec);
+  for (auto& me: vec) {
+    size += me.alloc_size();
+  }
+  size += sizeof(ManinElement) * (vec.capacity() - vec.size());
+  return size;
 }

@@ -42,6 +42,8 @@ struct MBEWC {
   void print() const;
 
   void print_internals() const;
+
+  ulong alloc_size() const;
 };
 
 bool has_duplicate_keys(const std::vector<MBEWC>&);
@@ -55,7 +57,8 @@ bool has_duplicate_keys(const std::vector<MBEWC>&);
 // XXX: this representation seems inefficient for adding ManinElements;
 // perhaps consider other representations? (like a map from index -> coeff)
 //
-// XXX: actually maybe a dense representation is just faster?
+// XXX: actually maybe a dense representation is likely just faster and
+// more memory-efficient
 struct ManinElement {
   int64_t N;
   std::vector<MBEWC> components;
@@ -101,7 +104,13 @@ struct ManinElement {
   // Prints this Manin element, with index expanded into ManinGenerators
   void print_with_generators() const;
 
+  // --- Debugging ---
+
   void print_with_internals() const;
+
+  ulong alloc_size() const;
+
+  static ulong vector_alloc_size(const std::vector<ManinElement>& vec);
 };
 
 #endif // MANIN_ELEMENT_H
