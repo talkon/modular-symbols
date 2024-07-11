@@ -4,6 +4,7 @@
 #include "manin_symbol.h"
 #include "manin_element.h"
 #include "linalg.h"
+#include "subspace_basis.h"
 #include "debug_utils.h"
 #include "cache_decorator.h"
 
@@ -32,11 +33,12 @@ ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
 }
 #endif
 
-std::vector<ManinElement> newspace_basis(int64_t level) {
-  std::vector<ManinElement> current_basis = cuspidal_manin_basis(level);
+SparseBasis newspace_basis(int64_t level) {
+  SparseBasis sparse_basis = cuspidal_manin_basis(level);
+  DenseBasis current_basis = sparse_to_dense(sparse_basis, level, true);
 
   DEBUG_INFO_PRINT(1, "Started computation of newspace basis for level %lld\n", level)
-  DEBUG_INFO_PRINT(2, "Starting current_basis size: %zu\n", current_basis.size())
+  DEBUG_INFO_PRINT(2, "Starting current_basis size: %zu\n", current_basis.mat->c);
 
   n_factor_t factors;
   n_factor_init(&factors);
@@ -63,9 +65,9 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
     DEBUG_INFO_PRINT(2, "Computing d = 1 oldspace map for M: %lld\n", m);
 
     auto f1 = [m](ManinBasisElement mbe) { return oldspace_map(mbe, 1, m); };
-    current_basis = map_kernel(current_basis, f1, m);
-    DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.size());
-    DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
+    current_basis = map_kernel(current_basis, f1, level, m);
+    DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.mat->c);
+    // DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
   }
 
   // Compute the d = p oldspace maps for large M
@@ -80,9 +82,9 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
     DEBUG_INFO_PRINT(2, "Computing d = p oldspace map for M: %lld\n", m);
 
     auto fp = [p, m](ManinBasisElement mbe) { return oldspace_map(mbe, p, m); };
-    current_basis = map_kernel(current_basis, fp, m);
-    DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
-    DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
+    current_basis = map_kernel(current_basis, fp, level, m);
+    DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.mat->c);
+    // DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
   }
 
   // Compute maps for "small" M, i.e. M < threshold (This does not seem to help)
@@ -106,5 +108,5 @@ std::vector<ManinElement> newspace_basis(int64_t level) {
   //   DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
   // }
 
-  return current_basis;
+  return dense_to_sparse(current_basis, level, true);
 }

@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-DenseBasis sparse_to_dense(SparseBasis& sparse, int64_t level) {
+DenseBasis sparse_to_dense(SparseBasis& sparse, int64_t level, bool clear) {
 
   int nrows = manin_basis(level).size();
   int ncols = sparse.size();
@@ -31,12 +31,14 @@ DenseBasis sparse_to_dense(SparseBasis& sparse, int64_t level) {
 
   fmpq_mat_clear(dense_col_q);
 
+  if (clear) sparse.clear();
+
   DenseBasis dense;
   dense.set_move(dense_mat_z);
   return dense;
 }
 
-SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level) {
+SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level, bool clear) {
 
   int nrows = dense.mat->r;
   int ncols = dense.mat->c;
@@ -59,6 +61,8 @@ SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level) {
     element.mark_as_sorted_unchecked();
     sparse.push_back(element);
   }
+
+  if (clear) dense.clear();
 
   return sparse;
 }

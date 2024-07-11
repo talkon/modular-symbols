@@ -6,6 +6,7 @@
 #include "manin_basis.h"
 #include "manin_element.h"
 #include "flint_wrappers.h"
+#include "subspace_basis.h"
 
 #include <vector>
 
@@ -15,7 +16,7 @@ struct Subspace;
 // Computes the kernel (represented by a basis) of a given linear map `f` acting on
 // a vector space of ManinElements (also represented by a basis).
 // `f` should be a map to Manin symbols of level `M`.
-std::vector<ManinElement> map_kernel(std::vector<ManinElement>, std::function<ManinElement(ManinBasisElement)> f, int64_t M);
+DenseBasis map_kernel(DenseBasis&, std::function<ManinElement(ManinBasisElement)> f, int64_t N, int64_t M);
 
 struct SplitResult {
   std::vector<ManinElement> pos_space;

@@ -9,8 +9,8 @@
 typedef std::vector<ManinElement> SparseBasis;
 typedef FmpzMatrix DenseBasis;
 
-DenseBasis sparse_to_dense(SparseBasis& sparse, int64_t level);
+DenseBasis sparse_to_dense(SparseBasis& sparse, int64_t level, bool clear);
 
-SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level);
+SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level, bool clear);
 
 #endif // SUBSPACE_BASIS_H
