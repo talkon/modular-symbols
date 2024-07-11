@@ -36,9 +36,64 @@ FmpqMatrix& FmpqMatrix::operator=(FmpqMatrix&& src) {
   return *this;
 }
 
-FmpqMatrix::~FmpqMatrix() {
+void FmpqMatrix::clear() {
   if (initialized)
     fmpq_mat_clear(mat);
+}
+
+FmpqMatrix::~FmpqMatrix() {
+  if (initialized) {
+    fmpq_mat_clear(mat);
+    initialized = false;
+  }
+}
+
+void FmpzMatrix::set_copy(const fmpz_mat_t src) {
+  fmpz_mat_init_set(mat, src);
+  initialized = true;
+}
+
+void FmpzMatrix::set_move(fmpz_mat_t src) {
+  fmpz_mat_init(mat, 0, 0);
+  fmpz_mat_swap(mat, src);
+  fmpz_mat_clear(src);
+  initialized = true;
+}
+
+FmpzMatrix::FmpzMatrix(const FmpzMatrix& src) {
+  fmpz_mat_init_set(mat, src.mat);
+  initialized = true;
+}
+
+FmpzMatrix::FmpzMatrix(FmpzMatrix&& src) {
+  fmpz_mat_init(mat, 0, 0);
+  fmpz_mat_swap(mat, src.mat);
+  initialized = true;
+}
+
+FmpzMatrix& FmpzMatrix::operator=(const FmpzMatrix& src) {
+  fmpz_mat_init_set(mat, src.mat);
+  initialized = true;
+  return *this;
+}
+
+FmpzMatrix& FmpzMatrix::operator=(FmpzMatrix&& src) {
+  fmpz_mat_init(mat, 0, 0);
+  fmpz_mat_swap(mat, src.mat);
+  initialized = true;
+  return *this;
+}
+
+void FmpzMatrix::clear() {
+  if (initialized) {
+    fmpz_mat_clear(mat);
+    initialized = false;
+  }
+}
+
+FmpzMatrix::~FmpzMatrix() {
+  if (initialized)
+    fmpz_mat_clear(mat);
 }
 
 void FmpzPoly::set_copy(const fmpz_poly_t src) {
@@ -78,6 +133,13 @@ FmpzPoly& FmpzPoly::operator=(FmpzPoly&& src) {
   fmpz_poly_swap(poly, src.poly);
   initialized = true;
   return *this;
+}
+
+void FmpzPoly::clear() {
+  if (initialized) {
+    fmpz_poly_clear(poly);
+    initialized = false;
+  }
 }
 
 FmpzPoly::~FmpzPoly() {

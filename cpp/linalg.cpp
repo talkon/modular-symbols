@@ -4,6 +4,7 @@
 #include "debug_utils.h"
 #include "newform_subspaces.h"
 #include "fmpz_mat_helpers.h"
+#include "subspace_basis.h"
 
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
@@ -34,43 +35,41 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   // Construct matrix of B
   // TODO: just make a function that converts between sparse and dense reps of
   // a ManinElement basis, and we can also just store dense reps as a fmpz_mat.
-  fmpq_mat_t B_matrix;
-  fmpq_mat_init(B_matrix, N_basis.size(), B.size());
-  fmpq_mat_zero(B_matrix);
+  // fmpq_mat_t B_matrix;
+  // fmpq_mat_init(B_matrix, N_basis.size(), B.size());
+  // fmpq_mat_zero(B_matrix);
 
-  fmpz_mat_t B_matrix_z;
-  fmpz_mat_init(B_matrix_z, N_basis.size(), B.size());
-  fmpz_mat_zero(B_matrix_z);
+  // fmpz_mat_t B_matrix_z;
+  // fmpz_mat_init(B_matrix_z, N_basis.size(), B.size());
+  // fmpz_mat_zero(B_matrix_z);
 
-  for (int col = 0; col < B.size(); col++) {
-    ManinElement b = B[col];
-    for (MBEWC component : b.components) {
-      int row = component.basis_index;
+  // for (int col = 0; col < B.size(); col++) {
+  //   ManinElement b = B[col];
+  //   for (MBEWC component : b.components) {
+  //     int row = component.basis_index;
 
-      assert(row < N_basis.size());
-      fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
-    }
-  }
+  //     assert(row < N_basis.size());
+  //     fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
+  //   }
+  // }
 
-  fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
-  fmpq_mat_clear(B_matrix);
+  // fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
+  // fmpq_mat_clear(B_matrix);
 
-  DEBUG_INFO(4,
-    {
-      printf("B_matrix_z: ");
-      fmpz_mat_print_dimensions(B_matrix_z);
-      printf("\n");
-    }
-  )
+  // DEBUG_INFO(4,
+  //   {
+  //     printf("B_matrix_z: ");
+  //     fmpz_mat_print_dimensions(B_matrix_z);
+  //     printf("\n");
+  //   }
+  // )
+
+  DenseBasis bmz = sparse_to_dense(B, N);
 
   // Construct matrix of the map
   fmpq_mat_t map_matrix;
   fmpq_mat_init(map_matrix, M_basis.size(), B.size());
   fmpq_mat_zero(map_matrix);
-
-  fmpz_mat_t map_matrix_z;
-  fmpz_mat_init(map_matrix_z, M_basis.size(), B.size());
-  fmpz_mat_zero(map_matrix_z);
 
   fmpq_mat_t map_of_basis;
   fmpq_mat_init(map_of_basis, M_basis.size(), N_basis.size());
@@ -92,8 +91,12 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
-  fmpq_mat_mul_fmpz_mat(map_matrix, map_of_basis, B_matrix_z);
+  fmpq_mat_mul_fmpz_mat(map_matrix, map_of_basis, bmz.mat);
   fmpq_mat_clear(map_of_basis);
+
+  fmpz_mat_t map_matrix_z;
+  fmpz_mat_init(map_matrix_z, M_basis.size(), B.size());
+  fmpz_mat_zero(map_matrix_z);
 
   // XXX: the conversions between fmpz and fmpq matrices might use too much memory?
   fmpq_mat_get_fmpz_mat_rowwise(map_matrix_z, NULL, map_matrix);
@@ -112,6 +115,8 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
 
   int64_t rank = fmpz_mat_nullspace_mul(map_kernel, map_matrix_z);
 
+  fmpz_mat_clear(map_matrix_z);
+
   fmpz_mat_window_init(map_kernel_window, map_kernel, 0, 0, B.size(), rank);
 
   DEBUG_INFO(4,
@@ -123,8 +128,6 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   )
 
   fmpz_mat_div_colwise_gcd(map_kernel_window);
-
-  fmpz_mat_clear(map_matrix_z);
 
   fmpz_mat_t map_kernel_in_orig_basis;
   fmpz_mat_init(map_kernel_in_orig_basis, N_basis.size(), rank);
@@ -138,7 +141,7 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
   )
 
   // XXX: This multiplication is still slow.
-  fmpz_mat_mul(map_kernel_in_orig_basis, B_matrix_z, map_kernel_window);
+  fmpz_mat_mul(map_kernel_in_orig_basis, bmz.mat, map_kernel_window);
 
   DEBUG_INFO(4,
     {
@@ -148,12 +151,11 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
-  fmpz_mat_clear(B_matrix_z);
-
-  fmpz_mat_div_colwise_gcd(map_kernel_in_orig_basis);
-
+  bmz.clear();
   fmpz_mat_window_clear(map_kernel_window);
   fmpz_mat_clear(map_kernel);
+
+  fmpz_mat_div_colwise_gcd(map_kernel_in_orig_basis);
 
   DEBUG_INFO(4,
     {
@@ -163,29 +165,34 @@ std::vector<ManinElement> map_kernel(std::vector<ManinElement> B, std::function<
     }
   )
 
+  FmpzMatrix dense;
+  dense.set_move(map_kernel_in_orig_basis);
+
+  return dense_to_sparse(dense, N);
+
   // Convert each column of the kernel to a ManinElement
-  std::vector<ManinElement> output;
+  // std::vector<ManinElement> output;
 
-  for (int col = 0; col < rank; col++) {
-    std::vector<MBEWC> components;
-    for (int row = 0; row < N_basis.size(); row++) {
-      if (!(fmpz_is_zero(fmpz_mat_entry(map_kernel_in_orig_basis, row, col)))) {
-        fmpq_t coeff;
-        fmpq_init(coeff);
-        fmpq_set_fmpz(coeff, fmpz_mat_entry(map_kernel_in_orig_basis, row, col));
-        components.emplace_back(row, coeff);
-        fmpq_clear(coeff);
-      }
-    }
-    has_duplicate_keys(components);
-    ManinElement element = ManinElement(N, components);
-    element.mark_as_sorted_unchecked();
-    output.push_back(element);
-  }
+  // for (int col = 0; col < rank; col++) {
+  //   std::vector<MBEWC> components;
+  //   for (int row = 0; row < N_basis.size(); row++) {
+  //     if (!(fmpz_is_zero(fmpz_mat_entry(map_kernel_in_orig_basis, row, col)))) {
+  //       fmpq_t coeff;
+  //       fmpq_init(coeff);
+  //       fmpq_set_fmpz(coeff, fmpz_mat_entry(map_kernel_in_orig_basis, row, col));
+  //       components.emplace_back(row, coeff);
+  //       fmpq_clear(coeff);
+  //     }
+  //   }
+  //   // has_duplicate_keys(components);
+  //   ManinElement element = ManinElement(N, components);
+  //   element.mark_as_sorted_unchecked();
+  //   output.push_back(element);
+  // }
 
-  fmpz_mat_clear(map_kernel_in_orig_basis);
+  // fmpz_mat_clear(map_kernel_in_orig_basis);
 
-  return output;
+  // return output;
 }
 
 SplitResult SplitResult::empty() {
