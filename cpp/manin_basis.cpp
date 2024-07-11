@@ -216,7 +216,6 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
   // though this code is not taking up much of the execution time anyways.
 
   std::set<std::tuple<int64_t, int64_t, int64_t>> T_orbits;
-  std::vector<std::vector<int64_t>> T_rows;
 
   for (ManinGenerator generator : generators) {
 
@@ -277,42 +276,27 @@ BasisComputationResult _impl_compute_manin_basis(const int64_t level) {
     if (auto search = T_orbits.find(negated_orbit); search != T_orbits.end()) continue;
 
     T_orbits.insert(orbit);
-
-    std::vector<int64_t> row (num_S_gens, 0);
-
-    for (int idx : {index, index_T, index_T_2}) {
-
-      if (idx > 0) {
-        row[idx - 1]++;
-      }
-
-      if (idx < 0) {
-        row[-idx - 1]--;
-      }
-
-    }
-
-    DEBUG_INFO(7,
-      {
-        printf("new orbit!\n");
-        printf("row: ");
-        for (auto x : row) printf("%lld ", x);
-        printf("\n");
-      }
-    )
-
-    T_rows.push_back(row);
   }
 
-  int64_t num_T_rows = T_rows.size();
+  int64_t num_T_rows = T_orbits.size();
 
   fmpz_mat_t T_mat;
   fmpz_mat_init(T_mat, num_T_rows, num_S_gens);
+  fmpz_mat_zero(T_mat);
 
-  for (int row = 0; row < num_T_rows; row++) {
-    for (int col = 0; col < num_S_gens; col++) {
-      fmpz_set_si(fmpz_mat_entry(T_mat, row, col), T_rows[row][col]);
+  int r = 0;
+  for (auto& orbit : T_orbits) {
+    for (auto i : {
+      std::get<0>(orbit),
+      std::get<1>(orbit),
+      std::get<2>(orbit)
+    }) {
+      int c = 0, a = 0;
+      if (i > 0) { c = i - 1; a = 1; }
+      if (i < 0) { c = -i - 1; a = -1; }
+      fmpz_add_si(fmpz_mat_entry(T_mat, r, c), fmpz_mat_entry(T_mat, r, c), a);
     }
+    r++;
   }
 
   DEBUG_INFO_PRINT(3, "Finished computing relations\n");
