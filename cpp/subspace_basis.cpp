@@ -66,3 +66,12 @@ SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level, bool clear) {
 
   return sparse;
 }
+
+SparseBasis sparse_empty() {
+  return SparseBasis();
+}
+
+DenseBasis dense_empty(int64_t level) {
+  SparseBasis empty;
+  return sparse_to_dense(empty, level, false);
+}

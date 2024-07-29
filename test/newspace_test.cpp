@@ -4,8 +4,8 @@
 #include <gtest/gtest.h>
 
 void expect_newspace_basis_size(int level, int size) {
-  std::vector<ManinElement> basis = newspace_basis(level);
-  EXPECT_EQ(basis.size(), size);
+  DenseBasis basis = newspace_basis(level);
+  EXPECT_EQ(basis.mat->c, size);
 }
 
 TEST(NewspaceTests, BasisSizes_Small) {

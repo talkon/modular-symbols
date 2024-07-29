@@ -13,4 +13,8 @@ DenseBasis sparse_to_dense(SparseBasis& sparse, int64_t level, bool clear);
 
 SparseBasis dense_to_sparse(DenseBasis& dense, int64_t level, bool clear);
 
+SparseBasis sparse_empty();
+
+DenseBasis dense_empty(int64_t level);
+
 #endif // SUBSPACE_BASIS_H

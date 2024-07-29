@@ -105,7 +105,7 @@ DenseBasis map_kernel(DenseBasis& B, std::function<ManinElement(ManinBasisElemen
     }
   )
 
-  // XXX: This multiplication is still slow.
+  // XXX: This multiplication is still slow and uses too much memory.
   fmpz_mat_mul(map_kernel_in_orig_basis, B.mat, map_kernel_window);
 
   DEBUG_INFO(4,
@@ -137,62 +137,31 @@ DenseBasis map_kernel(DenseBasis& B, std::function<ManinElement(ManinBasisElemen
   return out;
 }
 
-SplitResult SplitResult::empty() {
+SplitResult SplitResult::empty(int64_t level) {
   return {
-    .pos_space = std::vector<ManinElement>(),
-    .neg_space = std::vector<ManinElement>()
+    .pos_space = dense_empty(level),
+    .neg_space = dense_empty(level)
   };
 }
 
-SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (ManinBasisElement)> f) {
+SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)> f, int64_t N) {
   // If the input space is trivial, the result is also trivial.
-  if (B.size() == 0) {
-    return SplitResult::empty();
+  int b_size = B.mat->c;
+  if (b_size == 0) {
+    return SplitResult::empty(N);
   }
 
-  // Otherwise, we find the level from the first element.
-  int64_t N = B[0].N;
   std::vector<ManinBasisElement> N_basis = manin_basis(N);
-
-  // Construct matrix of B
-  // TODO: store B as a matrix and pass the matrix in instead.
-  fmpq_mat_t B_matrix;
-  fmpq_mat_init(B_matrix, N_basis.size(), B.size());
-  fmpq_mat_zero(B_matrix);
-
-  fmpz_mat_t B_matrix_z;
-  fmpz_mat_init(B_matrix_z, N_basis.size(), B.size());
-  fmpz_mat_zero(B_matrix_z);
-
-  for (int col = 0; col < B.size(); col++) {
-    ManinElement b = B[col];
-    for (MBEWC component : b.components) {
-      int row = component.basis_index;
-      assert(row < N_basis.size());
-      fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
-    }
-  }
-
-  fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
-  fmpq_mat_clear(B_matrix);
-
-  DEBUG_INFO(4,
-    {
-      printf("B_matrix_z: ");
-      fmpz_mat_print_dimensions(B_matrix_z);
-      printf("\n");
-    }
-  )
 
   // Finds pivot rows of the matrix B.
   std::vector<int> pivots;
-  fmpz* pivot_coeffs = _fmpz_vec_init(B.size());
+  fmpz* pivot_coeffs = _fmpz_vec_init(b_size);
 
   int current_col = 0;
   for (int row = 0; row < N_basis.size(); row++) {
     bool is_pivot = true;
-    for (int col = 0; col < B.size(); col++) {
-      if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
+    for (int col = 0; col < b_size; col++) {
+      if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B.mat, row, col))) {
         is_pivot = false;
         break;
       }
@@ -200,22 +169,22 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
 
     if (!is_pivot) continue;
 
-    if (fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, current_col))) continue;
+    if (fmpz_is_zero(fmpz_mat_entry(B.mat, row, current_col))) continue;
 
     pivots.push_back(row);
-    fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B_matrix_z, row, current_col));
+    fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B.mat, row, current_col));
     current_col++;
 
-    if (current_col == B.size()) break;
+    if (current_col == b_size) break;
   }
 
   // Construct matrix of the linear map f acting on B
   fmpq_mat_t f_matrix;
-  fmpq_mat_init(f_matrix, B.size(), B.size());
+  fmpq_mat_init(f_matrix, b_size, b_size);
 
   // XXX: in this case, it seems like recomputing f is cheaper than passing in a dense matrix.
   fmpq_mat_t map_of_basis;
-  fmpq_mat_init(map_of_basis, B.size(), N_basis.size());
+  fmpq_mat_init(map_of_basis, b_size, N_basis.size());
   for (int col = 0; col < N_basis.size(); col++) {
     ManinElement fb = f(N_basis[col]);
 
@@ -253,7 +222,7 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     }
   )
 
-  fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B_matrix_z);
+  fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B.mat);
   fmpq_mat_clear(map_of_basis);
 
   DEBUG_INFO(4,
@@ -264,21 +233,20 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     }
   )
 
-  _fmpz_vec_clear(pivot_coeffs, B.size());
+  _fmpz_vec_clear(pivot_coeffs, b_size);
 
   // Case 1: Space doesn't split: only +1 space
   if (fmpq_mat_is_one(f_matrix)) {
     DEBUG_INFO_PRINT(3, " space doesn't split: A-L action is +1\n");
 
     fmpq_mat_clear(f_matrix);
-    fmpz_mat_clear(B_matrix_z);
 
-    return {.pos_space = B, .neg_space = std::vector<ManinElement>()};
+    return {.pos_space = B, .neg_space = dense_empty(N)};
   }
 
   fmpq_mat_t neg_one;
-  fmpq_mat_init(neg_one, B.size(), B.size());
-  for (int i = 0; i < B.size(); i++) {
+  fmpq_mat_init(neg_one, b_size, b_size);
+  for (int i = 0; i < b_size; i++) {
     fmpq_set_si(fmpq_mat_entry(neg_one, i, i), -1, 1);
   }
 
@@ -287,25 +255,24 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     DEBUG_INFO_PRINT(3, " space doesn't split: A-L action is -1\n");
 
     fmpq_mat_clear(f_matrix);
-    fmpz_mat_clear(B_matrix_z);
     fmpq_mat_clear(neg_one);
 
-    return {.pos_space = std::vector<ManinElement>(), .neg_space = B};
+    return {.pos_space = dense_empty(N), .neg_space = B};
   }
 
   // Case 3: Space splits into +1 and -1 space
   fmpz_mat_t f_matrix_z, kernel, kernel_window, kernel_in_orig_basis;
-  fmpz_mat_init(f_matrix_z, B.size(), B.size());
-  fmpz_mat_init(kernel, B.size(), B.size());
+  fmpz_mat_init(f_matrix_z, b_size, b_size);
+  fmpz_mat_init(kernel, b_size, b_size);
 
   // Set f_matrix to T-1, i.e. positive space
-  for (int i = 0; i < B.size(); i++) {
+  for (int i = 0; i < b_size; i++) {
     fmpq_sub_si(fmpq_mat_entry(f_matrix, i, i), fmpq_mat_entry(f_matrix, i, i), 1);
   }
   fmpq_mat_get_fmpz_mat_rowwise(f_matrix_z, NULL, f_matrix);
 
   int rank = fmpz_mat_nullspace_mul(kernel, f_matrix_z);
-  fmpz_mat_window_init(kernel_window, kernel, 0, 0, B.size(), rank);
+  fmpz_mat_window_init(kernel_window, kernel, 0, 0, b_size, rank);
 
   DEBUG_INFO(4,
     {
@@ -326,7 +293,7 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
   )
 
   fmpz_mat_init(kernel_in_orig_basis, N_basis.size(), rank);
-  fmpz_mat_mul(kernel_in_orig_basis, B_matrix_z, kernel_window);
+  fmpz_mat_mul(kernel_in_orig_basis, B.mat, kernel_window);
   fmpz_mat_window_clear(kernel_window);
 
   DEBUG_INFO(4,
@@ -347,38 +314,20 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     }
   )
 
-  // TODO: we should just return the pos_space basis as a matrix instead
-  // of this conversion to sparse rep.
-  std::vector<ManinElement> pos_space;
-  for (int col = 0; col < rank; col++) {
-    std::vector<MBEWC> components;
-    for (int row = 0; row < N_basis.size(); row++) {
-      if (!(fmpz_is_zero(fmpz_mat_entry(kernel_in_orig_basis, row, col)))) {
-        fmpq_t coeff;
-        fmpq_init(coeff);
-        fmpq_set_fmpz(coeff, fmpz_mat_entry(kernel_in_orig_basis, row, col));
-        components.push_back(MBEWC(row, coeff));
-        fmpq_clear(coeff);
-      }
-    }
-    ManinElement element = ManinElement(N, components);
-    element.mark_as_sorted_unchecked();
-    pos_space.push_back(element);
-  }
-
-  fmpz_mat_clear(kernel_in_orig_basis);
+  DenseBasis pos_space;
+  pos_space.set_move(kernel_in_orig_basis);
 
   DEBUG_INFO_PRINT(3, " pos_space dimension: %d\n", rank);
 
   // Set f_matrix from T-1 to T+1, i.e. negative space
-  for (int i = 0; i < B.size(); i++) {
+  for (int i = 0; i < b_size; i++) {
     fmpq_add_si(fmpq_mat_entry(f_matrix, i, i), fmpq_mat_entry(f_matrix, i, i), 2);
   }
 
   fmpq_mat_get_fmpz_mat_rowwise(f_matrix_z, NULL, f_matrix);
 
   rank = fmpz_mat_nullspace_mul(kernel, f_matrix_z);
-  fmpz_mat_window_init(kernel_window, kernel, 0, 0, B.size(), rank);
+  fmpz_mat_window_init(kernel_window, kernel, 0, 0, b_size, rank);
 
   DEBUG_INFO(4,
     {
@@ -399,8 +348,8 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
   )
 
   fmpz_mat_init(kernel_in_orig_basis, N_basis.size(), rank);
-  fmpz_mat_mul(kernel_in_orig_basis, B_matrix_z, kernel_window);
-  fmpz_mat_clear(B_matrix_z);
+  fmpz_mat_mul(kernel_in_orig_basis, B.mat, kernel_window);
+  // fmpz_mat_clear(B_matrix_z);
   fmpz_mat_window_clear(kernel_window);
 
   DEBUG_INFO(4,
@@ -421,24 +370,8 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
     }
   )
 
-  // TODO: we should just return the neg_space basis as a matrix instead
-  // of this conversion to sparse rep.
-  std::vector<ManinElement> neg_space;
-  for (int col = 0; col < rank; col++) {
-    std::vector<MBEWC> components;
-    for (int row = 0; row < N_basis.size(); row++) {
-      if (!(fmpz_is_zero(fmpz_mat_entry(kernel_in_orig_basis, row, col)))) {
-        fmpq_t coeff;
-        fmpq_init(coeff);
-        fmpq_set_fmpz(coeff, fmpz_mat_entry(kernel_in_orig_basis, row, col));
-        components.push_back(MBEWC(row, coeff));
-        fmpq_clear(coeff);
-      }
-    }
-    ManinElement element = ManinElement(N, components);
-    element.mark_as_sorted_unchecked();
-    neg_space.push_back(element);
-  }
+  DenseBasis neg_space;
+  neg_space.set_move(kernel_in_orig_basis);
 
   DEBUG_INFO_PRINT(3, " neg_space dimension: %d\n", rank);
 
@@ -449,7 +382,7 @@ SplitResult split(std::vector<ManinElement> B, std::function<ManinElement (Manin
   fmpz_mat_clear(kernel);
   fmpz_mat_clear(kernel_in_orig_basis);
 
-  DEBUG_INFO_PRINT(2, "dim %zu -> +: %zu, -: %zu\n", B.size(), pos_space.size(), neg_space.size());
+  DEBUG_INFO_PRINT(2, "dim %zu -> +: %zu, -: %zu\n", B.mat->c, pos_space.mat->c, neg_space.mat->c);
 
   return {.pos_space = pos_space, .neg_space = neg_space};
 }
@@ -469,56 +402,27 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
   auto& B = subspace.basis;
 
   // If the input space is trivial, the result is also trivial.
-  if (B.size() == 0) {
+  int b_size = B.mat->c;
+  if (b_size == 0) {
     return DecomposeResult::empty();
   }
-
   // Otherwise, we find the level from the first element.
-  int64_t N = B[0].N;
+  int64_t N = subspace.level;
   std::vector<ManinBasisElement> N_basis = manin_basis(N);
 
   // ---------------------------------------- //
   // Setup: constructing matrices for B and f //
   // ---------------------------------------- //
 
-  // Construct matrix of B
-  fmpq_mat_t B_matrix;
-  fmpq_mat_init(B_matrix, N_basis.size(), B.size());
-  fmpq_mat_zero(B_matrix);
-
-  fmpz_mat_t B_matrix_z;
-  fmpz_mat_init(B_matrix_z, N_basis.size(), B.size());
-  fmpz_mat_zero(B_matrix_z);
-
-  for (int col = 0; col < B.size(); col++) {
-    ManinElement b = B[col];
-    for (MBEWC component : b.components) {
-      int row = component.basis_index;
-      assert(row < N_basis.size());
-      fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
-    }
-  }
-
-  fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
-  fmpq_mat_clear(B_matrix);
-
-  DEBUG_INFO(4,
-    {
-      printf("B_matrix_z: ");
-      fmpz_mat_print_dimensions(B_matrix_z);
-      printf("\n");
-    }
-  )
-
   // Finds pivot rows of the matrix B.
   std::vector<int> pivots;
-  fmpz* pivot_coeffs = _fmpz_vec_init(B.size());
+  fmpz* pivot_coeffs = _fmpz_vec_init(b_size);
 
   int current_col = 0;
   for (int row = 0; row < N_basis.size(); row++) {
     bool is_pivot = true;
-    for (int col = 0; col < B.size(); col++) {
-      if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
+    for (int col = 0; col < b_size; col++) {
+      if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B.mat, row, col))) {
         is_pivot = false;
         break;
       }
@@ -526,23 +430,23 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
 
     if (!is_pivot) continue;
 
-    if (fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, current_col))) continue;
+    if (fmpz_is_zero(fmpz_mat_entry(B.mat, row, current_col))) continue;
 
     pivots.push_back(row);
-    fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B_matrix_z, row, current_col));
+    fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B.mat, row, current_col));
     current_col++;
 
-    if (current_col == B.size()) break;
+    if (current_col == b_size) break;
   }
 
   // Construct matrix of the linear map f acting on B
   fmpq_mat_t f_matrix;
-  fmpq_mat_init(f_matrix, B.size(), B.size());
+  fmpq_mat_init(f_matrix, b_size, b_size);
 
   fmpq_mat_t pivot_rows;
-  fmpq_mat_init(pivot_rows, B.size(), N_basis.size());
+  fmpq_mat_init(pivot_rows, b_size, N_basis.size());
 
-  for (int row = 0; row < B.size(); row++) {
+  for (int row = 0; row < b_size; row++) {
     for (int col = 0; col < N_basis.size(); col++) {
       fmpq_div_fmpz(
         fmpq_mat_entry(pivot_rows, row, col),
@@ -552,6 +456,8 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
     }
   }
 
+  // clear map_of_basis after this?
+
   DEBUG_INFO(4,
     {
       printf("pivot_rows: ");
@@ -560,7 +466,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
     }
   )
 
-  fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B_matrix_z);
+  fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B.mat);
   fmpq_mat_clear(pivot_rows);
 
   DEBUG_INFO(4,
@@ -571,7 +477,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
     }
   )
 
-  _fmpz_vec_clear(pivot_coeffs, B.size());
+  _fmpz_vec_clear(pivot_coeffs, b_size);
 
   std::vector<Subspace> done;
   std::vector<Subspace> special;
@@ -587,9 +493,9 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
   // small primes p. Any possible factor of the minimal polynomial has degree equal to the sum of
   // the degrees of some factors mod p, so by checking various p we can potentially deduce that
   // the minimal polynomial is irreducible.
-  if (B.size() > 20 && prime_opt) {
+  if (b_size > 20 && prime_opt) {
     fmpz_mat_t f_matrix_z;
-    fmpz_mat_init(f_matrix_z, B.size(), B.size());
+    fmpz_mat_init(f_matrix_z, b_size, b_size);
 
     fmpz_t temp_den;
     fmpz_init(temp_den);
@@ -605,15 +511,15 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
     )
 
     ulong p = 32;
-    std::vector<bool> possible_factor_degs(B.size() + 1);
-    for (int i = 0; i <= B.size(); i++)
+    std::vector<bool> possible_factor_degs(b_size + 1);
+    for (int i = 0; i <= b_size; i++)
       possible_factor_degs[i] = true;
 
     for (int iter = 0; iter < 10; iter++) {
       p = n_nextprime(p, 1);
 
       nmod_mat_t f_matrix_mod_p;
-      nmod_mat_init(f_matrix_mod_p, B.size(), B.size(), p);
+      nmod_mat_init(f_matrix_mod_p, b_size, b_size, p);
 
       nmod_poly_t min_poly_mod_p;
       nmod_poly_init(min_poly_mod_p, p);
@@ -626,18 +532,18 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
 
       DEBUG_INFO_PRINT(5, "min_poly_mod_p deg: %d\n", min_poly_mod_p->length - 1);
 
-      if (min_poly_mod_p->length == B.size() + 1) {
+      if (min_poly_mod_p->length == b_size + 1) {
         // XXX: Minimal polynomial is rarely irreducible, so we don't save time by checking irreducibility first.
         //
         // if (nmod_poly_is_irreducible(min_poly_mod_p)) {
         //   done.push_back(B);
-        //   DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu in mod %ld\n", B.size(), p);
+        //   DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu in mod %ld\n", b_size, p);
 
         //   nmod_mat_clear(f_matrix_mod_p);
         //   nmod_poly_clear(min_poly_mod_p);
 
         //   fmpq_mat_clear(f_matrix);
-        //   fmpz_mat_clear(B_matrix_z);
+        //   fmpz_mat_clear(B.mat);
         //   return {.done = done, .special = special, .remaining = remaining};
         // } else {
         nmod_poly_factor_t facs;
@@ -654,9 +560,9 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
           }
         )
 
-        std::vector<bool> p_factor_degs(B.size() + 1);
+        std::vector<bool> p_factor_degs(b_size + 1);
         p_factor_degs[0] = true;
-        for (int i = 1; i <= B.size(); i++)
+        for (int i = 1; i <= b_size; i++)
           p_factor_degs[i] = false;
 
         int sum = 0;
@@ -669,7 +575,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         }
 
         bool irred = true;
-        for (int j = 1; j < B.size(); j++) {
+        for (int j = 1; j < b_size; j++) {
           possible_factor_degs[j] = possible_factor_degs[j] && p_factor_degs[j];
           irred = irred && !(possible_factor_degs[j]);
         }
@@ -679,13 +585,13 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         if (irred) {
           done.push_back(subspace);
 
-          DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu, found at iteration %ld\n", B.size(), iter);
+          DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu, found at iteration %ld\n", b_size, iter);
 
           nmod_mat_clear(f_matrix_mod_p);
           nmod_poly_clear(min_poly_mod_p);
 
           fmpq_mat_clear(f_matrix);
-          fmpz_mat_clear(B_matrix_z);
+          // fmpz_mat_clear(B_matrix_z);
           fmpz_mat_clear(f_matrix_z);
           return {.done = done, .special = special, .remaining = remaining};
         }
@@ -749,23 +655,23 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
     assert(false);
   } else if (num_factors == 1) {
     int deg = fmpz_poly_degree(min_poly_factored->p);
-    if (deg == B.size()) {
+    if (deg == b_size) {
       Subspace out = subspace;
       FmpzPoly out_poly;
       out_poly.set_copy(min_poly_z);
       out.hecke_field_poly = out_poly;
       done.emplace_back(out);
-      DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu\n", B.size());
+      DEBUG_INFO_PRINT(3, " minimal polynomial irreducible and degree equal to space dimension %zu\n", b_size);
     } else {
       special.push_back(subspace);
-      DEBUG_INFO_PRINT(3, " minimal polynomial irreducible but space dimension %zu is not equal to degree %d\n", B.size(), deg);
+      DEBUG_INFO_PRINT(3, " minimal polynomial irreducible but space dimension %zu is not equal to degree %d\n", b_size, deg);
     }
   } else {
     fmpq_mat_t poly_on_f_matrix;
     fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
-    fmpq_mat_init(poly_on_f_matrix, B.size(), B.size());
-    fmpz_mat_init(poly_on_f_matrix_z, B.size(), B.size());
-    fmpz_mat_init(poly_mat_kernel, B.size(), B.size());
+    fmpq_mat_init(poly_on_f_matrix, b_size, b_size);
+    fmpz_mat_init(poly_on_f_matrix_z, b_size, b_size);
+    fmpz_mat_init(poly_mat_kernel, b_size, b_size);
 
     fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
 
@@ -778,9 +684,12 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
       int exp = *(min_poly_factored->exp + i);
       int degree = fmpz_poly_degree(factor);
 
-      if (dimension_only && (min_poly_degree + dimension_excess + degree > B.size())) {
+      if (dimension_only && (min_poly_degree + dimension_excess + degree > b_size)) {
         DEBUG_INFO_PRINT(3, " factor appears only once, degree: %d\n", degree);
-        std::vector<ManinElement> output(degree, ManinElement::zero(N));
+        fmpz_mat_t out_mat;
+        fmpz_mat_init(out_mat, N_basis.size(), degree);
+        DenseBasis output;
+        output.set_move(out_mat);
         done.emplace_back(output, true, N, subspace.atkin_lehner_pos, subspace.atkin_lehner_neg);
         continue;
       }
@@ -807,7 +716,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
 
       int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
 
-      fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, B.size(), rank);
+      fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, b_size, rank);
 
       DEBUG_INFO(4,
         {
@@ -835,7 +744,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
       )
 
       fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
-      fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B_matrix_z, poly_mat_kernel_window);
+      fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B.mat, poly_mat_kernel_window);
       fmpz_mat_window_clear(poly_mat_kernel_window);
 
       DEBUG_INFO(4,
@@ -856,24 +765,8 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         }
       )
 
-      std::vector<ManinElement> output;
-      for (int col = 0; col < rank; col++) {
-        std::vector<MBEWC> components;
-        for (int row = 0; row < N_basis.size(); row++) {
-          if (!(fmpz_is_zero(fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col)))) {
-            fmpq_t coeff;
-            fmpq_init(coeff);
-            fmpq_set_fmpz(coeff, fmpz_mat_entry(poly_mat_kernel_in_orig_basis, row, col));
-            components.push_back(MBEWC(row, coeff));
-            fmpq_clear(coeff);
-          }
-        }
-        ManinElement element = ManinElement(N, components);
-        element.mark_as_sorted_unchecked();
-        output.push_back(element);
-      }
-
-      fmpz_mat_clear(poly_mat_kernel_in_orig_basis);
+      DenseBasis output;
+      output.set_move(poly_mat_kernel_in_orig_basis);
 
       DEBUG_INFO(3,
         {
@@ -903,7 +796,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
   fmpz_poly_factor_clear(min_poly_factored);
 
   fmpq_mat_clear(f_matrix);
-  fmpz_mat_clear(B_matrix_z);
+  // fmpz_mat_clear(B_matrix_z);
 
   return {.done = done, .special = special, .remaining = remaining};
 }

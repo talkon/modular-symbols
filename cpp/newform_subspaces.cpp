@@ -93,7 +93,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
   if (level <= 10) return std::vector<Subspace>();
 
-  std::vector<ManinElement> basis = newspace_basis(level);
+  DenseBasis basis = newspace_basis(level);
 
   DEBUG_INFO_PRINT(1, "Starting computation of newform subspaces for level %lld\n", level);
 
@@ -113,7 +113,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
     std::vector<Subspace> updated;
 
     for (auto& subspace : remaining) {
-      auto splitted = split(subspace.basis, f);
+      auto splitted = split(subspace.basis, f, level);
 
       auto added_pos = subspace.atkin_lehner_pos;
       added_pos.push_back(factors.p[i]);
@@ -121,11 +121,11 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       auto added_neg = subspace.atkin_lehner_neg;
       added_neg.push_back(factors.p[i]);
 
-      if (splitted.pos_space.size() > 0) {
+      if (splitted.pos_space.mat->c > 0) {
         updated.emplace_back(splitted.pos_space, false, level, added_pos, subspace.atkin_lehner_neg);
       }
 
-      if (splitted.neg_space.size() > 0) {
+      if (splitted.neg_space.mat->c > 0) {
         updated.emplace_back(splitted.neg_space, false, level, subspace.atkin_lehner_pos, added_neg);
       }
     }
@@ -188,21 +188,21 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       DecomposeResult dr = decompose(subspace, hecke_mat, dimension_only, prime_opt, mem_limit);
       DEBUG_INFO(2,
         {
-          printf("dim %zu -> ", subspace.basis.size());
+          printf("dim %zu -> ", subspace.dimension());
           for (auto& space : dr.done) {
-            printf("%zu,", space.basis.size());
+            printf("%zu,", space.dimension());
           }
           if (dr.special.size() > 0) {
             printf("[");
             for (auto& space : dr.special) {
-              printf("%zu,", space.basis.size());
+              printf("%zu,", space.dimension());
             }
             printf("]");
           }
           if (dr.remaining.size() > 0) {
             printf("(");
             for (auto& space : dr.remaining) {
-              printf("%zu,", space.basis.size());
+              printf("%zu,", space.dimension());
             }
             printf(")");
           }
@@ -232,21 +232,21 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
         DecomposeResult dr = decompose(subspace, sum_hecke, dimension_only, prime_opt, mem_limit);
         DEBUG_INFO(2,
           {
-            printf("dim %zu -> ", subspace.basis.size());
+            printf("dim %zu -> ", subspace.dimension());
             for (auto& space : dr.done) {
-              printf("%zu,", space.basis.size());
+              printf("%zu,", space.dimension());
             }
             if (dr.special.size() > 0) {
               printf("[");
               for (auto& space : dr.special) {
-                printf("%zu,", space.basis.size());
+                printf("%zu,", space.dimension());
               }
               printf("]");
             }
             if (dr.remaining.size() > 0) {
               printf("(");
               for (auto& space : dr.remaining) {
-                printf("%zu,", space.basis.size());
+                printf("%zu,", space.dimension());
               }
               printf(")");
             }

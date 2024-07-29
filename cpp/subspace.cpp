@@ -13,7 +13,7 @@
 #include <cassert>
 
 int Subspace::dimension() const {
-  return basis.size();
+  return basis.mat->c;
 }
 
 void Subspace::print(int index) const {
@@ -97,7 +97,6 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
   assert(n == next_depth);
   int dim = dimension();
   assert(dim > 0);
-  int64_t level = basis[0].N;
 
   n_factor_t factors;
   n_factor_init(&factors);
@@ -118,44 +117,15 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
       // TODO: There's a lot of copied code here -- might be possible to refactor
       std::vector<ManinBasisElement> N_basis = manin_basis(level);
 
-      // Construct matrix of B
-      fmpq_mat_t B_matrix;
-      fmpq_mat_init(B_matrix, N_basis.size(), basis.size());
-      fmpq_mat_zero(B_matrix);
-
-      fmpz_mat_t B_matrix_z;
-      fmpz_mat_init(B_matrix_z, N_basis.size(), basis.size());
-      fmpz_mat_zero(B_matrix_z);
-
-      for (int col = 0; col < basis.size(); col++) {
-        ManinElement b = basis[col];
-        for (MBEWC component : b.components) {
-          int row = component.basis_index;
-          assert(row < N_basis.size());
-          fmpq_set(fmpq_mat_entry(B_matrix, row, col), component.coeff);
-        }
-      }
-
-      fmpq_mat_get_fmpz_mat_colwise(B_matrix_z, NULL, B_matrix);
-      fmpq_mat_clear(B_matrix);
-
-      DEBUG_INFO(6,
-        {
-          printf("B_matrix_z: ");
-          fmpz_mat_print_dimensions(B_matrix_z);
-          printf("\n");
-        }
-      )
-
       // Finds pivot rows of the matrix B.
       std::vector<int> pivots;
-      fmpz* pivot_coeffs = _fmpz_vec_init(basis.size());
+      fmpz* pivot_coeffs = _fmpz_vec_init(dim);
 
       int current_col = 0;
       for (int row = 0; row < N_basis.size(); row++) {
         bool is_pivot = true;
-        for (int col = 0; col < basis.size(); col++) {
-          if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, col))) {
+        for (int col = 0; col < dim; col++) {
+          if (col != current_col && !fmpz_is_zero(fmpz_mat_entry(basis.mat, row, col))) {
             is_pivot = false;
             break;
           }
@@ -163,20 +133,20 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
 
         if (!is_pivot) continue;
 
-        if (fmpz_is_zero(fmpz_mat_entry(B_matrix_z, row, current_col))) continue;
+        if (fmpz_is_zero(fmpz_mat_entry(basis.mat, row, current_col))) continue;
 
         pivots.push_back(row);
-        fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(B_matrix_z, row, current_col));
+        fmpz_set(pivot_coeffs + current_col, fmpz_mat_entry(basis.mat, row, current_col));
         current_col++;
 
-        if (current_col == basis.size()) break;
+        if (current_col == dim) break;
       }
 
       // Construct matrix of the linear map f acting on B
       fmpq_mat_t pivot_rows;
-      fmpq_mat_init(pivot_rows, basis.size(), N_basis.size());
+      fmpq_mat_init(pivot_rows, dim, N_basis.size());
 
-      for (int row = 0; row < basis.size(); row++) {
+      for (int row = 0; row < dim; row++) {
         for (int col = 0; col < N_basis.size(); col++) {
           fmpq_div_fmpz(
             fmpq_mat_entry(pivot_rows, row, col),
@@ -194,9 +164,8 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
         }
       )
 
-      fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, B_matrix_z);
+      fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, basis.mat);
       fmpq_mat_clear(pivot_rows);
-      fmpz_mat_clear(B_matrix_z);
 
       DEBUG_INFO(6,
         {
@@ -206,7 +175,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
         }
       )
 
-      _fmpz_vec_clear(pivot_coeffs, basis.size());
+      _fmpz_vec_clear(pivot_coeffs, dim);
     }
     else if (factors.num == 1) {
       int64_t p = factors.p[0];

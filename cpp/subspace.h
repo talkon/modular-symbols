@@ -3,13 +3,14 @@
 
 #include "manin_element.h"
 #include "flint_wrappers.h"
+#include "subspace_basis.h"
 
 #include <vector>
 #include <map>
 #include <optional>
 
 struct Subspace {
-  std::vector<ManinElement> basis;
+  DenseBasis basis;
   bool is_newform_subspace;
 
   int64_t level;
@@ -25,7 +26,7 @@ struct Subspace {
   std::map<int64_t, FmpzPoly> hecke_min_polys;
 
   Subspace(
-    std::vector<ManinElement> basis,
+    DenseBasis& basis,
     bool is_newform_subspace,
     int64_t level,
     std::vector<int64_t> atkin_lehner_pos,

@@ -7,6 +7,6 @@
 #include <vector>
 
 // Computes a basis of the newspace of a given level.
-SparseBasis newspace_basis(int64_t);
+DenseBasis newspace_basis(int64_t);
 
 #endif // NEWSPACE_H

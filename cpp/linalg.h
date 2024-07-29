@@ -19,14 +19,14 @@ struct Subspace;
 DenseBasis map_kernel(DenseBasis&, std::function<ManinElement(ManinBasisElement)> f, int64_t N, int64_t M);
 
 struct SplitResult {
-  std::vector<ManinElement> pos_space;
-  std::vector<ManinElement> neg_space;
+  DenseBasis pos_space;
+  DenseBasis neg_space;
 
-  static SplitResult empty();
+  static SplitResult empty(int64_t level);
 };
 
 // Splits a space by Atkin-Lehner sign, where `f` is an Atkin-Lehner involution.
-SplitResult split(std::vector<ManinElement>, std::function<ManinElement (ManinBasisElement)> f);
+SplitResult split(DenseBasis&, std::function<ManinElement (ManinBasisElement)> f, int64_t N);
 
 struct DecomposeResult {
   std::vector<Subspace> done;

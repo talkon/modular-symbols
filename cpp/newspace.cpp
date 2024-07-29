@@ -33,7 +33,7 @@ ManinElement oldspace_map(ManinBasisElement mbe, int64_t d, int64_t M) {
 }
 #endif
 
-SparseBasis newspace_basis(int64_t level) {
+DenseBasis newspace_basis(int64_t level) {
   DenseBasis current_basis = cuspidal_manin_basis(level);
 
   DEBUG_INFO_PRINT(1, "Started computation of newspace basis for level %lld\n", level)
@@ -107,5 +107,5 @@ SparseBasis newspace_basis(int64_t level) {
   //   DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.size());
   // }
 
-  return dense_to_sparse(current_basis, level, true);
+  return current_basis;
 }
