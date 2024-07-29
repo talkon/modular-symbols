@@ -4,8 +4,8 @@
 #include <gtest/gtest.h>
 
 void expect_cuspidal_basis_size(int level, int size) {
-  std::vector<ManinElement> basis = cuspidal_manin_basis(level);
-  EXPECT_EQ(basis.size(), size);
+  DenseBasis basis = cuspidal_manin_basis(level);
+  EXPECT_EQ(basis.mat->c, size);
 }
 
 TEST(BoundaryMapTest, BasisSizes_Small) {

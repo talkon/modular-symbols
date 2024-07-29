@@ -59,8 +59,9 @@ std::pair<Cusp, Cusp> boundary_map(const ManinGenerator mg) {
   return std::make_pair(pos_cusp, neg_cusp);
 }
 
-std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
+DenseBasis cuspidal_manin_basis(int64_t level) {
   std::vector<ManinBasisElement> full_basis = manin_basis(level);
+  int b_size = full_basis.size();
   DEBUG_INFO_PRINT(1, "Started computation of cuspidal Manin basis for level %lld\n", level);
 
   std::vector<Cusp> representatives;
@@ -104,11 +105,11 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
 
   DEBUG_INFO_PRINT(3, "Finished computing representatives\
   \nfull_basis size: %zu\
-  \nnum_representatives: %zu\n", full_basis.size(), representatives.size());
+  \nnum_representatives: %zu\n", b_size, representatives.size());
 
   // Construct boundary map matrix as a dense fmpz_mat_t
   fmpz_mat_t boundary_map_matrix;
-  fmpz_mat_init(boundary_map_matrix, representatives.size(), full_basis.size());
+  fmpz_mat_init(boundary_map_matrix, representatives.size(), b_size);
   fmpz_mat_zero(boundary_map_matrix);
 
   for (int gen_index = 0; gen_index < mapped_basis.size(); gen_index++) {
@@ -126,36 +127,33 @@ std::vector<ManinElement> cuspidal_manin_basis(int64_t level) {
 
   // Compute the (right) kernel of the boundary map matrix
   fmpz_mat_t boundary_map_kernel;
-  fmpz_mat_init(boundary_map_kernel, full_basis.size(), full_basis.size());
+  fmpz_mat_init(boundary_map_kernel, b_size, b_size);
   int64_t rank = fmpz_mat_nullspace_mul(boundary_map_kernel, boundary_map_matrix);
+
+  fmpz_mat_clear(boundary_map_matrix);
 
   fmpz_mat_div_colwise_gcd(boundary_map_kernel);
 
-  // printf("boundary map kernel:\n");
-  // fmpz_mat_print_pretty(boundary_map_kernel);
-  // printf("\n");
+  fmpz_mat_t trimmed_kernel;
+  fmpz_mat_init(trimmed_kernel, b_size, rank);
 
-  // Convert each column of the kernel to a ManinElement
-  std::vector<ManinElement> output;
-
-  for (int col = 0; col < rank; col++) {
-    std::vector<MBEWC> components;
-    for (int row = 0; row < full_basis.size(); row++) {
-      if (!(fmpz_is_zero(fmpz_mat_entry(boundary_map_kernel, row, col)))) {
-        fmpq_t coeff;
-        fmpq_init(coeff);
-        fmpq_set_fmpz(coeff, fmpz_mat_entry(boundary_map_kernel, row, col));
-        components.push_back(MBEWC(row, coeff));
-        fmpq_clear(coeff);
-      }
+  for (int row = 0; row < b_size; row++) {
+    for (int col = 0; col < rank; col++) {
+      fmpz_swap(
+        fmpz_mat_entry(trimmed_kernel, row, col),
+        fmpz_mat_entry(boundary_map_kernel, row, col)
+      );
     }
-    ManinElement element = ManinElement(level, components);
-    element.mark_as_sorted_unchecked();
-    output.push_back(element);
   }
 
-  fmpz_mat_clear(boundary_map_matrix);
   fmpz_mat_clear(boundary_map_kernel);
 
-  return output;
+  // printf("boundary map kernel:\n");
+  // fmpz_mat_print_pretty(trimmed_kernel);
+  // printf("\n");
+
+  DenseBasis out;
+  out.set_move(trimmed_kernel);
+
+  return out;
 }

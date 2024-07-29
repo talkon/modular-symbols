@@ -5,6 +5,7 @@
 
 #include "manin_basis.h"
 #include "manin_element.h"
+#include "subspace_basis.h"
 #include "utils.h"
 
 // Represents a cusp {c/d} of level N
@@ -32,6 +33,6 @@ struct Cusp {
 
 // Computes the basis of the kernel of the boundary map for Manin symbols of level N,
 // i.e. the basis of the space of cuspidal modular symbols of level N.
-std::vector<ManinElement> cuspidal_manin_basis(int64_t);
+DenseBasis cuspidal_manin_basis(int64_t);
 
 #endif // BOUNDARY_MAP_H
