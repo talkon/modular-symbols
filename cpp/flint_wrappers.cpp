@@ -37,15 +37,15 @@ FmpqMatrix& FmpqMatrix::operator=(FmpqMatrix&& src) {
 }
 
 void FmpqMatrix::clear() {
-  if (initialized)
-    fmpq_mat_clear(mat);
-}
-
-FmpqMatrix::~FmpqMatrix() {
   if (initialized) {
     fmpq_mat_clear(mat);
     initialized = false;
   }
+}
+
+FmpqMatrix::~FmpqMatrix() {
+  if (initialized)
+    fmpq_mat_clear(mat);
 }
 
 void FmpzMatrix::set_copy(const fmpz_mat_t src) {

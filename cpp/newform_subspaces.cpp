@@ -274,6 +274,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
   }
 
   n_primes_clear(prime_iter);
+  sum_hecke.clear();
 
   // This will set the first coefficient of trace form for each subspace to the dimension.
   for (auto& subspace : done) {
