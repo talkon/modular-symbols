@@ -65,6 +65,7 @@ DenseBasis newspace_basis(int64_t level) {
 
     auto f1 = [m](ManinBasisElement mbe) { return oldspace_map(mbe, 1, m); };
     current_basis = map_kernel(current_basis, f1, level, m);
+    flint_cleanup();
     DEBUG_INFO_PRINT(3, "M: %lld, d: 1, current_basis size: %zu\n", m, current_basis.mat->c);
     // DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
   }
@@ -82,6 +83,7 @@ DenseBasis newspace_basis(int64_t level) {
 
     auto fp = [p, m](ManinBasisElement mbe) { return oldspace_map(mbe, p, m); };
     current_basis = map_kernel(current_basis, fp, level, m);
+    flint_cleanup();
     DEBUG_INFO_PRINT(3, "M: %lld, d: %lld, current_basis size: %zu\n", m, p, current_basis.mat->c);
     // DEBUG_INFO_PRINT(4, "current_basis alloc_size: %lu bytes\n", ManinElement::vector_alloc_size(current_basis));
   }

@@ -114,6 +114,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
 
     for (auto& subspace : remaining) {
       auto splitted = split(subspace.basis, f, level);
+      flint_cleanup();
 
       auto added_pos = subspace.atkin_lehner_pos;
       added_pos.push_back(factors.p[i]);
@@ -186,6 +187,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       }
 
       DecomposeResult dr = decompose(subspace, hecke_mat, dimension_only, prime_opt, mem_limit);
+      flint_cleanup();
       DEBUG_INFO(2,
         {
           printf("dim %zu -> ", subspace.dimension());
@@ -230,6 +232,7 @@ std::vector<Subspace> newform_subspaces(int64_t level, bool dimension_only, int 
       std::vector<Subspace> special_remaining;
       for (auto& subspace : special ) {
         DecomposeResult dr = decompose(subspace, sum_hecke, dimension_only, prime_opt, mem_limit);
+        flint_cleanup();
         DEBUG_INFO(2,
           {
             printf("dim %zu -> ", subspace.dimension());

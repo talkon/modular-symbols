@@ -224,6 +224,7 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
 
   fmpq_mat_mul_fmpz_mat(f_matrix, map_of_basis, B.mat);
   fmpq_mat_clear(map_of_basis);
+  flint_cleanup();
 
   DEBUG_INFO(4,
     {
@@ -240,6 +241,7 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
     DEBUG_INFO_PRINT(3, " space doesn't split: A-L action is +1\n");
 
     fmpq_mat_clear(f_matrix);
+    flint_cleanup();
 
     return {.pos_space = B, .neg_space = dense_empty(N)};
   }
@@ -256,6 +258,7 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
 
     fmpq_mat_clear(f_matrix);
     fmpq_mat_clear(neg_one);
+    flint_cleanup();
 
     return {.pos_space = dense_empty(N), .neg_space = B};
   }
@@ -295,6 +298,8 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
   fmpz_mat_init(kernel_in_orig_basis, N_basis.size(), rank);
   fmpz_mat_mul(kernel_in_orig_basis, B.mat, kernel_window);
   fmpz_mat_window_clear(kernel_window);
+  fmpz_mat_clear(kernel);
+  flint_cleanup();
 
   DEBUG_INFO(4,
     {
@@ -326,6 +331,7 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
 
   fmpq_mat_get_fmpz_mat_rowwise(f_matrix_z, NULL, f_matrix);
 
+  fmpz_mat_init(kernel, b_size, b_size);
   rank = fmpz_mat_nullspace_mul(kernel, f_matrix_z);
   fmpz_mat_window_init(kernel_window, kernel, 0, 0, b_size, rank);
 
@@ -351,6 +357,8 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
   fmpz_mat_mul(kernel_in_orig_basis, B.mat, kernel_window);
   // fmpz_mat_clear(B_matrix_z);
   fmpz_mat_window_clear(kernel_window);
+  fmpz_mat_clear(kernel);
+  flint_cleanup();
 
   DEBUG_INFO(4,
     {
@@ -379,7 +387,7 @@ SplitResult split(DenseBasis& B, std::function<ManinElement (ManinBasisElement)>
   fmpq_mat_clear(f_matrix);
 
   fmpz_mat_clear(f_matrix_z);
-  fmpz_mat_clear(kernel);
+  // fmpz_mat_clear(kernel);
   fmpz_mat_clear(kernel_in_orig_basis);
 
   DEBUG_INFO_PRINT(2, "dim %zu -> +: %zu, -: %zu\n", B.mat->c, pos_space.mat->c, neg_space.mat->c);
