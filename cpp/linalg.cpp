@@ -4,6 +4,7 @@
 #include "debug_utils.h"
 #include "newform_subspaces.h"
 #include "fmpz_mat_helpers.h"
+#include "matrix_poly.h"
 #include "subspace_basis.h"
 
 #include <flint/fmpq_mat.h>
