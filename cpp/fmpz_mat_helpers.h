@@ -4,6 +4,9 @@
 #include <flint/fmpz_types.h>
 #include <flint/fmpq_types.h>
 
+// Computes C = A * B by reducing and multiplying one prime at a time.
+void fmpz_mat_mul_nmod(fmpz_mat_t C, const fmpz_mat_t A, const fmpz_mat_t B);
+
 // Divides each row by the gcd of the row.
 void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat);
 

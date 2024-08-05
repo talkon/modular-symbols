@@ -6,9 +6,54 @@
 #include <flint/fmpz_vec.h>
 #include <flint/fmpq.h>
 #include <flint/fmpq_mat.h>
+#include <flint/nmod.h>
+#include <flint/nmod_mat.h>
 #include <flint/ulong_extras.h>
 
 #include <cassert>
+
+void fmpz_mat_mul_nmod(fmpz_mat_t C, const fmpz_mat_t A, const fmpz_mat_t B) {
+  ulong n_bits = 57;
+  ulong p = 1ULL << n_bits;
+  bool done = false;
+
+  slong A_bits = fmpz_mat_max_bits(A);
+  slong B_bits = fmpz_mat_max_bits(B);
+  ulong C_bits = (A_bits > 0 ? A_bits : -A_bits) + (B_bits > 0 ? B_bits : -B_bits) + FLINT_BIT_COUNT(A->c);
+
+
+  fmpz_t mod;
+  fmpz_init_set_ui(mod, 1);
+
+  for (int iter = 0; iter * n_bits <= C_bits; iter++) {
+    printf("iter: %d\n", iter);
+    p = n_nextprime(p, 1);
+
+    nmod_mat_t A_p, B_p, C_p;
+    nmod_mat_init(A_p, A->r, A->c, p);
+    nmod_mat_init(B_p, B->r, B->c, p);
+    nmod_mat_init(C_p, C->r, C->c, p);
+
+    fmpz_mat_get_nmod_mat(A_p, A);
+    fmpz_mat_get_nmod_mat(B_p, B);
+
+    nmod_mat_mul(C_p, A_p, B_p);
+
+    if (iter == 0) {
+      fmpz_mat_set_nmod_mat(C, C_p);
+    } else {
+      fmpz_mat_CRT_ui(C, C, mod, C_p, 1);
+    }
+
+    fmpz_mul_ui(mod, mod, p);
+
+    nmod_mat_clear(A_p);
+    nmod_mat_clear(B_p);
+    nmod_mat_clear(C_p);
+  }
+
+  fmpz_clear(mod);
+}
 
 void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat) {
   fmpz_mat_t window;
@@ -137,7 +182,6 @@ ulong fmpq_mat_total_size(const fmpq_mat_t mat) {
   }
   return size + sizeof(fmpq_mat_struct);
 }
-
 
 void fmpz_mat_print_dimensions(const fmpz_mat_t mat) {
   int r = fmpz_mat_nrows(mat);
