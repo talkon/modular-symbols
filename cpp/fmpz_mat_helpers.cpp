@@ -8,6 +8,8 @@
 #include <flint/fmpq_mat.h>
 #include <flint/ulong_extras.h>
 
+#include <cassert>
+
 void fmpz_mat_div_rowwise_gcd(fmpz_mat_t mat) {
   fmpz_mat_t window;
   fmpz_t den;
@@ -169,6 +171,34 @@ slong fmpq_mat_max_bits(const fmpq_mat_t mat) {
   }
 
   return bits * sign;
+}
+
+void fmpz_mat_max_elt(fmpz_t res, const fmpz_mat_t mat) {
+  assert(mat->r > 0 && mat->c > 0);
+
+  fmpz_set(res, fmpz_mat_entry(mat, 0, 0));
+
+  for (slong i = 0; i < mat->r; i++) {
+    for (slong j = 0; j < mat->c; j++) {
+      if (fmpz_cmp(res, fmpz_mat_entry(mat, i, j)) > 0) {
+        fmpz_set(res, fmpz_mat_entry(mat, i, j));
+      }
+    }
+  }
+}
+
+void fmpz_mat_min_elt(fmpz_t res, const fmpz_mat_t mat) {
+  assert(mat->r > 0 && mat->c > 0);
+
+  fmpz_set(res, fmpz_mat_entry(mat, 0, 0));
+
+  for (slong i = 0; i < mat->r; i++) {
+    for (slong j = 0; j < mat->c; j++) {
+      if (fmpz_cmp(res, fmpz_mat_entry(mat, i, j)) < 0) {
+        fmpz_set(res, fmpz_mat_entry(mat, i, j));
+      }
+    }
+  }
 }
 
 void fmpq_mat_print_dimensions(const fmpq_mat_t mat) {

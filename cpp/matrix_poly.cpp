@@ -1,5 +1,5 @@
-#include "fmpz_mat_helpers.h"
 #include "matrix_poly.h"
+#include "fmpz_mat_helpers.h"
 #include "debug_utils.h"
 
 #include <flint/fmpz.h>
@@ -9,6 +9,8 @@
 #include <flint/fmpq.h>
 #include <flint/fmpq_mat.h>
 #include <flint/fmpq_poly.h>
+#include <flint/nmod.h>
+#include <flint/nmod_mat.h>
 #include <flint/ulong_extras.h>
 #include <flint/profiler.h>
 
@@ -40,7 +42,6 @@ void fmpz_poly_apply_fmpq_mat_horner(fmpq_mat_t dst, const fmpq_mat_t src, const
 }
 
 // Algorithm B in Paterson-Stockmeyer: 2 * sqrt(deg(P)) matrix multiplications
-// TODO: consider scaling up everything and work on integer matrices
 void fmpz_poly_apply_fmpq_mat_ps(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f, const slong mem_threshold) {
 
   DEBUG_INFO(5,
@@ -213,6 +214,11 @@ void fmpz_poly_apply_fmpq_mat_ps_clear_denom(fmpq_mat_t dst, const fmpq_mat_t sr
   fmpz_poly_apply_fmpz_mat_ps(dst_z, src_z, f_adj);
   fmpq_mat_set_fmpz_mat_div_fmpz(dst, dst_z, den_pow);
 
+  // fmpz_mat_print_pretty(dst_z);
+  // printf("\nden_pow: ");
+  // fmpz_print(den_pow);
+  // printf("\n");
+
   fmpz_poly_clear(f_adj);
   fmpz_clear(den);
   fmpz_clear(den_pow);
@@ -220,6 +226,169 @@ void fmpz_poly_apply_fmpq_mat_ps_clear_denom(fmpq_mat_t dst, const fmpq_mat_t sr
   fmpz_mat_clear(dst_z);
 }
 
+// Algorithm B, but does the whole computation mod a prime, then combining once at the end.
+void fmpz_poly_apply_nmod_mat_ps(nmod_mat_t dst, const nmod_mat_t src, const fmpz_poly_t f) {
+
+  ulong n = src->mod.n;
+
+  DEBUG_INFO(5,
+    {
+      printf("fmpz_poly_apply_nmod_mat_ps called with modulus %lu\n", n);
+    }
+  )
+
+  ulong l = fmpz_poly_degree(f);
+  ulong k = n_sqrt(l);
+
+  ulong d = nmod_mat_nrows(src);
+  assert(d == nmod_mat_nrows(src));
+
+  // Compute 1, T, T^2, .., T^k
+  nmod_mat_t* pows = (nmod_mat_t*) flint_malloc((k + 1) * sizeof(nmod_mat_t));
+  nmod_mat_t tmp;
+
+  nmod_mat_init(pows[0], d, d, n);
+  for (int r = 0; r < d; r++) {
+    nmod_mat_set_entry(pows[0], r, r, 1);
+  }
+
+  nmod_mat_init_set(tmp, src);
+  for (int i = 1; i < k; i++) {
+    nmod_mat_init_set(pows[i], tmp);
+    nmod_mat_mul(tmp, tmp, src);
+  }
+
+  nmod_mat_init_set(pows[k], tmp);
+
+  nmod_mat_zero(dst);
+
+  fmpz_t a;
+
+  fmpz_init(a);
+  for (int j = l / k; j >= 0; j--) {
+
+    for (int i = 0; i < k; i++) {
+      fmpz_poly_get_coeff_fmpz(a, f, j * k + i);
+      if (!fmpz_is_zero(a)) {
+        nmod_mat_scalar_mul_fmpz(tmp, pows[i], a);
+        nmod_mat_add(dst, dst, tmp);
+      }
+    }
+
+    if (j > 0) {
+      nmod_mat_mul(dst, dst, pows[k]);
+    }
+  }
+
+  fmpz_clear(a);
+  nmod_mat_clear(tmp);
+  for (int i = 0; i <= k; i++) {
+    nmod_mat_clear(pows[i]);
+  }
+  flint_free(pows);
+}
+
+void fmpz_poly_apply_fmpq_mat_ps_nmod(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
+
+  DEBUG_INFO(5,
+    {
+      printf("fmpz_poly_apply_fmpq_mat_ps_nmod called with f(T) = ");
+      fmpz_poly_print_pretty(f, "T");
+      printf("\n");
+    }
+  )
+
+  ulong d = fmpq_mat_nrows(src);
+  assert(d == fmpq_mat_ncols(src));
+
+  fmpz_mat_t src_z, dst_z;
+  fmpz_t den, mod;
+  fmpz_t min_elt, max_elt;
+
+  fmpz_mat_init(src_z, d, d);
+  fmpz_mat_init(dst_z, d, d);
+  fmpz_init(den);
+
+  fmpq_mat_get_fmpz_mat_matwise(src_z, den, src);
+
+  fmpz_poly_t f_adj;
+  fmpz_poly_init(f_adj);
+  fmpz_poly_set(f_adj, f);
+
+  int deg = f->length - 1;
+  fmpz_t den_pow;
+  fmpz_init_set(den_pow, den);
+
+  for (int i = deg - 1; i >= 0; i--) {
+    fmpz_mul(fmpz_poly_get_coeff_ptr(f_adj, i), fmpz_poly_get_coeff_ptr(f_adj, i), den_pow);
+    if (i > 0) fmpz_mul(den_pow, den_pow, den);
+  }
+
+  fmpz_init_set_ui(mod, 1);
+  fmpz_init_set_si(min_elt, 0);
+  fmpz_init_set_si(max_elt, 0);
+
+  ulong p = 1ULL << 61;
+  int unchanged_iters = 0;
+  const int iters_threshold = 1;
+  bool done = false;
+
+  for (int iter = 0; unchanged_iters < iters_threshold; iter++) {
+    p = n_nextprime(p, 1);
+
+    // fmpz_mat_print_pretty(dst_z);
+    // printf("\n");
+
+    nmod_mat_t mat_p;
+    nmod_mat_init(mat_p, d, d, p);
+    fmpz_mat_get_nmod_mat(mat_p, src_z);
+
+    fmpz_poly_apply_nmod_mat_ps(mat_p, mat_p, f_adj);
+
+    if (iter == 0) {
+      fmpz_mat_set_nmod_mat(dst_z, mat_p);
+    } else {
+      fmpz_mat_CRT_ui(dst_z, dst_z, mod, mat_p, 1);
+    }
+
+    fmpz_t new_min_elt, new_max_elt;
+    fmpz_init(new_min_elt);
+    fmpz_init(new_max_elt);
+    fmpz_mat_min_elt(new_min_elt, dst_z);
+    fmpz_mat_max_elt(new_max_elt, dst_z);
+
+    if (fmpz_equal(new_min_elt, min_elt) && fmpz_equal(new_max_elt, max_elt)) {
+      unchanged_iters++;
+    } else {
+      unchanged_iters = 0;
+      fmpz_set(min_elt, new_min_elt);
+      fmpz_set(max_elt, new_max_elt);
+    }
+
+    fmpz_clear(new_min_elt);
+    fmpz_clear(new_max_elt);
+
+    fmpz_mul_ui(mod, mod, p);
+    nmod_mat_clear(mat_p);
+  }
+
+  fmpq_mat_set_fmpz_mat_div_fmpz(dst, dst_z, den_pow);
+
+  // fmpz_mat_print_pretty(dst_z);
+  // printf("\nden_pow: ");
+  // fmpz_print(den_pow);
+  // printf("\n");
+
+  fmpz_poly_clear(f_adj);
+  fmpz_clear(mod);
+  fmpz_clear(den);
+  fmpz_clear(den_pow);
+  fmpz_mat_clear(src_z);
+  fmpz_mat_clear(dst_z);
+}
+
+// Algorithm C in Paterson-Stockmeyer: sqrt(2 * deg(P)) matrix multiplications, but more scalar preprocessing
+// BUG: using this function seems to give wrong results in some cases, and is also just very slow!
 void _fmpq_poly_apply_fmpq_mat_base(
   fmpq_mat_t dst,
   const fmpq_mat_t src,
@@ -481,7 +650,6 @@ void _fmpq_poly_apply_fmpq_mat_ps_recur(
   fmpq_poly_clear(base);
 }
 
-// BUG: using this function seems to give wrong results in some cases, and is also just very slow!
 void fmpz_poly_apply_fmpq_mat_ps_recur(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f) {
 
   DEBUG_INFO(5,
@@ -542,6 +710,7 @@ void fmpz_poly_apply_fmpq_mat_ps_recur(fmpq_mat_t dst, const fmpq_mat_t src, con
 
 }
 
+// Main function
 void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_poly_t f, const slong mem_threshold) {
   int degree = fmpz_poly_degree(f);
 
@@ -554,16 +723,23 @@ void fmpz_poly_apply_fmpq_mat(fmpq_mat_t dst, const fmpq_mat_t src, const fmpz_p
       fmpq_set_fmpz(fmpq_mat_entry(dst, j, j), coeff);
     }
     fmpz_clear(coeff);
-    return;
   } else if (degree <= 3) {
     fmpz_poly_apply_fmpq_mat_horner(dst, src, f);
-    return;
   } else {
     fmpz_poly_apply_fmpq_mat_ps(dst, src, f, mem_threshold);
-    return;
+    // fmpz_poly_apply_fmpq_mat_ps_nmod(dst, src, f);
+    // fmpz_poly_apply_fmpq_mat_ps_clear_denom(dst, src, f);
   }
   // else {
   //   fmpz_poly_apply_fmpq_mat_ps_recur(dst, src, f);
   //   return;
   // }
+
+  DEBUG_INFO(5,
+    {
+      printf("result = ");
+      fmpq_mat_print(dst);
+      printf("\n");
+    }
+  )
 }

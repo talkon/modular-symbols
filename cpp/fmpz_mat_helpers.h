@@ -19,6 +19,12 @@ void fmpz_mat_print_dimensions(const fmpz_mat_t mat);
 // Prints (row x col, max_bits) of a matrix.
 void fmpq_mat_print_dimensions(const fmpq_mat_t mat);
 
+// Gets the maximum element of a matrix
+void fmpz_mat_max_elt(fmpz_t res, const fmpz_mat_t mat);
+
+// Gets the minimum element of a matrix
+void fmpz_mat_min_elt(fmpz_t res, const fmpz_mat_t mat);
+
 // Returns the total amount of memory used by `num` in bytes
 ulong fmpz_alloc_size(const fmpz_t num);
 
