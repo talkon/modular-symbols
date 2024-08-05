@@ -616,6 +616,8 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
     fmpz_mat_clear(f_matrix_z);
   }
 
+  flint_cleanup();
+
   // --------------------- //
   // Computes minpoly of f //
   // --------------------- //
@@ -648,6 +650,7 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
   )
 
   fmpq_poly_clear(min_poly);
+  flint_cleanup();
 
   // ---------------------------- //
   // Computes space decomposition //
@@ -677,10 +680,6 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
   } else {
     fmpq_mat_t poly_on_f_matrix;
     fmpz_mat_t poly_on_f_matrix_z, poly_mat_kernel;
-    fmpq_mat_init(poly_on_f_matrix, b_size, b_size);
-    fmpz_mat_init(poly_on_f_matrix_z, b_size, b_size);
-    fmpz_mat_init(poly_mat_kernel, b_size, b_size);
-
     fmpz_mat_t poly_mat_kernel_window, poly_mat_kernel_in_orig_basis;
 
     int dimension_excess = 0;
@@ -702,6 +701,9 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         continue;
       }
 
+      fmpq_mat_init(poly_on_f_matrix, b_size, b_size);
+      fmpz_mat_init(poly_on_f_matrix_z, b_size, b_size);
+
       fmpz_poly_apply_fmpq_mat(poly_on_f_matrix, f_matrix, factor, mem_threshold);
 
       DEBUG_INFO(4,
@@ -713,6 +715,8 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
       )
       // NOTE: this needs to be rowwise!
       fmpq_mat_get_fmpz_mat_rowwise(poly_on_f_matrix_z, NULL, poly_on_f_matrix);
+      fmpq_mat_clear(poly_on_f_matrix);
+      flint_cleanup();
 
       DEBUG_INFO(4,
         {
@@ -722,7 +726,10 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         }
       )
 
+      fmpz_mat_init(poly_mat_kernel, b_size, b_size);
       int rank = fmpz_mat_nullspace_mul(poly_mat_kernel, poly_on_f_matrix_z);
+      fmpz_mat_clear(poly_on_f_matrix_z);
+      flint_cleanup();
 
       fmpz_mat_window_init(poly_mat_kernel_window, poly_mat_kernel, 0, 0, b_size, rank);
 
@@ -754,6 +761,8 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
       fmpz_mat_init(poly_mat_kernel_in_orig_basis, N_basis.size(), rank);
       fmpz_mat_mul(poly_mat_kernel_in_orig_basis, B.mat, poly_mat_kernel_window);
       fmpz_mat_window_clear(poly_mat_kernel_window);
+      fmpz_mat_clear(poly_mat_kernel);
+      flint_cleanup();
 
       DEBUG_INFO(4,
         {
@@ -794,10 +803,6 @@ DecomposeResult decompose(Subspace subspace, FmpqMatrix& map_of_basis, bool dime
         remaining.emplace_back(out);
       }
     }
-
-    fmpq_mat_clear(poly_on_f_matrix);
-    fmpz_mat_clear(poly_on_f_matrix_z);
-    fmpz_mat_clear(poly_mat_kernel);
   }
 
   fmpz_poly_clear(min_poly_z);

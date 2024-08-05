@@ -166,6 +166,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
 
       fmpq_mat_mul_fmpz_mat(f_matrix, pivot_rows, basis.mat);
       fmpq_mat_clear(pivot_rows);
+      flint_cleanup();
 
       DEBUG_INFO(6,
         {
@@ -193,6 +194,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
 
         fmpq_mat_clear(temp);
         fmpz_clear(P);
+        flint_cleanup();
       }
     }
     else {
@@ -238,6 +240,7 @@ int Subspace::next_trace(int next_depth, FmpqMatrix& hecke_mat, int max_trace_de
       hecke_matrices.insert(std::make_pair(n, hecke_matrix));
     } else {
       fmpq_mat_clear(f_matrix);
+      flint_cleanup();
     }
 
     trace_depth++;
